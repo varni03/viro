@@ -12,6 +12,7 @@ import Login from "./pages/Login";
 import ProductionLine from "./pages/ProductionLine";
 import Settings from "./pages/Settings";
 import Onboarding from "./pages/Onboarding";
+import { useBreakpoint } from "./hooks/useBreakpoint";
 
 
 function ReportTab({ report }) {
@@ -114,6 +115,11 @@ export default function App() {
     defectType: null,
     productId: null,
   });
+
+  const { isMobile, isTablet } = useBreakpoint();
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [aiPanelOpen, setAiPanelOpen] = useState(false);
+
   
 
   const staticPages = ["Dashboard", "Vehicle Search", "Log Defect", "Analytics", "Predictive"];
@@ -251,22 +257,90 @@ export default function App() {
       height: "100vh",
       background: COLORS.bg,
       overflow: "hidden",
+      position: "relative",
     }}>
-      {/* Left sidebar */}
-      <Sidebar
-        activePage={activePage}
-        setActivePage={setActivePage}
-        company={company}
-        companies={companies}
-        setCompany={setCompany}
-        stats={stats}
-        user={user}
-        onLogout={handleLogout}
-      />
 
+      {/* Mobile/Tablet overlay when sidebar open */}
+      {(isMobile || isTablet) && sidebarOpen && (
+        <div
+          onClick={() => setSidebarOpen(false)}
+          style={{
+            position: "fixed",
+            inset: 0,
+            background: "rgba(0,0,0,0.6)",
+            zIndex: 40,
+          }}
+        />
+      )}
+
+      {/* Left sidebar */}
+      <div style={{
+        position: isMobile || isTablet ? "fixed" : "relative",
+        left: isMobile || isTablet ? (sidebarOpen ? 0 : -240) : 0,
+        zIndex: 50,
+        transition: "left 0.25s ease",
+        height: "100vh",
+        flexShrink: 0,
+      }}>
+        <Sidebar
+          activePage={activePage}
+          setActivePage={(page) => {
+            setActivePage(page);
+            if (isMobile || isTablet) setSidebarOpen(false);
+          }}
+          company={company}
+          companies={companies}
+          setCompany={setCompany}
+          stats={stats}
+          user={user}
+          onLogout={handleLogout}
+        />
+      </div>
 
       {/* Main content */}
-      <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden" }}>
+      <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden", minWidth: 0 }}>
+
+        {/* Mobile/Tablet top bar */}
+        {(isMobile || isTablet) && (
+          <div style={{
+            display: "flex", alignItems: "center",
+            justifyContent: "space-between",
+            padding: "12px 16px",
+            background: COLORS.surface,
+            borderBottom: `1px solid ${COLORS.border}`,
+            flexShrink: 0,
+          }}>
+            <button
+              onClick={() => setSidebarOpen(!sidebarOpen)}
+              style={{
+                background: COLORS.card,
+                border: `1px solid ${COLORS.border}`,
+                borderRadius: 8, padding: "8px 12px",
+                color: COLORS.text, fontSize: 18,
+                cursor: "pointer",
+              }}
+            >
+              ---
+            </button>
+
+            <div style={{ fontSize: 16, fontWeight: 800, color: COLORS.text }}>
+              {company?.name || "Viro"}
+            </div>
+
+            <button
+              onClick={() => setAiPanelOpen(!aiPanelOpen)}
+              style={{
+                background: aiPanelOpen ? COLORS.accentGlow : COLORS.card,
+                border: `1px solid ${aiPanelOpen ? COLORS.accent + "44" : COLORS.border}`,
+                borderRadius: 8, padding: "8px 12px",
+                color: aiPanelOpen ? COLORS.accentLight : COLORS.muted,
+                fontSize: 16, cursor: "pointer",
+              }}
+            >
+              🤖
+            </button>
+          </div>
+        )}
 
         {/* Tab bar */}
         {reportTabs.length > 0 && (
@@ -312,19 +386,60 @@ export default function App() {
         )}
 
         {/* Page content */}
-        <div style={{ flex: 1, overflow: "auto", padding: "32px 36px" }}>
+        <div style={{
+          flex: 1, overflow: "auto",
+          padding: isMobile ? "16px" : isTablet ? "24px" : "32px 36px",
+        }}>
           {renderPage()}
         </div>
       </div>
 
       {/* Right AI panel */}
-      <AIPanel
-        company={company}
-        onNewReport={addReportTab}
-        activePage={activePage}
-        onFilterChange={setFilters}
-        currentFilters={filters}
-      />
+      {(!isMobile && !isTablet) ? (
+        <AIPanel
+          company={company}
+          onNewReport={addReportTab}
+          activePage={activePage}
+          onFilterChange={setFilters}
+          currentFilters={filters}
+        />
+      ) : (
+        aiPanelOpen && (
+          <div style={{
+            position: "fixed",
+            right: 0, top: 0, bottom: 0,
+            width: isMobile ? "100%" : 360,
+            zIndex: 50,
+            boxShadow: "-4px 0 20px rgba(0,0,0,0.4)",
+          }}>
+            <div style={{ position: "relative", height: "100%" }}>
+              <button
+                onClick={() => setAiPanelOpen(false)}
+                style={{
+                  position: "absolute",
+                  top: 16, left: -40,
+                  background: COLORS.surface,
+                  border: `1px solid ${COLORS.border}`,
+                  borderRadius: "8px 0 0 8px",
+                  padding: "8px 10px",
+                  color: COLORS.muted,
+                  cursor: "pointer", fontSize: 14,
+                  zIndex: 51,
+                }}
+              >
+                ✕
+              </button>
+              <AIPanel
+                company={company}
+                onNewReport={addReportTab}
+                activePage={activePage}
+                onFilterChange={setFilters}
+                currentFilters={filters}
+              />
+            </div>
+          </div>
+        )
+      )}
     </div>
   );
 }
