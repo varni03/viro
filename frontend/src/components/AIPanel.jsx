@@ -11,8 +11,8 @@ const SUGGESTIONS = [
   "What are best practices for reducing defects?",
 ];
 
-export default function AIPanel({ company, onNewReport, activePage, onFilterChange, currentFilters }) {
-  const [messages, setMessages] = useState([
+export default function AIPanel({ company, onNewReport, activePage, onFilterChange, currentFilters, prefs, onPrefsChange: setPrefs }) {
+    const [messages, setMessages] = useState([
     {
       role: "assistant",
       content: `Hi, I'm your AI assistant. Ask me questions about your data, or tell me how to filter the dashboard. Try: 'show only critical defects' or 'filter to station 310'.`,
@@ -54,58 +54,120 @@ export default function AIPanel({ company, onNewReport, activePage, onFilterChan
     setLoading(true);
 
     try {
-      // First check if this is a filter change request
-      const filterRes = await fetch("http://localhost:8000/ai/interpret-filters", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          message: question,
-          company_id: company.company_id,
-          current_filters: currentFilters || {},
-        })
-      }).then(r => r.json());
-
-      if (filterRes.is_filter_change && onFilterChange) {
-        onFilterChange(filterRes.filters);
-        setMessages(prev => [...prev, {
-          role: "assistant",
-          content: `✅ ${filterRes.message}\n\nThe dashboard has been updated to show your filtered view.`,
-          data: null,
-          isFilterChange: true,
-        }]);
-
-      } else {
-        // Regular question
-        const history = messages.map(m => ({ role: m.role, content: m.content }));
-        const res = await askAI(question, company.company_id, history);
-        const answer = res.data.answer;
-        const data = res.data.data;
-
-        setMessages(prev => [...prev, {
-          role: "assistant",
-          content: answer,
-          data: data?.length > 0 ? data : null,
-          sql: res.data.sql,
-        }]);
-
-        if (data?.length > 0 && onNewReport) {
-          onNewReport({
-            title: question.slice(0, 50),
-            data,
-            answer,
-            sql: res.data.sql,
+        // First check if this is a platform command
+        const commandRes = await fetch("http://localhost:8000/ai/command", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            message: question,
+            company_id: company.company_id,
+            current_prefs: prefs || {},
+            current_modules: [],
+          })
+        }).then(r => r.json());
+  
+        if (commandRes.type === "display") {
+          const newPrefs = { ...prefs, ...commandRes.changes };
+          setPrefs && setPrefs(newPrefs);
+          // Save to backend
+          await fetch(`http://localhost:8000/prefs/${company.company_id}`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(newPrefs)
           });
+          setMessages(prev => [...prev, {
+            role: "assistant",
+            content: `✅ ${commandRes.message}`,
+            data: null,
+            isCommand: true,
+          }]);
+  
+        } else if (commandRes.type === "filter") {
+          if (onFilterChange) {
+            onFilterChange(prev => ({
+              ...prev,
+              severities: commandRes.default_severity_filter === "all"
+                ? [] : [commandRes.default_severity_filter]
+            }));
+          }
+          setMessages(prev => [...prev, {
+            role: "assistant",
+            content: `✅ ${commandRes.message}`,
+            data: null,
+            isCommand: true,
+          }]);
+  
+        } else if (commandRes.type === "module") {
+          // Toggle module
+          await fetch(`http://localhost:8000/modules/${company.company_id}`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              modules: [{ id: commandRes.module_id, enabled: commandRes.enabled,
+                custom_label: commandRes.module_id, custom_icon: "" }]
+            })
+          });
+          setMessages(prev => [...prev, {
+            role: "assistant",
+            content: `✅ ${commandRes.message} — refresh the page to see the change.`,
+            data: null,
+            isCommand: true,
+          }]);
+  
+        } else {
+          // Check if filter change
+          const filterRes = await fetch("http://localhost:8000/ai/interpret-filters", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              message: question,
+              company_id: company.company_id,
+              current_filters: currentFilters || {},
+            })
+          }).then(r => r.json());
+  
+          if (filterRes.is_filter_change && onFilterChange) {
+            onFilterChange(filterRes.filters);
+            setMessages(prev => [...prev, {
+              role: "assistant",
+              content: `✅ ${filterRes.message}\n\nThe dashboard has been updated to show your filtered view.`,
+              data: null,
+              isFilterChange: true,
+            }]);
+          } else {
+            // Regular question
+            const history = messages.map(m => ({ role: m.role, content: m.content }));
+            const res = await askAI(question, company.company_id, history);
+            const answer = res.data.answer;
+            const data = res.data.data;
+  
+            setMessages(prev => [...prev, {
+              role: "assistant",
+              content: answer,
+              data: data?.length > 0 ? data : null,
+              sql: res.data.sql,
+            }]);
+  
+            if (data?.length > 0 && onNewReport) {
+              onNewReport({
+                title: question.slice(0, 50),
+                data,
+                answer,
+                sql: res.data.sql,
+              });
+            }
+          }
         }
+  
+      } catch {
+        setMessages(prev => [...prev, {
+          role: "assistant",
+          content: "Could not connect to backend. Make sure it is running.",
+          data: null,
+        }]);
       }
-
-    } catch {
-      setMessages(prev => [...prev, {
-        role: "assistant",
-        content: "⚠️ Could not connect to backend. Make sure it is running.",
-        data: null,
-      }]);
-    }
-    setLoading(false);
+      setLoading(false);
+  
   };
 
   return (

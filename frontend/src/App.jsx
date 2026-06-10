@@ -116,6 +116,14 @@ export default function App() {
     productId: null,
   });
 
+  const [prefs, setPrefs] = useState({
+    font_size: "normal",
+    density: "normal",
+    dashboard_columns: 3,
+    default_severity_filter: "all",
+  });
+
+
   const { isMobile, isTablet } = useBreakpoint();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [aiPanelOpen, setAiPanelOpen] = useState(false);
@@ -165,6 +173,11 @@ export default function App() {
 
   useEffect(() => {
     if (!company) return;
+    fetch(`http://localhost:8000/prefs/${company.company_id}`)
+    .then(r => r.json())
+    .then(setPrefs)
+    .catch(() => {});
+
 
     Promise.all([
       getProducts(company.company_id),
@@ -219,7 +232,7 @@ export default function App() {
     }
 
     switch (activePage) {
-      case "Dashboard": return <Dashboard company={company} filters={filters} />;
+      case "Dashboard": return <Dashboard company={company} filters={filters} prefs={prefs} />;
       case "Production Line": return <ProductionLine company={company} user={user} />;
       case "Predictive": return <Predictive company={company} />;
       case "Analytics": return <Analytics company={company} />;
@@ -399,12 +412,15 @@ export default function App() {
       {/* Right AI panel */}
       {(!isMobile && !isTablet) ? (
         <AIPanel
-          company={company}
-          onNewReport={addReportTab}
-          activePage={activePage}
-          onFilterChange={setFilters}
-          currentFilters={filters}
-        />
+        company={company}
+        onNewReport={addReportTab}
+        activePage={activePage}
+        onFilterChange={setFilters}
+        currentFilters={filters}
+        prefs={prefs}
+        onPrefsChange={setPrefs}
+      />
+
       ) : (
         aiPanelOpen && (
           <div style={{

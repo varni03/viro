@@ -579,6 +579,80 @@ def interpret_filters(request: AIFilterRequest):
 
     except Exception as e:
         return {"is_filter_change": False, "filters": None, "message": ""}
+    
+class PlatformCommandRequest(BaseModel):
+    message: str
+    company_id: str
+    current_prefs: dict = {}
+    current_modules: list = []
+
+@app.post("/ai/command")
+def interpret_command(request: PlatformCommandRequest):
+    try:
+        prompt = f"""You are an AI that controls a business operations platform.
+        
+The user said: "{request.message}"
+
+Current display preferences: {request.current_prefs}
+Current enabled modules: {request.current_modules}
+
+Classify this as one of these command types and return ONLY JSON:
+
+1. DISPLAY change (font size, density, layout):
+{{
+    "type": "display",
+    "changes": {{
+        "font_size": "small|normal|large|xlarge or null to keep",
+        "density": "compact|normal|comfortable or null to keep",
+        "dashboard_columns": 2|3|4 or null to keep
+    }},
+    "message": "confirmation message"
+}}
+
+2. MODULE toggle:
+{{
+    "type": "module",
+    "module_id": "dashboard|search|log_issue|workflow|analytics|predictive|repair|settings",
+    "enabled": true|false,
+    "message": "confirmation message"
+}}
+
+3. FILTER default change:
+{{
+    "type": "filter",
+    "default_severity_filter": "all|critical|high|medium|low",
+    "message": "confirmation message"
+}}
+
+4. NOT a platform command (just a question or data request):
+{{
+    "type": "none",
+    "message": ""
+}}
+
+Examples:
+- "make the font bigger" -> display, font_size: "large"
+- "use compact layout" -> display, density: "compact"  
+- "show 4 columns on dashboard" -> display, dashboard_columns: 4
+- "hide the predictive risk tab" -> module, predictive, enabled: false
+- "only show critical by default" -> filter, critical
+- "what are my top defects" -> none
+
+Return ONLY the JSON."""
+
+        response = client.messages.create(
+            model="claude-sonnet-4-20250514",
+            max_tokens=300,
+            messages=[{"role": "user", "content": prompt}]
+        )
+
+        result = json.loads(response.content[0].text.strip())
+        return result
+
+    except Exception as e:
+        return {"type": "none", "message": ""}
+
+
 # ── Auth ───────────────────────────────────────────────────────
 SECRET_KEY = os.getenv("JWT_SECRET", "viro-secret-key-change-in-production")
 
@@ -818,7 +892,67 @@ db.execute("""
     )
 """)
 
+db.execute("""
+    CREATE TABLE IF NOT EXISTS display_preferences (
+        company_id TEXT PRIMARY KEY,
+        font_size TEXT DEFAULT 'normal',
+        density TEXT DEFAULT 'normal',
+        dashboard_columns INTEGER DEFAULT 3,
+        default_severity_filter TEXT DEFAULT 'all',
+        sidebar_collapsed INTEGER DEFAULT 0,
+        custom_prefs TEXT DEFAULT '{}'
+    )
+""")
 
+class DisplayPrefs(BaseModel):
+    font_size: Optional[str] = "normal"
+    density: Optional[str] = "normal"
+    dashboard_columns: Optional[int] = 3
+    default_severity_filter: Optional[str] = "all"
+    sidebar_collapsed: Optional[int] = 0
+    custom_prefs: Optional[str] = "{}"
+
+@app.get("/prefs/{company_id}")
+def get_prefs(company_id: str):
+    result = db.query(
+        "SELECT * FROM display_preferences WHERE company_id = ?",
+        (company_id,)
+    )
+    if result.empty:
+        return {
+            "font_size": "normal",
+            "density": "normal",
+            "dashboard_columns": 3,
+            "default_severity_filter": "all",
+            "sidebar_collapsed": 0,
+            "custom_prefs": "{}",
+        }
+    return result.iloc[0].to_dict()
+
+@app.post("/prefs/{company_id}")
+def save_prefs(company_id: str, prefs: DisplayPrefs):
+    existing = db.query(
+        "SELECT * FROM display_preferences WHERE company_id = ?",
+        (company_id,)
+    )
+    if existing.empty:
+        db.execute("""
+            INSERT INTO display_preferences
+            (company_id, font_size, density, dashboard_columns, default_severity_filter, sidebar_collapsed, custom_prefs)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
+        """, (company_id, prefs.font_size, prefs.density,
+              prefs.dashboard_columns, prefs.default_severity_filter,
+              prefs.sidebar_collapsed, prefs.custom_prefs))
+    else:
+        db.execute("""
+            UPDATE display_preferences SET
+            font_size = ?, density = ?, dashboard_columns = ?,
+            default_severity_filter = ?, sidebar_collapsed = ?, custom_prefs = ?
+            WHERE company_id = ?
+        """, (prefs.font_size, prefs.density, prefs.dashboard_columns,
+              prefs.default_severity_filter, prefs.sidebar_collapsed,
+              prefs.custom_prefs, company_id))
+    return {"message": "Preferences saved"}
 
 
 class StageCreate(BaseModel):
