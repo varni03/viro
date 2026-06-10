@@ -83,38 +83,51 @@ export default function Sidebar({
 
   return (
     <div style={{
-      width: 230,
-      background: COLORS.surface,
-      borderRight: `1px solid ${COLORS.border}`,
+      width: 220,
+      background: "rgba(255,255,255,0.03)",
+      backdropFilter: "blur(40px)",
+      WebkitBackdropFilter: "blur(40px)",
+      borderRight: "1px solid rgba(255,255,255,0.06)",
       display: "flex",
       flexDirection: "column",
       flexShrink: 0,
       height: "100vh",
       position: "relative",
     }}>
+
+
       {/* Logo */}
-      <div style={{ padding: "24px 24px 20px" }}>
+      <div style={{ padding: "20px 16px 16px" }}>
         <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
           <div style={{
-            width: 36, height: 36,
-            background: `linear-gradient(135deg, ${COLORS.accent}, #4f46e5)`,
-            borderRadius: 10,
+            width: 30, height: 30,
+            background: "rgba(255,255,255,0.95)",
+            borderRadius: 8,
             display: "flex", alignItems: "center",
             justifyContent: "center",
-            fontSize: 18, fontWeight: 800,
+            fontSize: 16, fontWeight: 900,
+            color: "#050507",
           }}>
             ⬡
           </div>
           <div>
-            <div style={{ fontSize: 16, fontWeight: 800, letterSpacing: "-0.02em" }}>
+            <div style={{
+              fontSize: 14, fontWeight: 700,
+              letterSpacing: "-0.02em",
+              color: "#ffffff",
+            }}>
               {company?.name || "Viro"}
             </div>
-            <div style={{ fontSize: 9, color: COLORS.muted, letterSpacing: "0.1em", textTransform: "uppercase" }}>
+            <div style={{
+              fontSize: 9, color: "rgba(255,255,255,0.25)",
+              letterSpacing: "0.08em", textTransform: "uppercase",
+            }}>
               Powered by Viro
             </div>
           </div>
         </div>
       </div>
+
 
       {/* Company selector — admin only */}
       {user?.role === "admin" && (
@@ -149,7 +162,7 @@ export default function Sidebar({
       )}
 
       {/* Divider */}
-      <div style={{ height: 1, background: COLORS.border, marginBottom: 8 }} />
+      <div style={{ height: 1, background: "rgba(255,255,255,0.05)", marginBottom: 8 }} />
 
       {/* Nav */}
       <div style={{ flex: 1, padding: "8px 12px", overflowY: "auto" }}>
@@ -159,26 +172,25 @@ export default function Sidebar({
             <div
               key={item.id}
               onClick={() => setActivePage(item.page)}
+              className={`nav-item ${isActive ? "active" : ""}`}
               style={{
                 display: "flex", alignItems: "center", gap: 10,
-                padding: "10px 14px", borderRadius: 10,
-                cursor: "pointer", marginBottom: 2,
-                background: isActive ? COLORS.accentGlow : "transparent",
-                border: isActive ? `1px solid ${COLORS.accent}44` : "1px solid transparent",
-                color: isActive ? COLORS.accentLight : COLORS.muted,
-                fontSize: 13, fontWeight: isActive ? 600 : 400,
-                transition: "all 0.15s",
+                padding: "9px 12px",
+                marginBottom: 2,
+                color: isActive ? "#ffffff" : "rgba(255,255,255,0.4)",
+                fontSize: 13, fontWeight: isActive ? 500 : 400,
               }}
             >
-              <span style={{ fontSize: 15 }}>{item.icon}</span>
+              <span style={{ fontSize: 15, opacity: isActive ? 1 : 0.6 }}>{item.icon}</span>
               {item.label}
             </div>
+
           );
         })}
       </div>
 
       {/* Divider */}
-      <div style={{ height: 1, background: COLORS.border }} />
+      <div style={{ height: 1, background: "rgba(255,255,255,0.05)", marginBottom: 8 }} />
 
       {/* Notifications bell */}
       {user?.role === "manager" || user?.role === "admin" ? (
@@ -281,8 +293,9 @@ export default function Sidebar({
 
       {/* Live stats */}
       <div style={{ padding: "12px 16px" }}>
-        <div style={{
-          background: COLORS.card, border: `1px solid ${COLORS.border}`,
+      <div style={{
+          background: "rgba(255,255,255,0.04)",
+          border: "1px solid rgba(255,255,255,0.07)",
           borderRadius: 12, padding: "12px 14px",
         }}>
           <div style={{ fontSize: 10, color: COLORS.muted, letterSpacing: "0.1em", marginBottom: 10, fontWeight: 700 }}>
@@ -305,14 +318,14 @@ export default function Sidebar({
       </div>
 
       {/* Divider */}
-      <div style={{ height: 1, background: COLORS.border }} />
+      <div style={{ height: 1, background: "rgba(255,255,255,0.05)", marginBottom: 8 }} />
 
       {/* User profile */}
       <div style={{
-        margin: "12px 16px 16px",
-        padding: "12px 14px",
-        background: COLORS.card,
-        border: `1px solid ${COLORS.border}`,
+        margin: "12px 12px 12px",
+        padding: "10px 12px",
+        background: "rgba(255,255,255,0.04)",
+        border: "1px solid rgba(255,255,255,0.07)",
         borderRadius: 12,
         display: "flex",
         alignItems: "center",
@@ -333,12 +346,12 @@ export default function Sidebar({
           onClick={onLogout}
           style={{
             background: "transparent",
-            border: `1px solid ${COLORS.border}`,
+            border: "1px solid rgba(255,255,255,0.1)",
             borderRadius: 6,
             padding: "4px 10px",
-            color: COLORS.muted,
+            color: "rgba(255,255,255,0.4)",
             fontSize: 11,
-            cursor: "pointer",
+            cursor: "pointer",  
           }}
         >
           Out

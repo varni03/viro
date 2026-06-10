@@ -7,7 +7,7 @@ import Predictive from "./pages/Predictive";
 import Analytics from "./pages/Analytics";
 import VehicleSearch from "./pages/VehicleSearch";
 import LogDefect from "./pages/LogDefect";
-import { COLORS } from "./components/Layout";
+import { COLORS, AuroraBackground } from "./components/Layout";
 import Login from "./pages/Login";
 import ProductionLine from "./pages/ProductionLine";
 import Settings from "./pages/Settings";
@@ -259,6 +259,7 @@ export default function App() {
       overflow: "hidden",
       position: "relative",
     }}>
+      <AuroraBackground />
 
       {/* Mobile/Tablet overlay when sidebar open */}
       {(isMobile || isTablet) && sidebarOpen && (
@@ -298,7 +299,8 @@ export default function App() {
       </div>
 
       {/* Main content */}
-      <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden", minWidth: 0 }}>
+      <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden", minWidth: 0, position: "relative", zIndex: 1 }}>
+
 
         {/* Mobile/Tablet top bar */}
         {(isMobile || isTablet) && (
