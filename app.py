@@ -20,6 +20,146 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
+# ── Custom Styling ─────────────────────────────────────────────
+st.markdown("""
+<style>
+    /* Main background */
+    .stApp {
+        background-color: #0f0f1a;
+        color: #e2e8f0;
+    }
+    
+    /* Sidebar */
+    [data-testid="stSidebar"] {
+        background-color: #1a1a2e;
+        border-right: 1px solid #2d2d44;
+    }
+    
+    /* Cards / containers */
+    [data-testid="stExpander"] {
+        background-color: #1a1a2e;
+        border: 1px solid #2d2d44;
+        border-radius: 12px;
+    }
+    
+    /* Metrics */
+    [data-testid="stMetric"] {
+        background-color: #1a1a2e;
+        border: 1px solid #2d2d44;
+        border-radius: 12px;
+        padding: 16px;
+    }
+    
+    [data-testid="stMetricValue"] {
+        color: #6366f1;
+        font-size: 2rem;
+        font-weight: bold;
+    }
+    
+    [data-testid="stMetricLabel"] {
+        color: #94a3b8;
+        font-size: 0.85rem;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+    }
+    
+    /* Buttons */
+    .stButton button {
+        background-color: #6366f1;
+        color: white;
+        border: none;
+        border-radius: 8px;
+        padding: 8px 20px;
+        font-weight: 600;
+        transition: all 0.2s;
+    }
+    
+    .stButton button:hover {
+        background-color: #4f46e5;
+        transform: translateY(-1px);
+    }
+    
+    /* Input fields */
+    .stTextInput input, .stTextArea textarea, .stSelectbox select {
+        background-color: #1a1a2e;
+        border: 1px solid #2d2d44;
+        border-radius: 8px;
+        color: #e2e8f0;
+    }
+    
+    /* Dataframe */
+    [data-testid="stDataFrame"] {
+        border: 1px solid #2d2d44;
+        border-radius: 12px;
+    }
+    
+    /* Divider */
+    hr {
+        border-color: #2d2d44;
+    }
+    
+    /* Title */
+    h1 {
+        color: #e2e8f0;
+        font-weight: 700;
+        font-size: 1.8rem;
+    }
+    
+    h2, h3 {
+        color: #cbd5e1;
+    }
+    
+    /* Caption */
+    .stCaption {
+        color: #64748b;
+    }
+    
+    /* Success/Error/Warning messages */
+    .stSuccess {
+        background-color: #064e3b;
+        border: 1px solid #059669;
+        border-radius: 8px;
+    }
+    
+    .stError {
+        background-color: #7f1d1d;
+        border: 1px solid #dc2626;
+        border-radius: 8px;
+    }
+    
+    .stWarning {
+        background-color: #78350f;
+        border: 1px solid #d97706;
+        border-radius: 8px;
+    }
+    
+    /* Chat messages */
+    [data-testid="stChatMessage"] {
+        background-color: #1a1a2e;
+        border: 1px solid #2d2d44;
+        border-radius: 12px;
+        margin-bottom: 8px;
+    }
+    
+    /* Progress bar */
+    .stProgress > div > div {
+        background-color: #6366f1;
+    }
+    
+    /* Radio buttons in sidebar */
+    .stRadio label {
+        color: #94a3b8;
+        font-size: 0.95rem;
+    }
+    
+    /* Hide Streamlit branding */
+    #MainMenu {visibility: hidden;}
+    footer {visibility: hidden;}
+    header {visibility: hidden;}
+</style>
+""", unsafe_allow_html=True)
+
+
 # ── Initialize database ────────────────────────────────────────
 @st.cache_resource
 def get_db():
@@ -29,14 +169,21 @@ db = get_db()
 
 # ── Sidebar ────────────────────────────────────────────────────
 with st.sidebar:
-    st.title("🏭 Viro")
-    st.caption("Manufacturing Intelligence Platform")
+    st.markdown("""
+    <div style='text-align: center; padding: 20px 0;'>
+        <h1 style='color: #6366f1; font-size: 2rem; margin: 0;'>⬡ Viro</h1>
+        <p style='color: #64748b; font-size: 0.8rem; margin: 4px 0 0 0;'>
+            Manufacturing Intelligence
+        </p>
+    </div>
+    """, unsafe_allow_html=True)
+
     st.divider()
 
     # Company selector
     companies = db.query("SELECT * FROM companies")
     company_names = companies["name"].tolist()
-    selected_name = st.selectbox("Select Company", company_names)
+    selected_name = st.selectbox("🏭 Company", company_names)
     selected_company = companies[companies["name"] == selected_name].iloc[0]
     company_id = selected_company["company_id"]
 
@@ -44,9 +191,39 @@ with st.sidebar:
 
     # Navigation
     page = st.radio(
-        "Navigation",
-        ["Dashboard", "Vehicle Search", "Log Defect", "AI Assistant", "Analytics", "Predictive"]
+        "Navigate",
+        ["Dashboard", "Vehicle Search", "Log Defect", 
+         "AI Assistant", "Analytics", "Predictive"]
     )
+
+    st.divider()
+
+    # Quick stats in sidebar
+    total = db.query(
+        "SELECT COUNT(*) as c FROM products WHERE company_id = ?",
+        (company_id,)
+    ).iloc[0]["c"]
+
+    unresolved = db.query(
+        "SELECT COUNT(*) as c FROM defects WHERE company_id = ? AND resolved = 0",
+        (company_id,)
+    ).iloc[0]["c"]
+
+    st.markdown(f"""
+    <div style='padding: 12px; background: #0f0f1a; border-radius: 8px; 
+                border: 1px solid #2d2d44;'>
+        <p style='color: #64748b; font-size: 0.75rem; margin: 0 0 8px 0;'>
+            QUICK STATS
+        </p>
+        <p style='color: #e2e8f0; margin: 4px 0;'>
+            📦 <b>{total}</b> products
+        </p>
+        <p style='color: #f97316; margin: 4px 0;'>
+            ⚠️ <b>{unresolved}</b> unresolved defects
+        </p>
+    </div>
+    """, unsafe_allow_html=True)
+
 
 
 
