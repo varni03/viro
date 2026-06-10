@@ -1,35 +1,60 @@
+import { useState, useEffect } from "react";
 import { COLORS } from './Layout';
 
-const managerItems = [
-  { label: "Dashboard", icon: "⬡" },
-  { label: "Vehicle Search", icon: "🔍" },
-  { label: "Log Defect", icon: "📸" },
-  { label: "Production Line", icon: "🔧" },
-  { label: "Analytics", icon: "📊" },
-  { label: "Predictive", icon: "⚠" },
-  { label: "Settings", icon: "⚙️" },
+const ALL_MODULES = [
+  { id: "dashboard", label: "Dashboard", icon: "⬡", page: "Dashboard" },
+  { id: "search", label: "Vehicle Search", icon: "🔍", page: "Vehicle Search" },
+  { id: "log_issue", label: "Log Defect", icon: "📸", page: "Log Defect" },
+  { id: "workflow", label: "Production Line", icon: "🔧", page: "Production Line" },
+  { id: "analytics", label: "Analytics", icon: "📊", page: "Analytics" },
+  { id: "predictive", label: "Predictive Risk", icon: "⚠️", page: "Predictive" },
+  { id: "repair", label: "Repair Queue", icon: "🔨", page: "Production Line" },
+  { id: "settings", label: "Settings", icon: "⚙️", page: "Settings" },
 ];
 
-const workerItems = [
-  { label: "Vehicle Search", icon: "🔍" },
-  { label: "Log Defect", icon: "📸" },
-];
-
-const repairItems = [
-  { label: "Production Line", icon: "🔧" },
-  { label: "Vehicle Search", icon: "🔍" },
-];
-
+const WORKER_MODULES = ["log_issue", "search"];
+const REPAIR_MODULES = ["workflow", "search"];
 
 export default function Sidebar({
   activePage, setActivePage, company, companies,
   setCompany, stats, user, onLogout
 }) {
+  const [modules, setModules] = useState([]);
 
-const navItems = user?.role === "worker" ? workerItems 
-  : user?.role === "repair" ? repairItems 
-  : managerItems;
+  useEffect(() => {
+    if (!company) return;
+    fetch(`http://localhost:8000/modules/${company.company_id}`)
+      .then(r => r.json())
+      .then(data => {
+        if (data && data.length > 0) {
+          setModules(data.filter(m => m.enabled));
+        } else {
+          setModules(ALL_MODULES.map(m => ({ module_id: m.id, custom_label: m.label, custom_icon: m.icon, enabled: 1 })));
+        }
+      })
+      .catch(() => {
+        setModules(ALL_MODULES.map(m => ({ module_id: m.id, custom_label: m.label, custom_icon: m.icon, enabled: 1 })));
+      });
+  }, [company?.company_id]);
 
+  const getNavItems = () => {
+    if (user?.role === "worker") {
+      return ALL_MODULES.filter(m => WORKER_MODULES.includes(m.id));
+    }
+    if (user?.role === "repair") {
+      return ALL_MODULES.filter(m => REPAIR_MODULES.includes(m.id));
+    }
+    return modules.map(m => {
+      const base = ALL_MODULES.find(am => am.id === m.module_id);
+      return base ? {
+        ...base,
+        label: m.custom_label || base.label,
+        icon: m.custom_icon || base.icon,
+      } : null;
+    }).filter(Boolean);
+  };
+
+  const navItems = getNavItems();
 
   return (
     <div style={{
@@ -42,62 +67,60 @@ const navItems = user?.role === "worker" ? workerItems
       height: "100vh",
     }}>
       {/* Logo */}
-<div style={{ padding: "24px 24px 20px" }}>
-  <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-    <div style={{
-      width: 36, height: 36,
-      background: `linear-gradient(135deg, ${COLORS.accent}, #4f46e5)`,
-      borderRadius: 10,
-      display: "flex", alignItems: "center",
-      justifyContent: "center",
-      fontSize: 18, fontWeight: 800,
-    }}>
-      ⬡
-    </div>
-    <div>
-      <div style={{ fontSize: 16, fontWeight: 800, letterSpacing: "-0.02em" }}>
-        {company?.name || "Viro"}
+      <div style={{ padding: "24px 24px 20px" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+          <div style={{
+            width: 36, height: 36,
+            background: `linear-gradient(135deg, ${COLORS.accent}, #4f46e5)`,
+            borderRadius: 10,
+            display: "flex", alignItems: "center",
+            justifyContent: "center",
+            fontSize: 18, fontWeight: 800,
+          }}>
+            ⬡
+          </div>
+          <div>
+            <div style={{ fontSize: 16, fontWeight: 800, letterSpacing: "-0.02em" }}>
+              {company?.name || "Viro"}
+            </div>
+            <div style={{ fontSize: 9, color: COLORS.muted, letterSpacing: "0.1em", textTransform: "uppercase" }}>
+              Powered by Viro
+            </div>
+          </div>
+        </div>
       </div>
-      <div style={{ fontSize: 9, color: COLORS.muted, letterSpacing: "0.1em", textTransform: "uppercase" }}>
-        Powered by Viro
-      </div>
-    </div>
-  </div>
-</div>
-
 
       {/* Company selector — admin only */}
-{user?.role === "admin" && (
-  <div style={{ padding: "0 16px 16px" }}>
-    <div style={{ fontSize: 10, color: COLORS.muted, letterSpacing: "0.08em", marginBottom: 6, paddingLeft: 4 }}>
-      COMPANY
-    </div>
-    <select
-      value={company?.company_id || ""}
-      onChange={e => {
-        const selected = companies.find(c => c.company_id === e.target.value);
-        setCompany(selected);
-      }}
-      style={{
-        width: "100%",
-        background: COLORS.card,
-        border: `1px solid ${COLORS.border}`,
-        borderRadius: 10,
-        padding: "10px 14px",
-        color: COLORS.text,
-        fontSize: 13,
-        fontWeight: 600,
-        cursor: "pointer",
-        outline: "none",
-      }}
-    >
-      {companies.map(c => (
-        <option key={c.company_id} value={c.company_id}>{c.name}</option>
-      ))}
-    </select>
-  </div>
-)}
-
+      {user?.role === "admin" && (
+        <div style={{ padding: "0 16px 16px" }}>
+          <div style={{ fontSize: 10, color: COLORS.muted, letterSpacing: "0.08em", marginBottom: 6, paddingLeft: 4 }}>
+            COMPANY
+          </div>
+          <select
+            value={company?.company_id || ""}
+            onChange={e => {
+              const selected = companies.find(c => c.company_id === e.target.value);
+              setCompany(selected);
+            }}
+            style={{
+              width: "100%",
+              background: COLORS.card,
+              border: `1px solid ${COLORS.border}`,
+              borderRadius: 10,
+              padding: "10px 14px",
+              color: COLORS.text,
+              fontSize: 13,
+              fontWeight: 600,
+              cursor: "pointer",
+              outline: "none",
+            }}
+          >
+            {companies.map(c => (
+              <option key={c.company_id} value={c.company_id}>{c.name}</option>
+            ))}
+          </select>
+        </div>
+      )}
 
       {/* Divider */}
       <div style={{ height: 1, background: COLORS.border, marginBottom: 8 }} />
@@ -105,11 +128,11 @@ const navItems = user?.role === "worker" ? workerItems
       {/* Nav */}
       <div style={{ flex: 1, padding: "8px 12px", overflowY: "auto" }}>
         {navItems.map(item => {
-          const isActive = activePage === item.label;
+          const isActive = activePage === item.page;
           return (
             <div
-              key={item.label}
-              onClick={() => setActivePage(item.label)}
+              key={item.id}
+              onClick={() => setActivePage(item.page)}
               style={{
                 display: "flex", alignItems: "center", gap: 10,
                 padding: "10px 14px", borderRadius: 10,
@@ -196,7 +219,6 @@ const navItems = user?.role === "worker" ? workerItems
           Out
         </button>
       </div>
-
     </div>
   );
 }

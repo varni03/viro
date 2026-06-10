@@ -24,10 +24,10 @@ const INDUSTRY_TEMPLATES = {
       { name: "electrical_fault", default_severity: "high" },
       { name: "mechanical_failure", default_severity: "critical" },
       { name: "alignment_issue", default_severity: "medium" },
-    ]
+    ],
     modules: ["dashboard", "search", "log_issue", "workflow", "analytics", "predictive", "repair", "settings"]
-    },
-  marine: {
+},
+marine: {
     label: "Marine / Shipping Procurement",
     icon: "🚢",
     term_product: "RFQ",
@@ -47,7 +47,7 @@ const INDUSTRY_TEMPLATES = {
       { name: "quality_issue", default_severity: "high" },
       { name: "customs_hold", default_severity: "medium" },
       { name: "missing_documentation", default_severity: "low" },
-    ]
+    ],
     modules: ["dashboard", "search", "log_issue", "analytics", "settings"]
   },
   food: {
@@ -70,7 +70,7 @@ const INDUSTRY_TEMPLATES = {
       { name: "seal_failure", default_severity: "high" },
       { name: "labeling_error", default_severity: "low" },
       { name: "temperature_breach", default_severity: "critical" },
-    ]
+    ],
     modules: ["dashboard", "search", "log_issue", "workflow", "analytics", "settings"]
 
   },
@@ -94,7 +94,7 @@ const INDUSTRY_TEMPLATES = {
       { name: "sterility_failure", default_severity: "critical" },
       { name: "labeling_error", default_severity: "high" },
       { name: "assembly_fault", default_severity: "critical" },
-    ]
+    ],
     modules: ["dashboard", "search", "log_issue", "workflow", "analytics", "predictive", "settings"]
 
   },
@@ -118,7 +118,7 @@ const INDUSTRY_TEMPLATES = {
       { name: "delivery_delay", default_severity: "medium" },
       { name: "missing_items", default_severity: "high" },
       { name: "address_error", default_severity: "medium" },
-    ]
+    ],
     modules: ["dashboard", "search", "log_issue", "workflow", "analytics", "settings"]
 
   },
@@ -130,10 +130,9 @@ const INDUSTRY_TEMPLATES = {
     term_stage: "Stage",
     term_issue: "Problem",
     stages: [],
-    defect_types: []
+    defect_types: [],
+    modules: ["dashboard", "search", "log_issue", "settings"]
   }
-  modules: ["dashboard", "search", "log_issue", "settings"]
-
 };
 const ALL_MODULES = [
     { id: "dashboard", label: "Dashboard", icon: "⬡", required: true },
@@ -666,8 +665,8 @@ const moduleData = ALL_MODULES.map(m => ({
 )}
 
 
-          {/* STEP 4 — Review workflow */}
-          {step === 4 && (
+          {/* STEP 5 — Review workflow */}
+          {step === 5 && (
             <div>
               <div style={{ fontSize: 20, fontWeight: 800, marginBottom: 6 }}>Your workflow</div>
               <div style={{ color: COLORS.muted, fontSize: 13, marginBottom: 20 }}>
@@ -768,7 +767,7 @@ const moduleData = ALL_MODULES.map(m => ({
 
               <div style={{ display: "flex", gap: 12 }}>
                 <button
-                  onClick={() => setStep(3)}
+                  onClick={() => setStep(4)}
                   style={{
                     flex: 1, background: COLORS.card,
                     border: `1px solid ${COLORS.border}`,
@@ -779,7 +778,7 @@ const moduleData = ALL_MODULES.map(m => ({
                   ← Back
                 </button>
                 <button
-                  onClick={() => setStep(5)}
+                  onClick={() => setStep(6)}
                   style={{
                     flex: 2,
                     background: `linear-gradient(135deg, ${COLORS.accent}, #4f46e5)`,
@@ -794,8 +793,8 @@ const moduleData = ALL_MODULES.map(m => ({
             </div>
           )}
 
-          {/* STEP 5 — Admin user */}
-          {step === 5 && (
+          {/* STEP 6 — Admin user */}
+          {step === 6 && (
             <div>
               <div style={{ fontSize: 20, fontWeight: 800, marginBottom: 6 }}>Your account</div>
               <div style={{ color: COLORS.muted, fontSize: 13, marginBottom: 24 }}>
@@ -847,7 +846,7 @@ const moduleData = ALL_MODULES.map(m => ({
 
               <div style={{ display: "flex", gap: 12 }}>
                 <button
-                  onClick={() => setStep(4)}
+                  onClick={() => setStep(5)}
                   style={{
                     flex: 1, background: COLORS.card,
                     border: `1px solid ${COLORS.border}`,
@@ -882,7 +881,7 @@ const moduleData = ALL_MODULES.map(m => ({
           )}
 
           {/* STEP 7 — Done */}
-          {step === 6 && (
+          {step === 7 && (
             <div style={{ textAlign: "center" }}>
               <div style={{ fontSize: 60, marginBottom: 16 }}>🎉</div>
               <div style={{ fontSize: 22, fontWeight: 800, marginBottom: 12 }}>
