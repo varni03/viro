@@ -153,6 +153,37 @@ def ask_ai(request: AIRequest):
             request.question, request.company_id
         )
 
+        # Get company terminology
+        company_config = db.query(
+            "SELECT config_key, config_value FROM company_config WHERE company_id = ?",
+            (request.company_id,)
+        )
+        config = dict(zip(company_config["config_key"], company_config["config_value"])) if not company_config.empty else {}
+        term_product = config.get("term_product", "product")
+        term_defect = config.get("term_defect", "defect")
+        term_stage = config.get("term_stage", "stage")
+        term_issue = config.get("term_issue", "issue")
+
+        # Get company info
+        company_info = db.query(
+            "SELECT * FROM companies WHERE company_id = ?",
+            (request.company_id,)
+        )
+        company_name = company_info.iloc[0]["name"] if not company_info.empty else "this company"
+        industry = company_info.iloc[0]["industry"] if not company_info.empty else "operations"
+
+        system_prompt = f"""You are an AI assistant for {company_name}, a {industry} company.
+You have access to their operational data and deep knowledge of their industry.
+Be concise, direct, and actionable.
+
+Use this companys specific terminology:
+- Call products: {term_product}
+- Call defects: {term_defect}
+- Call stages: {term_stage}
+- Call issues: {term_issue}
+
+When you see problems in the data, provide specific recommendations."""
+
         if result_df is not None and not result_df.empty:
             data_context = f"""
             The user asked: {request.question}
@@ -160,27 +191,20 @@ def ask_ai(request: AIRequest):
             Company data query results:
             {result_df.head(20).to_string()}
             
-            Answer using this data. Also use your knowledge of manufacturing 
-            best practices to provide additional context where relevant.
-            Be concise and direct. Highlight critical issues.
+            Answer using this data. Be concise and direct. Highlight critical issues.
             """
         else:
             data_context = f"""
             The user asked: {request.question}
             
             No specific company data was found for this query.
-            Answer using your knowledge of manufacturing, quality control,
-            and industry best practices.
+            Answer using your knowledge of {industry} and operational best practices.
             """
 
         response = client.messages.create(
             model="claude-sonnet-4-20250514",
             max_tokens=1000,
-            system="""You are Viro, an expert manufacturing quality AI assistant. 
-            You have access to company data and deep knowledge of manufacturing,
-            quality control, lean manufacturing, Six Sigma, and industry best practices.
-            Be concise, direct, and actionable. When you see quality issues in data,
-            provide specific recommendations based on industry standards.""",
+            system=system_prompt,
             tools=[{
                 "type": "web_search_20250305",
                 "name": "web_search"
@@ -192,7 +216,6 @@ def ask_ai(request: AIRequest):
             ]
         )
 
-        # Extract text from response handling tool use
         full_response = ""
         for block in response.content:
             if hasattr(block, "text"):
@@ -205,6 +228,7 @@ def ask_ai(request: AIRequest):
         }
     except Exception as e:
         return {"answer": f"Error: {str(e)}", "data": [], "sql": ""}
+
 
 class FilteredQuery(BaseModel):
     company_id: str
@@ -261,8 +285,20 @@ class AIFilterRequest(BaseModel):
 def interpret_filters(request: AIFilterRequest):
     """AI interprets natural language and returns filter changes"""
     try:
+        # Get terminology
+        company_config = db.query(
+            "SELECT config_key, config_value FROM company_config WHERE company_id = ?",
+            (request.company_id,)
+        )
+        config = dict(zip(company_config["config_key"], company_config["config_value"])) if not company_config.empty else {}
+        term_product = config.get("term_product", "product")
+        term_defect = config.get("term_defect", "defect")
+
+
         prompt = f"""
-        A manufacturing dashboard manager said: "{request.message}"
+        A manager at a company said: "{request.message}"
+        They call their products "{term_product}" and their defects "{term_defect}".
+
         
         Current filters: {request.current_filters}
         
@@ -666,7 +702,7 @@ async def sync_file(
     severity_col: str = "",
     logged_at_col: str = "",
 ):
-    """Sync file data into Viro's standard model"""
+    """Sync file data into Viro standard model"""
     try:
         contents = await file.read()
 
