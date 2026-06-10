@@ -8,6 +8,10 @@ import json
 import os
 from dotenv import load_dotenv
 from database.db import ViroDB
+import bcrypt
+import jwt
+from datetime import datetime, timedelta
+
 
 load_dotenv()
 
@@ -312,3 +316,110 @@ def interpret_filters(request: AIFilterRequest):
 
     except Exception as e:
         return {"is_filter_change": False, "filters": None, "message": ""}
+# ── Auth ───────────────────────────────────────────────────────
+SECRET_KEY = os.getenv("JWT_SECRET", "viro-secret-key-change-in-production")
+
+class LoginRequest(BaseModel):
+    email: str
+    password: str
+
+class RegisterRequest(BaseModel):
+    email: str
+    password: str
+    first_name: str
+    last_name: str
+    role: str
+    company_id: str
+
+def create_token(user_id: str, role: str, company_id: str):
+    payload = {
+        "user_id": user_id,
+        "role": role,
+        "company_id": company_id,
+        "exp": datetime.utcnow() + timedelta(hours=24)
+    }
+    return jwt.encode(payload, SECRET_KEY, algorithm="HS256")
+
+@app.post("/auth/register")
+def register(req: RegisterRequest):
+    import uuid
+    existing = db.query(
+        "SELECT * FROM users WHERE email = ?", (req.email,)
+    )
+    if not existing.empty:
+        raise HTTPException(status_code=400, detail="Email already registered")
+
+    password_hash = bcrypt.hashpw(
+        req.password.encode(), bcrypt.gensalt()
+    ).decode()
+
+    user_id = str(uuid.uuid4())
+    db.execute("""
+        INSERT INTO users
+        (user_id, company_id, email, password_hash, role, first_name, last_name)
+        VALUES (?, ?, ?, ?, ?, ?, ?)
+    """, (user_id, req.company_id, req.email, password_hash,
+          req.role, req.first_name, req.last_name))
+
+    token = create_token(user_id, req.role, req.company_id)
+    return {
+        "token": token,
+        "user": {
+            "user_id": user_id,
+            "email": req.email,
+            "role": req.role,
+            "company_id": req.company_id,
+            "first_name": req.first_name,
+            "last_name": req.last_name,
+        }
+    }
+
+@app.post("/auth/login")
+def login(req: LoginRequest):
+    user = db.query(
+        "SELECT * FROM users WHERE email = ?", (req.email,)
+    )
+    if user.empty:
+        raise HTTPException(status_code=401, detail="Invalid credentials")
+
+    user = user.iloc[0]
+    if not bcrypt.checkpw(req.password.encode(), user["password_hash"].encode()):
+        raise HTTPException(status_code=401, detail="Invalid credentials")
+
+    token = create_token(user["user_id"], user["role"], user["company_id"])
+    return {
+        "token": token,
+        "user": {
+            "user_id": user["user_id"],
+            "email": user["email"],
+            "role": user["role"],
+            "company_id": user["company_id"],
+            "first_name": user["first_name"],
+            "last_name": user["last_name"],
+        }
+    }
+
+@app.get("/auth/me")
+def get_me(authorization: str = None):
+    if not authorization:
+        raise HTTPException(status_code=401, detail="No token")
+    try:
+        token = authorization.replace("Bearer ", "")
+        payload = jwt.decode(token, SECRET_KEY, algorithms=["HS256"])
+        user = db.query(
+            "SELECT * FROM users WHERE user_id = ?",
+            (payload["user_id"],)
+        )
+        if user.empty:
+            raise HTTPException(status_code=401, detail="User not found")
+        u = user.iloc[0]
+        return {
+            "user_id": u["user_id"],
+            "email": u["email"],
+            "role": u["role"],
+            "company_id": u["company_id"],
+            "first_name": u["first_name"],
+            "last_name": u["last_name"],
+        }
+    except:
+        raise HTTPException(status_code=401, detail="Invalid token")

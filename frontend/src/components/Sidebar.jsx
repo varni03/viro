@@ -1,8 +1,6 @@
-import { useState } from "react";
-import { askAI } from "../api/client";
 import { COLORS } from './Layout';
 
-const navItems = [
+const managerItems = [
   { label: "Dashboard", icon: "⬡" },
   { label: "Vehicle Search", icon: "🔍" },
   { label: "Log Defect", icon: "📸" },
@@ -10,56 +8,16 @@ const navItems = [
   { label: "Predictive", icon: "⚠️" },
 ];
 
-export default function Sidebar({ 
-  activePage, setActivePage, company, companies, 
-  setCompany, stats, onNewReport 
+const workerItems = [
+  { label: "Vehicle Search", icon: "🔍" },
+  { label: "Log Defect", icon: "📸" },
+];
+
+export default function Sidebar({
+  activePage, setActivePage, company, companies,
+  setCompany, stats, user, onLogout
 }) {
-  const [aiOpen, setAiOpen] = useState(false);
-  const [messages, setMessages] = useState([
-    {
-      role: "assistant",
-      content: "Hi — ask me anything about your data. I can also generate reports.",
-    }
-  ]);
-  const [input, setInput] = useState("");
-  const [loading, setLoading] = useState(false);
-
-  const send = async (question) => {
-    if (!question.trim() || loading || !company) return;
-
-    setMessages(prev => [...prev, { role: "user", content: question }]);
-    setInput("");
-    setLoading(true);
-
-    try {
-      const res = await askAI(question, company.company_id, messages);
-      const answer = res.data.answer;
-      const data = res.data.data;
-
-      setMessages(prev => [...prev, {
-        role: "assistant",
-        content: answer,
-        data: data?.length > 0 ? data : null,
-      }]);
-
-      // If response has data, offer to open as report tab
-      if (data?.length > 0 && onNewReport) {
-        onNewReport({
-          title: question.slice(0, 40) + (question.length > 40 ? "..." : ""),
-          data,
-          answer,
-          sql: res.data.sql,
-        });
-      }
-
-    } catch {
-      setMessages(prev => [...prev, {
-        role: "assistant",
-        content: "⚠️ Could not connect. Make sure the backend is running.",
-      }]);
-    }
-    setLoading(false);
-  };
+  const navItems = user?.role === "worker" ? workerItems : managerItems;
 
   return (
     <div style={{
@@ -183,143 +141,44 @@ export default function Sidebar({
       {/* Divider */}
       <div style={{ height: 1, background: COLORS.border }} />
 
-      {/* AI Panel toggle */}
-      <div
-        onClick={() => setAiOpen(!aiOpen)}
-        style={{
-          padding: "14px 20px",
-          display: "flex", alignItems: "center",
-          justifyContent: "space-between",
-          cursor: "pointer",
-          background: aiOpen ? COLORS.accentGlow : "transparent",
-          transition: "all 0.15s",
-        }}
-      >
-        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-          <span style={{ fontSize: 16 }}>🤖</span>
-          <span style={{ fontSize: 13, fontWeight: 600, color: aiOpen ? COLORS.accentLight : COLORS.muted }}>
-            Ask Viro AI
-          </span>
+      {/* User profile */}
+      <div style={{
+        margin: "12px 16px 16px",
+        padding: "12px 14px",
+        background: COLORS.card,
+        border: `1px solid ${COLORS.border}`,
+        borderRadius: 12,
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "space-between",
+      }}>
+        <div>
+          <div style={{ fontSize: 12, fontWeight: 600, color: COLORS.text }}>
+            {user?.first_name} {user?.last_name}
+          </div>
+          <div style={{
+            fontSize: 10, color: COLORS.accentLight,
+            textTransform: "uppercase", letterSpacing: "0.06em"
+          }}>
+            {user?.role}
+          </div>
         </div>
-        <span style={{ fontSize: 12, color: COLORS.muted }}>
-          {aiOpen ? "▼" : "▲"}
-        </span>
+        <button
+          onClick={onLogout}
+          style={{
+            background: "transparent",
+            border: `1px solid ${COLORS.border}`,
+            borderRadius: 6,
+            padding: "4px 10px",
+            color: COLORS.muted,
+            fontSize: 11,
+            cursor: "pointer",
+          }}
+        >
+          Out
+        </button>
       </div>
 
-      {/* AI Chat Panel */}
-      {aiOpen && (
-        <div style={{
-          borderTop: `1px solid ${COLORS.border}`,
-          display: "flex", flexDirection: "column",
-          height: 320,
-        }}>
-          {/* Messages */}
-          <div style={{
-            flex: 1, overflowY: "auto",
-            padding: "12px 14px",
-            display: "flex", flexDirection: "column", gap: 10,
-          }}>
-            {messages.map((msg, i) => (
-              <div key={i} style={{
-                display: "flex",
-                justifyContent: msg.role === "user" ? "flex-end" : "flex-start",
-              }}>
-                <div style={{
-                  maxWidth: "85%",
-                  background: msg.role === "user"
-                    ? `linear-gradient(135deg, ${COLORS.accent}, #4f46e5)`
-                    : COLORS.card,
-                  border: `1px solid ${msg.role === "user" ? "transparent" : COLORS.border}`,
-                  borderRadius: msg.role === "user"
-                    ? "12px 12px 2px 12px"
-                    : "12px 12px 12px 2px",
-                  padding: "8px 12px",
-                  fontSize: 11,
-                  lineHeight: 1.5,
-                  color: COLORS.text,
-                }}>
-                  {msg.role === "assistant" && (
-                    <div style={{
-                      fontSize: 9, color: COLORS.accentLight,
-                      fontWeight: 700, marginBottom: 4,
-                      letterSpacing: "0.08em"
-                    }}>
-                      VIRO AI
-                    </div>
-                  )}
-                  {msg.content}
-                  {msg.data && (
-                    <div style={{
-                      marginTop: 6, fontSize: 10,
-                      color: COLORS.accentLight,
-                      cursor: "pointer",
-                      textDecoration: "underline",
-                    }}
-                      onClick={() => onNewReport && onNewReport({
-                        title: messages[i - 1]?.content?.slice(0, 40) || "Report",
-                        data: msg.data,
-                        answer: msg.content,
-                      })}
-                    >
-                      📊 Open as report tab →
-                    </div>
-                  )}
-                </div>
-              </div>
-            ))}
-            {loading && (
-              <div style={{
-                background: COLORS.card,
-                border: `1px solid ${COLORS.border}`,
-                borderRadius: "12px 12px 12px 2px",
-                padding: "8px 12px",
-                fontSize: 11, color: COLORS.muted,
-                alignSelf: "flex-start",
-              }}>
-                Thinking...
-              </div>
-            )}
-          </div>
-
-          {/* Input */}
-          <div style={{
-            padding: "8px 12px",
-            borderTop: `1px solid ${COLORS.border}`,
-            display: "flex", gap: 6,
-          }}>
-            <input
-              value={input}
-              onChange={e => setInput(e.target.value)}
-              onKeyDown={e => e.key === "Enter" && send(input)}
-              placeholder="Ask anything..."
-              style={{
-                flex: 1,
-                background: COLORS.card,
-                border: `1px solid ${COLORS.border}`,
-                borderRadius: 8,
-                padding: "8px 12px",
-                color: COLORS.text,
-                fontSize: 12,
-                outline: "none",
-              }}
-            />
-            <button
-              onClick={() => send(input)}
-              disabled={loading}
-              style={{
-                background: `linear-gradient(135deg, ${COLORS.accent}, #4f46e5)`,
-                border: "none", borderRadius: 8,
-                padding: "8px 12px",
-                color: "white", fontWeight: 700,
-                cursor: loading ? "not-allowed" : "pointer",
-                fontSize: 12, opacity: loading ? 0.6 : 1,
-              }}
-            >
-              →
-            </button>
-          </div>
-        </div>
-      )}
     </div>
   );
 }

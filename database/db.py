@@ -11,6 +11,7 @@ class ViroDB:
         self.conn = sqlite3.connect(DB_PATH, check_same_thread=False)
         self.conn.row_factory = sqlite3.Row
         self.setup_tables()
+        self.setup_users()
 
     def setup_tables(self):
         self.conn.executescript("""
@@ -250,3 +251,18 @@ class ViroDB:
             GROUP BY DATE(logged_at)
             ORDER BY date ASC
         """, (company_id,))
+    def setup_users(self):
+        self.conn.executescript("""
+            CREATE TABLE IF NOT EXISTS users (
+                user_id TEXT PRIMARY KEY,
+                company_id TEXT NOT NULL,
+                email TEXT UNIQUE NOT NULL,
+                password_hash TEXT NOT NULL,
+                role TEXT NOT NULL CHECK (role IN ('worker', 'manager', 'admin')),
+                first_name TEXT,
+                last_name TEXT,
+                created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+                is_active INTEGER DEFAULT 1
+            );
+        """)
+        self.conn.commit()

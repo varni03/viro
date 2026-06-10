@@ -8,6 +8,7 @@ import Analytics from "./pages/Analytics";
 import VehicleSearch from "./pages/VehicleSearch";
 import LogDefect from "./pages/LogDefect";
 import { COLORS } from "./components/Layout";
+import Login from "./pages/Login";
 
 function ReportTab({ report }) {
   return (
@@ -90,6 +91,9 @@ function ReportTab({ report }) {
 }
 
 export default function App() {
+  const [user, setUser] = useState(null);
+  const [token, setToken] = useState(null);
+  const [authChecked, setAuthChecked] = useState(false);
   const [companies, setCompanies] = useState([]);
   const [company, setCompany] = useState(null);
   const [activePage, setActivePage] = useState("Dashboard");
@@ -108,6 +112,29 @@ export default function App() {
   
 
   const staticPages = ["Dashboard", "Vehicle Search", "Log Defect", "Analytics", "Predictive"];
+
+  useEffect(() => {
+    const savedToken = localStorage.getItem("viro_token");
+    const savedUser = localStorage.getItem("viro_user");
+    if (savedToken && savedUser) {
+      setToken(savedToken);
+      setUser(JSON.parse(savedUser));
+    }
+    setAuthChecked(true);
+  }, []);
+  
+  const handleLogin = (userData, userToken) => {
+    setUser(userData);
+    setToken(userToken);
+  };
+  
+  const handleLogout = () => {
+    localStorage.removeItem("viro_token");
+    localStorage.removeItem("viro_user");
+    setUser(null);
+    setToken(null);
+  };
+  
 
   useEffect(() => {
     getCompanies()
@@ -183,6 +210,11 @@ export default function App() {
     }
   };
 
+  if (!authChecked) return null;
+
+  if (!user) return <Login onLogin={handleLogin} />;
+
+
   return (
     <div style={{
       display: "flex",
@@ -198,7 +230,10 @@ export default function App() {
         companies={companies}
         setCompany={setCompany}
         stats={stats}
+        user={user}
+        onLogout={handleLogout}
       />
+
 
       {/* Main content */}
       <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden" }}>

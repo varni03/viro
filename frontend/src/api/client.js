@@ -28,3 +28,8 @@ export const askAI = (question, companyId, history) => API.post('/ai/ask', {
 });
 export const getFilteredDefects = (data) => API.post('/defects/filtered', data);
 export const interpretFilters = (data) => API.post('/ai/interpret-filters', data);
+export const login = (email, password) => API.post('/auth/login', { email, password });
+export const register = (data) => API.post('/auth/register', data);
+export const getMe = (token) => API.get('/auth/me', {
+  headers: { Authorization: `Bearer ${token}` }
+});
