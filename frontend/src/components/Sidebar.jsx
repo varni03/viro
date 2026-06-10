@@ -20,6 +20,8 @@ export default function Sidebar({
   setCompany, stats, user, onLogout
 }) {
   const [modules, setModules] = useState([]);
+  const [notifications, setNotifications] = useState([]);
+  const [showNotifications, setShowNotifications] = useState(false);
 
   useEffect(() => {
     if (!company) return;
@@ -36,6 +38,29 @@ export default function Sidebar({
         setModules(ALL_MODULES.map(m => ({ module_id: m.id, custom_label: m.label, custom_icon: m.icon, enabled: 1 })));
       });
   }, [company?.company_id]);
+
+  useEffect(() => {
+    if (!company) return;
+    const fetchNotifications = () => {
+      fetch(`http://localhost:8000/notifications/${company.company_id}`)
+        .then(r => r.json())
+        .then(setNotifications)
+        .catch(() => {});
+    };
+    fetchNotifications();
+    const interval = setInterval(fetchNotifications, 10000);
+    return () => clearInterval(interval);
+  }, [company?.company_id]);
+
+  const unreadCount = notifications.filter(n => n.read === 0).length;
+
+  const markAllRead = () => {
+    fetch(`http://localhost:8000/notifications/${company.company_id}/read-all`, {
+      method: "PUT"
+    }).then(() => {
+      setNotifications(prev => prev.map(n => ({ ...n, read: 1 })));
+    });
+  };
 
   const getNavItems = () => {
     if (user?.role === "worker") {
@@ -65,6 +90,7 @@ export default function Sidebar({
       flexDirection: "column",
       flexShrink: 0,
       height: "100vh",
+      position: "relative",
     }}>
       {/* Logo */}
       <div style={{ padding: "24px 24px 20px" }}>
@@ -153,6 +179,105 @@ export default function Sidebar({
 
       {/* Divider */}
       <div style={{ height: 1, background: COLORS.border }} />
+
+      {/* Notifications bell */}
+      {user?.role === "manager" || user?.role === "admin" ? (
+        <div style={{ padding: "12px 16px" }}>
+          <div
+            onClick={() => setShowNotifications(!showNotifications)}
+            style={{
+              display: "flex", alignItems: "center",
+              justifyContent: "space-between",
+              background: COLORS.card,
+              border: `1px solid ${unreadCount > 0 ? COLORS.critical + "44" : COLORS.border}`,
+              borderRadius: 10, padding: "10px 14px",
+              cursor: "pointer",
+            }}
+          >
+            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              <span style={{ fontSize: 16 }}>🔔</span>
+              <span style={{ fontSize: 12, color: COLORS.muted }}>Notifications</span>
+            </div>
+            {unreadCount > 0 && (
+              <div style={{
+                background: COLORS.critical,
+                color: "white",
+                borderRadius: 10, padding: "2px 7px",
+                fontSize: 11, fontWeight: 700,
+              }}>
+                {unreadCount}
+              </div>
+            )}
+          </div>
+
+          {/* Notification dropdown */}
+          {showNotifications && (
+            <div style={{
+              position: "absolute",
+              bottom: 160, left: 16, right: 16,
+              background: COLORS.surface,
+              border: `1px solid ${COLORS.border}`,
+              borderRadius: 12,
+              maxHeight: 300, overflowY: "auto",
+              zIndex: 100,
+              boxShadow: "0 8px 32px rgba(0,0,0,0.4)",
+            }}>
+              <div style={{
+                display: "flex", justifyContent: "space-between",
+                alignItems: "center",
+                padding: "12px 16px",
+                borderBottom: `1px solid ${COLORS.border}`,
+              }}>
+                <span style={{ fontSize: 12, fontWeight: 700, color: COLORS.text }}>
+                  Notifications
+                </span>
+                {unreadCount > 0 && (
+                  <span
+                    onClick={markAllRead}
+                    style={{ fontSize: 11, color: COLORS.accentLight, cursor: "pointer" }}
+                  >
+                    Mark all read
+                  </span>
+                )}
+              </div>
+
+              {notifications.length === 0 ? (
+                <div style={{ padding: 16, color: COLORS.muted, fontSize: 12, textAlign: "center" }}>
+                  No notifications
+                </div>
+              ) : (
+                notifications.slice(0, 20).map((n, i) => (
+                  <div
+                    key={i}
+                    onClick={() => {
+                      fetch(`http://localhost:8000/notifications/${n.notification_id}/read`, { method: "PUT" });
+                      setNotifications(prev => prev.map(notif =>
+                        notif.notification_id === n.notification_id ? { ...notif, read: 1 } : notif
+                      ));
+                    }}
+                    style={{
+                      padding: "10px 16px",
+                      borderBottom: `1px solid ${COLORS.border}`,
+                      background: n.read === 0 ? COLORS.accentGlow : "transparent",
+                      cursor: "pointer",
+                    }}
+                  >
+                    <div style={{ fontSize: 12, fontWeight: n.read === 0 ? 700 : 400, color: COLORS.text, marginBottom: 2 }}>
+                      {n.title}
+                    </div>
+                    <div style={{ fontSize: 11, color: COLORS.muted }}>
+                      {n.message}
+                    </div>
+                    <div style={{ fontSize: 10, color: COLORS.muted, marginTop: 2 }}>
+                      {new Date(n.created_at).toLocaleString()}
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+          )}
+        </div>
+      ) : null}
 
       {/* Live stats */}
       <div style={{ padding: "12px 16px" }}>

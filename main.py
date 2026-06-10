@@ -66,12 +66,27 @@ class DefectCreate(BaseModel):
 
 @app.post("/defects")
 def create_defect(defect: DefectCreate):
+    import uuid
     defect_id = db.log_defect(
         defect.company_id, defect.product_id,
         defect.stage_number, defect.defect_type,
         defect.severity, defect.notes
     )
+    
+    # Create notification for critical and high severity
+    if defect.severity in ["critical", "high"]:
+        notification_id = str(uuid.uuid4())
+        title = f"{'🔴 Critical' if defect.severity == 'critical' else '🟠 High'} issue logged"
+        message = f"{defect.defect_type.replace('_', ' ').title()} on {defect.product_id} at stage {defect.stage_number}"
+        db.execute("""
+            INSERT INTO notifications
+            (notification_id, company_id, title, message, severity, product_id, defect_id)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
+        """, (notification_id, defect.company_id, title, message,
+              defect.severity, defect.product_id, defect_id))
+    
     return {"defect_id": defect_id, "message": "Defect logged successfully"}
+
 
 # ── Stages ─────────────────────────────────────────────────────
 @app.get("/stages/{company_id}")
@@ -565,6 +580,20 @@ db.execute("""
     )
 """)
 
+db.execute("""
+    CREATE TABLE IF NOT EXISTS notifications (
+        notification_id TEXT PRIMARY KEY,
+        company_id TEXT NOT NULL,
+        title TEXT NOT NULL,
+        message TEXT NOT NULL,
+        severity TEXT,
+        product_id TEXT,
+        defect_id TEXT,
+        read INTEGER DEFAULT 0,
+        created_at TEXT DEFAULT CURRENT_TIMESTAMP
+    )
+""")
+
 
 
 
@@ -648,6 +677,33 @@ def update_company(company_id: str, update: CompanyUpdate):
         WHERE company_id = ?
     """, (update.name, update.industry, update.universal_id_field, company_id))
     return {"message": "Company updated"}
+
+# ── Notifications ───────────────────────────────────────────────
+@app.get("/notifications/{company_id}")
+def get_notifications(company_id: str):
+    result = db.query("""
+        SELECT * FROM notifications 
+        WHERE company_id = ? 
+        ORDER BY created_at DESC 
+        LIMIT 50
+    """, (company_id,))
+    return result.to_dict(orient="records")
+
+@app.put("/notifications/{notification_id}/read")
+def mark_read(notification_id: str):
+    db.execute(
+        "UPDATE notifications SET read = 1 WHERE notification_id = ?",
+        (notification_id,)
+    )
+    return {"message": "Marked as read"}
+
+@app.put("/notifications/{company_id}/read-all")
+def mark_all_read(company_id: str):
+    db.execute(
+        "UPDATE notifications SET read = 1 WHERE company_id = ?",
+        (company_id,)
+    )
+    return {"message": "All marked as read"}
 
 # ── Custom Fields ───────────────────────────────────────────────
 class CustomFieldCreate(BaseModel):
