@@ -154,6 +154,113 @@ def get_stage_health(company_id: str):
 def get_trends(company_id: str):
     data = db.get_defect_trends(company_id)
     return data.to_dict(orient="records")
+@app.get("/analytics/summary/{company_id}")
+def get_analytics_summary(company_id: str):
+    # Total defects
+    total = db.query(
+        "SELECT COUNT(*) as count FROM defects WHERE company_id = ?",
+        (company_id,)
+    ).iloc[0]["count"]
+
+    # Resolved vs unresolved
+    resolved = db.query(
+        "SELECT COUNT(*) as count FROM defects WHERE company_id = ? AND resolved = 1",
+        (company_id,)
+    ).iloc[0]["count"]
+
+    # Critical count
+    critical = db.query(
+        "SELECT COUNT(*) as count FROM defects WHERE company_id = ? AND severity = 'critical'",
+        (company_id,)
+    ).iloc[0]["count"]
+
+    # Average resolution time in hours
+    avg_time = db.query("""
+        SELECT AVG(
+            (julianday(datetime('now')) - julianday(logged_at)) * 24
+        ) as avg_hours
+        FROM defects 
+        WHERE company_id = ? AND resolved = 1
+    """, (company_id,))
+    avg_hours = round(avg_time.iloc[0]["avg_hours"] or 0, 1)
+
+    # First pass yield — products with zero defects
+    total_products = db.query(
+        "SELECT COUNT(*) as count FROM products WHERE company_id = ?",
+        (company_id,)
+    ).iloc[0]["count"]
+
+    defect_products = db.query(
+        "SELECT COUNT(DISTINCT product_id) as count FROM defects WHERE company_id = ?",
+        (company_id,)
+    ).iloc[0]["count"]
+
+    fpy = round(((total_products - defect_products) / total_products * 100) if total_products > 0 else 0, 1)
+
+    return {
+        "total_defects": int(total),
+        "resolved": int(resolved),
+        "unresolved": int(total - resolved),
+        "critical": int(critical),
+        "avg_resolution_hours": avg_hours,
+        "first_pass_yield": fpy,
+        "total_products": int(total_products),
+    }
+
+@app.get("/analytics/top-defects/{company_id}")
+def get_top_defects(company_id: str):
+    result = db.query("""
+        SELECT 
+            defect_type,
+            COUNT(*) as count,
+            SUM(CASE WHEN severity = 'critical' THEN 1 ELSE 0 END) as critical_count,
+            SUM(CASE WHEN severity = 'high' THEN 1 ELSE 0 END) as high_count,
+            SUM(CASE WHEN resolved = 0 THEN 1 ELSE 0 END) as open_count
+        FROM defects
+        WHERE company_id = ?
+        GROUP BY defect_type
+        ORDER BY count DESC
+        LIMIT 10
+    """, (company_id,))
+    return result.to_dict(orient="records")
+
+@app.get("/analytics/stage-performance/{company_id}")
+def get_stage_performance(company_id: str):
+    result = db.query("""
+        SELECT 
+            d.stage_number,
+            s.stage_name,
+            COUNT(d.defect_id) as total_defects,
+            SUM(CASE WHEN d.severity = 'critical' THEN 1 ELSE 0 END) as critical,
+            SUM(CASE WHEN d.severity = 'high' THEN 1 ELSE 0 END) as high,
+            SUM(CASE WHEN d.resolved = 0 THEN 1 ELSE 0 END) as open_defects,
+            ROUND(AVG(CASE WHEN d.resolved = 1 
+                THEN (julianday(datetime('now')) - julianday(d.logged_at)) * 24 
+                ELSE NULL END), 1) as avg_resolution_hours
+        FROM defects d
+        LEFT JOIN stages s ON d.stage_number = s.stage_number 
+            AND s.company_id = d.company_id
+        WHERE d.company_id = ?
+        GROUP BY d.stage_number
+        ORDER BY total_defects DESC
+    """, (company_id,))
+    return result.to_dict(orient="records")
+
+@app.get("/analytics/resolution-trend/{company_id}")
+def get_resolution_trend(company_id: str):
+    result = db.query("""
+        SELECT 
+            DATE(logged_at) as date,
+            COUNT(*) as logged,
+            SUM(CASE WHEN resolved = 1 THEN 1 ELSE 0 END) as resolved
+        FROM defects
+        WHERE company_id = ?
+        AND logged_at >= DATE('now', '-30 days')
+        GROUP BY DATE(logged_at)
+        ORDER BY date ASC
+    """, (company_id,))
+    return result.to_dict(orient="records")
+
 
 # ── AI Assistant ───────────────────────────────────────────────
 class AIRequest(BaseModel):
