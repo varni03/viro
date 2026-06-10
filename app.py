@@ -45,8 +45,9 @@ with st.sidebar:
     # Navigation
     page = st.radio(
         "Navigation",
-        ["Dashboard", "Vehicle Search", "Log Defect", "AI Assistant"]
+        ["Dashboard", "Vehicle Search", "Log Defect", "AI Assistant", "Analytics", "Predictive"]
     )
+
 
 
 # ── Dashboard Page ─────────────────────────────────────────────
@@ -235,17 +236,45 @@ elif page == "AI Assistant":
     st.title("🤖 Viro AI Assistant")
     st.caption("Ask anything about your quality data in plain English")
 
+    # Example questions
+    with st.expander("💡 Example questions to ask"):
+        st.markdown("""
+        - Which stage has the most defects?
+        - How many critical defects are unresolved?
+        - Show me all flagged products
+        - What is the most common defect type?
+        - Which products have more than 3 defects?
+        - How many products are currently in progress?
+        - What percentage of defects are high severity?
+        - Show me defects logged in the last 7 days
+        """)
+
     # Initialize chat history
     if "messages" not in st.session_state:
         st.session_state.messages = []
+    if "query_results" not in st.session_state:
+        st.session_state.query_results = {}
+
+    # Clear chat button
+    if st.button("🗑️ Clear Chat"):
+        st.session_state.messages = []
+        st.session_state.query_results = {}
+        st.rerun()
+
+    st.divider()
 
     # Display chat history
-    for message in st.session_state.messages:
+    for i, message in enumerate(st.session_state.messages):
         with st.chat_message(message["role"]):
             st.markdown(message["content"])
+            # Show dataframe if this message has query results
+            if message["role"] == "assistant" and i in st.session_state.query_results:
+                result_df = st.session_state.query_results[i]
+                if result_df is not None and not result_df.empty:
+                    st.dataframe(result_df, use_container_width=True)
 
     # Chat input
-    if prompt := st.chat_input("Ask Viro anything..."):
+    if prompt := st.chat_input("Ask Viro anything about your data..."):
 
         # Add user message
         st.session_state.messages.append({
@@ -255,62 +284,299 @@ elif page == "AI Assistant":
         with st.chat_message("user"):
             st.markdown(prompt)
 
-        # Get relevant data from database
-        products = db.get_products(company_id)
-        defects = db.get_defects(company_id)
-        stage_data = db.get_defects_by_stage(company_id)
-
-        # Build context
-        context = f"""
-        You are Viro, an AI assistant for {selected_name} manufacturing quality control.
-        
-        Current data summary:
-        - Total products: {len(products)}
-        - Total defects: {len(defects)}
-        - Critical defects: {len(defects[defects['severity'] == 'critical'])}
-        - Flagged products: {len(products[products['status'] == 'flagged'])}
-        
-        Defects by stage:
-        {stage_data.to_string() if not stage_data.empty else 'No data'}
-        
-        Recent defects (last 20):
-        {defects.head(20).to_string() if not defects.empty else 'No defects'}
-        
-        Products overview (top 20 by defects):
-        {products.head(20).to_string() if not products.empty else 'No products'}
-        
-        Answer the user's question using only this data.
-        Be concise and direct. If the answer requires data you don't have, say so clearly.
-        Never make up numbers or data.
-        """
-
-        # Get AI response
         with st.chat_message("assistant"):
             placeholder = st.empty()
             full_response = ""
+            result_df = None
 
             try:
                 client = anthropic.Anthropic()
+
+                # Step 1 — run natural language to SQL query
+                with st.spinner("Querying data..."):
+                    result_df, sql = db.natural_language_query(prompt, company_id)
+
+                # Step 2 — get AI to interpret the results
+                if result_df is not None and not result_df.empty:
+                    data_context = f"""
+                    The user asked: {prompt}
+                    
+                    SQL query executed: {sql}
+                    
+                    Query results:
+                    {result_df.to_string()}
+                    
+                    Provide a clear, concise answer based on these results.
+                    Highlight any important insights or concerns.
+                    If there are critical or high severity defects mention them prominently.
+                    Be direct and actionable.
+                    """
+                elif result_df is not None and result_df.empty:
+                    data_context = f"""
+                    The user asked: {prompt}
+                    The query returned no results.
+                    Tell the user no data was found matching their question.
+                    """
+                else:
+                    data_context = f"""
+                    The user asked: {prompt}
+                    There was an error running the query: {sql}
+                    Apologize and suggest they rephrase the question.
+                    """
+
+                # Stream the response
                 with client.messages.stream(
                     model="claude-sonnet-4-20250514",
                     max_tokens=1000,
-                    system=context,
-                    messages=[
-                        {"role": m["role"], "content": m["content"]}
-                        for m in st.session_state.messages
-                    ]
+                    system=f"You are Viro, an AI assistant for {selected_name} manufacturing quality control. Be concise, direct, and actionable.",
+                    messages=[{"role": "user", "content": data_context}]
                 ) as stream:
                     for text in stream.text_stream:
                         full_response += text
                         placeholder.markdown(full_response + "▌")
+
                 placeholder.markdown(full_response)
+
+                # Show the data table
+                if result_df is not None and not result_df.empty:
+                    st.dataframe(result_df, use_container_width=True)
 
             except Exception as e:
                 full_response = "⚠️ AI unavailable on this network. This feature will work at home or on unrestricted WiFi."
                 placeholder.markdown(full_response)
 
-        # Add response to history
+        # Save to history
+        msg_index = len(st.session_state.messages)
         st.session_state.messages.append({
             "role": "assistant",
             "content": full_response
         })
+        if result_df is not None:
+            st.session_state.query_results[msg_index] = result_df
+    page = st.radio(
+        "Navigation",
+        ["Dashboard", "Vehicle Search", "Log Defect", "AI Assistant", "Analytics", "Predictive"]
+    )
+# ── Analytics Page ─────────────────────────────────────────────
+elif page == "Analytics":
+    st.title(f"📊 {selected_name} — Analytics")
+
+    # Defect trends over time
+    st.subheader("Defect Trends Over Time")
+    trends = db.get_defect_trends(company_id)
+    if not trends.empty:
+        fig = px.line(
+            trends,
+            x="date",
+            y=["total_defects", "critical", "high"],
+            labels={"value": "Defects", "date": "Date", "variable": "Type"},
+            color_discrete_map={
+                "total_defects": "#6366f1",
+                "critical": "#ef4444",
+                "high": "#f97316"
+            }
+        )
+        st.plotly_chart(fig, use_container_width=True)
+    else:
+        st.info("No trend data available yet")
+
+    st.divider()
+
+    # Stage health
+    st.subheader("Stage Health Scores")
+    stage_health = db.get_stage_health(company_id)
+    if not stage_health.empty:
+        col1, col2 = st.columns(2)
+
+        with col1:
+            for _, stage in stage_health.iterrows():
+                score = stage["health_score"]
+                color = "🟢" if score >= 80 else "🟡" if score >= 60 else "🔴"
+                st.metric(
+                    f"{color} Stage {int(stage['stage_number'])} — {stage['stage_name']}",
+                    f"{score}% healthy",
+                    f"{int(stage['unresolved'])} unresolved defects"
+                )
+
+        with col2:
+            fig = px.bar(
+                stage_health,
+                x="stage_name",
+                y="health_score",
+                color="health_score",
+                color_continuous_scale="RdYlGn",
+                labels={"stage_name": "Stage", "health_score": "Health Score"},
+                title="Health Score by Stage"
+            )
+            fig.update_layout(showlegend=False)
+            st.plotly_chart(fig, use_container_width=True)
+
+    st.divider()
+
+    # Defect type breakdown
+    st.subheader("Defect Type Breakdown")
+    defects = db.get_defects(company_id)
+    if not defects.empty:
+        col1, col2 = st.columns(2)
+
+        with col1:
+            defect_type_counts = defects["defect_type"].value_counts().reset_index()
+            defect_type_counts.columns = ["defect_type", "count"]
+            fig = px.bar(
+                defect_type_counts,
+                x="count",
+                y="defect_type",
+                orientation="h",
+                color="count",
+                color_continuous_scale="Reds",
+                labels={"defect_type": "Type", "count": "Count"},
+                title="Most Common Defect Types"
+            )
+            fig.update_layout(showlegend=False)
+            st.plotly_chart(fig, use_container_width=True)
+
+        with col2:
+            resolved_counts = defects["resolved"].value_counts().reset_index()
+            resolved_counts.columns = ["resolved", "count"]
+            resolved_counts["resolved"] = resolved_counts["resolved"].map(
+                {0: "Unresolved", 1: "Resolved"}
+            )
+            fig = px.pie(
+                resolved_counts,
+                values="count",
+                names="resolved",
+                color="resolved",
+                color_discrete_map={
+                    "Resolved": "#22c55e",
+                    "Unresolved": "#ef4444"
+                },
+                title="Resolution Status"
+            )
+            st.plotly_chart(fig, use_container_width=True)
+
+    st.divider()
+
+    # Raw data export
+    st.subheader("Export Data")
+    col1, col2 = st.columns(2)
+
+    with col1:
+        if not defects.empty:
+            csv = defects.to_csv(index=False)
+            st.download_button(
+                "⬇️ Download Defects CSV",
+                csv,
+                f"{selected_name}_defects.csv",
+                "text/csv"
+            )
+
+    with col2:
+        products = db.get_products(company_id)
+        if not products.empty:
+            csv = products.to_csv(index=False)
+            st.download_button(
+                "⬇️ Download Products CSV",
+                csv,
+                f"{selected_name}_products.csv",
+                "text/csv"
+            )
+
+# ── Predictive Page ────────────────────────────────────────────
+elif page == "Predictive":
+    st.title(f"⚠️ {selected_name} — Predictive Risk Analysis")
+    st.caption("AI identifies products at risk before they fail")
+
+    at_risk = db.get_at_risk_products(company_id)
+    stage_health = db.get_stage_health(company_id)
+
+    # Summary metrics
+    total_products = len(db.get_products(company_id))
+    at_risk_count = len(at_risk)
+    critical_stages = len(stage_health[stage_health["health_score"] < 60]) if not stage_health.empty else 0
+
+    col1, col2, col3 = st.columns(3)
+    with col1:
+        st.metric(
+            "At Risk Products",
+            at_risk_count,
+            f"{round(at_risk_count/max(total_products,1)*100, 1)}% of total",
+            delta_color="inverse"
+        )
+    with col2:
+        st.metric(
+            "Critical Stages",
+            critical_stages,
+            "below 60% health",
+            delta_color="inverse"
+        )
+    with col3:
+        safe_count = total_products - at_risk_count
+        st.metric("Safe Products", safe_count)
+
+    st.divider()
+
+    # At risk products
+    st.subheader("🔴 At Risk Products")
+    if at_risk.empty:
+        st.success("✅ No products currently flagged as at risk")
+    else:
+        for _, product in at_risk.iterrows():
+            risk_score = product["risk_score"]
+            color = "🔴" if risk_score >= 6 else "🟠"
+
+            with st.expander(
+                f"{color} {product['product_id']} — "
+                f"Risk Score: {int(risk_score)} — "
+                f"Stage {int(product['current_stage'])} — "
+                f"{int(product['unresolved_defects'])} unresolved defects"
+            ):
+                col1, col2, col3 = st.columns(3)
+                with col1:
+                    st.metric("Total Defects", int(product["total_defects"]))
+                with col2:
+                    st.metric("Unresolved", int(product["unresolved_defects"]))
+                with col3:
+                    st.metric("Risk Score", int(risk_score))
+
+                st.write(f"**Defect Types:** {product['defect_types']}")
+                st.write(f"**Current Status:** {product['status']}")
+
+                # AI recommendation
+                if st.button(f"Get AI Recommendation", key=product["product_id"]):
+                    try:
+                        client = anthropic.Anthropic()
+                        response = client.messages.create(
+                            model="claude-sonnet-4-20250514",
+                            max_tokens=300,
+                            messages=[{
+                                "role": "user",
+                                "content": f"""
+                                This manufacturing product needs attention:
+                                - Product ID: {product['product_id']}
+                                - Current Stage: {product['current_stage']}
+                                - Total Defects: {product['total_defects']}
+                                - Unresolved Defects: {product['unresolved_defects']}
+                                - Risk Score: {risk_score}
+                                - Defect Types: {product['defect_types']}
+                                
+                                Give a specific 2-3 sentence recommendation on what action to take.
+                                Be direct and actionable.
+                                """
+                            }]
+                        )
+                        st.info(f"💡 {response.content[0].text}")
+                    except:
+                        st.warning("AI recommendation unavailable on this network")
+
+    st.divider()
+
+    # Stage risk breakdown
+    st.subheader("Stage Risk Overview")
+    if not stage_health.empty:
+        for _, stage in stage_health.iterrows():
+            score = stage["health_score"]
+            color = "🟢" if score >= 80 else "🟡" if score >= 60 else "🔴"
+            st.progress(
+                int(score) / 100,
+                text=f"{color} Stage {int(stage['stage_number'])} — {stage['stage_name']} — {score}% healthy — {int(stage['unresolved'])} unresolved defects"
+            )
