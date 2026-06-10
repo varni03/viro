@@ -54,17 +54,26 @@ const [columnMapping, setColumnMapping] = useState({
 const [syncing, setSyncing] = useState(false);
 const [selectedConnector, setSelectedConnector] = useState(null);
 const [companyModules, setCompanyModules] = useState([]);
+const [customFields, setCustomFields] = useState([]);
+const [newField, setNewField] = useState({
+    field_name: "",
+    field_label: "",
+    field_type: "text",
+    required: 0,
+});
+
 
 const load = async () => {
     setLoading(true);
     try {
-        const [stageRes, defectRes, userRes, connectorRes, configRes, moduleRes] = await Promise.all([
+        const [stageRes, defectRes, userRes, connectorRes, configRes, moduleRes, fieldRes] = await Promise.all([
             fetch(`${API}/stages/${company.company_id}`).then(r => r.json()),
             fetch(`${API}/settings/defect-types/${company.company_id}`).then(r => r.json()),
             fetch(`${API}/settings/users/${company.company_id}`).then(r => r.json()),
             fetch(`${API}/connectors/${company.company_id}`).then(r => r.json()),
             fetch(`${API}/config/${company.company_id}`).then(r => r.json()),
             fetch(`${API}/modules/${company.company_id}`).then(r => r.json()),
+            fetch(`${API}/custom-fields/${company.company_id}`).then(r => r.json()),
           ]);
           setStages(stageRes);
           setDefectTypes(defectRes);
@@ -72,6 +81,8 @@ const load = async () => {
           setConnectors(connectorRes);
           setTerminology(configRes);
           setCompanyModules(moduleRes);
+          setCustomFields(fieldRes);
+    
     } catch {}
     setLoading(false);
 };
@@ -192,10 +203,12 @@ const load = async () => {
     { id: "defects", label: "⚠️ Defect Types" },
     { id: "users", label: "👥 Users" },
     { id: "modules", label: "🧩 Modules" },
+    { id: "fields", label: "📝 Custom Fields" },
     { id: "connectors", label: "🔌 Connectors" },
     { id: "terminology", label: "🏷️ Terminology" },
     { id: "company", label: "🏢 Company Profile" },
 ];
+
 
   
 
@@ -1173,6 +1186,157 @@ const load = async () => {
           </div>
         );
       })}
+    </Card>
+  </div>
+)}
+
+{/* CUSTOM FIELDS TAB */}
+{activeTab === "fields" && (
+  <div>
+    <SectionLabel>Custom Fields</SectionLabel>
+    <Card style={{ marginBottom: 16 }}>
+      <div style={{ fontSize: 13, color: COLORS.muted, marginBottom: 20, lineHeight: 1.6 }}>
+        Add custom fields to your issue logging form. These fields will appear for your team when logging a new issue.
+      </div>
+
+      {customFields.length === 0 ? (
+        <div style={{ color: COLORS.muted, textAlign: "center", padding: 20 }}>
+          No custom fields yet — add one below
+        </div>
+      ) : (
+        customFields.map((field, i) => (
+          <div key={i} style={{
+            display: "flex", alignItems: "center",
+            justifyContent: "space-between",
+            padding: "12px 0",
+            borderBottom: i < customFields.length - 1 ? `1px solid ${COLORS.border}` : "none",
+          }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+              <div style={{
+                background: COLORS.accentGlow,
+                border: `1px solid ${COLORS.accent}33`,
+                borderRadius: 6, padding: "2px 10px",
+                fontSize: 11, color: COLORS.accentLight,
+              }}>
+                {field.field_type}
+              </div>
+              <div>
+                <div style={{ fontSize: 13, fontWeight: 600, color: COLORS.text }}>
+                  {field.field_label}
+                  {field.required === 1 && (
+                    <span style={{ color: COLORS.critical, marginLeft: 4 }}>*</span>
+                  )}
+                </div>
+                <div style={{ fontSize: 11, color: COLORS.muted }}>
+                  field_name: {field.field_name}
+                </div>
+              </div>
+            </div>
+            <button
+              onClick={async () => {
+                await fetch(`${API}/custom-fields/${field.field_id}`, { method: "DELETE" });
+                load();
+                showSuccess("Field deleted");
+              }}
+              style={{
+                background: COLORS.critical + "20",
+                border: `1px solid ${COLORS.critical}40`,
+                borderRadius: 8, padding: "6px 12px",
+                color: COLORS.critical, fontSize: 12,
+                cursor: "pointer",
+              }}
+            >
+              Delete
+            </button>
+          </div>
+        ))
+      )}
+    </Card>
+
+    <SectionLabel>Add Custom Field</SectionLabel>
+    <Card>
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 12 }}>
+        <div>
+          <div style={{ fontSize: 11, color: COLORS.muted, marginBottom: 6 }}>FIELD LABEL (shown to users)</div>
+          <Input
+            value={newField.field_label}
+            onChange={e => setNewField(prev => ({ ...prev, field_label: e.target.value }))}
+            placeholder="e.g. Vessel Name, Line Supervisor"
+          />
+        </div>
+        <div>
+          <div style={{ fontSize: 11, color: COLORS.muted, marginBottom: 6 }}>FIELD NAME (internal key)</div>
+          <Input
+            value={newField.field_name}
+            onChange={e => setNewField(prev => ({ ...prev, field_name: e.target.value.toLowerCase().replace(/\s+/g, "_") }))}
+            placeholder="e.g. vessel_name, line_supervisor"
+          />
+        </div>
+      </div>
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 16 }}>
+        <div>
+          <div style={{ fontSize: 11, color: COLORS.muted, marginBottom: 6 }}>FIELD TYPE</div>
+          <select
+            value={newField.field_type}
+            onChange={e => setNewField(prev => ({ ...prev, field_type: e.target.value }))}
+            style={{
+              width: "100%",
+              background: COLORS.card,
+              border: `1px solid ${COLORS.border}`,
+              borderRadius: 10, padding: "12px 14px",
+              color: COLORS.text, fontSize: 13,
+              outline: "none", cursor: "pointer",
+            }}
+          >
+            <option value="text">Text</option>
+            <option value="number">Number</option>
+            <option value="date">Date</option>
+            <option value="select">Dropdown</option>
+            <option value="textarea">Long Text</option>
+          </select>
+        </div>
+        <div>
+          <div style={{ fontSize: 11, color: COLORS.muted, marginBottom: 6 }}>REQUIRED</div>
+          <select
+            value={newField.required}
+            onChange={e => setNewField(prev => ({ ...prev, required: parseInt(e.target.value) }))}
+            style={{
+              width: "100%",
+              background: COLORS.card,
+              border: `1px solid ${COLORS.border}`,
+              borderRadius: 10, padding: "12px 14px",
+              color: COLORS.text, fontSize: 13,
+              outline: "none", cursor: "pointer",
+            }}
+          >
+            <option value={0}>Optional</option>
+            <option value={1}>Required</option>
+          </select>
+        </div>
+      </div>
+      <button
+        onClick={async () => {
+          if (!newField.field_label || !newField.field_name) return showError("Label and name are required");
+          try {
+            await fetch(`${API}/custom-fields`, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ ...newField, company_id: company.company_id })
+            });
+            setNewField({ field_name: "", field_label: "", field_type: "text", required: 0 });
+            load();
+            showSuccess("Custom field added");
+          } catch { showError("Failed to add field"); }
+        }}
+        style={{
+          background: `linear-gradient(135deg, ${COLORS.accent}, #4f46e5)`,
+          border: "none", borderRadius: 10,
+          padding: "10px 20px", color: "white",
+          fontSize: 13, fontWeight: 700, cursor: "pointer",
+        }}
+      >
+        + Add Field
+      </button>
     </Card>
   </div>
 )}

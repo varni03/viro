@@ -1,4 +1,4 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { logDefect, analyzeImage } from "../api/client";
 import { COLORS, Card, PageHeader, SectionLabel, Input, Button } from "../components/Layout";
 
@@ -16,7 +16,18 @@ export default function LogDefect({ company, stages }) {
   const [submitting, setSubmitting] = useState(false);
   const [success, setSuccess] = useState(null);
   const [error, setError] = useState(null);
+  const [customFields, setCustomFields] = useState([]);
+  const [customValues, setCustomValues] = useState({});
   const fileRef = useRef();
+
+  useEffect(() => {
+    if (!company) return;
+    fetch(`http://localhost:8000/custom-fields/${company.company_id}`)
+      .then(r => r.json())
+      .then(setCustomFields)
+      .catch(() => {});
+  }, [company?.company_id]);
+
 
   const handlePhoto = async (file) => {
     if (!file) return;
@@ -51,16 +62,28 @@ export default function LogDefect({ company, stages }) {
     setError(null);
 
     try {
-      await logDefect({
-        company_id: company.company_id,
-        product_id: productId,
-        stage_number: parseInt(stage),
-        defect_type: defectType,
-        severity,
-        notes,
-      });
-
-      setSuccess(`Defect logged successfully for ${productId}`);
+        const res = await logDefect({
+          company_id: company.company_id,
+          product_id: productId,
+          stage_number: parseInt(stage),
+          defect_type: defectType,
+          severity,
+          notes,
+        });
+  
+        if (res?.data?.defect_id && Object.keys(customValues).length > 0) {
+          await fetch(`http://localhost:8000/custom-fields/values`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              defect_id: res.data.defect_id,
+              values: customValues
+            })
+          });
+        }
+  
+        setSuccess(`Defect logged successfully for ${productId}`);
+  
       setProductId("");
       setDefectType("");
       setSeverity("low");
@@ -335,6 +358,56 @@ export default function LogDefect({ company, stages }) {
               ✅ {success}
             </div>
           )}
+
+          {/* Custom Fields */}
+          {customFields.length > 0 && (
+            <div style={{ marginBottom: 20 }}>
+              <div style={{ fontSize: 11, color: COLORS.muted, marginBottom: 12, letterSpacing: "0.08em", fontWeight: 700 }}>
+                ADDITIONAL FIELDS
+              </div>
+              {customFields.map(field => (
+                <div key={field.field_id} style={{ marginBottom: 12 }}>
+                  <div style={{ fontSize: 11, color: COLORS.muted, marginBottom: 6 }}>
+                    {field.field_label.toUpperCase()}
+                    {field.required === 1 && <span style={{ color: COLORS.critical }}> *</span>}
+                  </div>
+                  {field.field_type === "textarea" ? (
+                    <textarea
+                      value={customValues[field.field_id] || ""}
+                      onChange={e => setCustomValues(prev => ({ ...prev, [field.field_id]: e.target.value }))}
+                      placeholder={`Enter ${field.field_label.toLowerCase()}`}
+                      rows={3}
+                      style={{
+                        width: "100%",
+                        background: COLORS.card,
+                        border: `1px solid ${COLORS.border}`,
+                        borderRadius: 10, padding: "12px 16px",
+                        color: COLORS.text, fontSize: 14,
+                        outline: "none", resize: "vertical",
+                        boxSizing: "border-box",
+                      }}
+                    />
+                  ) : (
+                    <input
+                      type={field.field_type}
+                      value={customValues[field.field_id] || ""}
+                      onChange={e => setCustomValues(prev => ({ ...prev, [field.field_id]: e.target.value }))}
+                      placeholder={`Enter ${field.field_label.toLowerCase()}`}
+                      style={{
+                        width: "100%",
+                        background: COLORS.card,
+                        border: `1px solid ${COLORS.border}`,
+                        borderRadius: 10, padding: "12px 16px",
+                        color: COLORS.text, fontSize: 14,
+                        outline: "none", boxSizing: "border-box",
+                      }}
+                    />
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
+
 
           {/* Submit */}
           <button

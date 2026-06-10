@@ -543,6 +543,29 @@ db.execute("""
     )
 """)
 
+db.execute("""
+    CREATE TABLE IF NOT EXISTS custom_fields (
+        field_id TEXT PRIMARY KEY,
+        company_id TEXT NOT NULL,
+        field_name TEXT NOT NULL,
+        field_label TEXT NOT NULL,
+        field_type TEXT DEFAULT 'text',
+        required INTEGER DEFAULT 0,
+        sort_order INTEGER DEFAULT 0,
+        created_at TEXT DEFAULT CURRENT_TIMESTAMP
+    )
+""")
+
+db.execute("""
+    CREATE TABLE IF NOT EXISTS defect_custom_values (
+        defect_id TEXT NOT NULL,
+        field_id TEXT NOT NULL,
+        value TEXT,
+        PRIMARY KEY (defect_id, field_id)
+    )
+""")
+
+
 
 
 class StageCreate(BaseModel):
@@ -625,6 +648,70 @@ def update_company(company_id: str, update: CompanyUpdate):
         WHERE company_id = ?
     """, (update.name, update.industry, update.universal_id_field, company_id))
     return {"message": "Company updated"}
+
+# ── Custom Fields ───────────────────────────────────────────────
+class CustomFieldCreate(BaseModel):
+    company_id: str
+    field_name: str
+    field_label: str
+    field_type: str = "text"
+    required: int = 0
+
+class CustomFieldValue(BaseModel):
+    defect_id: str
+    values: dict
+
+@app.get("/custom-fields/{company_id}")
+def get_custom_fields(company_id: str):
+    result = db.query(
+        "SELECT * FROM custom_fields WHERE company_id = ? ORDER BY sort_order",
+        (company_id,)
+    )
+    return result.to_dict(orient="records")
+
+@app.post("/custom-fields")
+def create_custom_field(field: CustomFieldCreate):
+    import uuid
+    field_id = str(uuid.uuid4())
+    db.execute("""
+        INSERT INTO custom_fields
+        (field_id, company_id, field_name, field_label, field_type, required)
+        VALUES (?, ?, ?, ?, ?, ?)
+    """, (field_id, field.company_id, field.field_name,
+          field.field_label, field.field_type, field.required))
+    return {"field_id": field_id, "message": "Field created"}
+
+@app.delete("/custom-fields/{field_id}")
+def delete_custom_field(field_id: str):
+    db.execute("DELETE FROM custom_fields WHERE field_id = ?", (field_id,))
+    return {"message": "Field deleted"}
+
+@app.post("/custom-fields/values")
+def save_custom_values(data: CustomFieldValue):
+    for field_id, value in data.values.items():
+        existing = db.query(
+            "SELECT * FROM defect_custom_values WHERE defect_id = ? AND field_id = ?",
+            (data.defect_id, field_id)
+        )
+        if existing.empty:
+            db.execute(
+                "INSERT INTO defect_custom_values (defect_id, field_id, value) VALUES (?, ?, ?)",
+                (data.defect_id, field_id, str(value))
+            )
+        else:
+            db.execute(
+                "UPDATE defect_custom_values SET value = ? WHERE defect_id = ? AND field_id = ?",
+                (str(value), data.defect_id, field_id)
+            )
+    return {"message": "Values saved"}
+
+@app.get("/custom-fields/values/{defect_id}")
+def get_custom_values(defect_id: str):
+    result = db.query(
+        "SELECT * FROM defect_custom_values WHERE defect_id = ?",
+        (defect_id,)
+    )
+    return result.to_dict(orient="records")
 
 # ── Connectors ─────────────────────────────────────────────────
 import pandas as pd
