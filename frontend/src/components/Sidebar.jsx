@@ -6,7 +6,8 @@ const managerItems = [
   { label: "Log Defect", icon: "📸" },
   { label: "Production Line", icon: "🔧" },
   { label: "Analytics", icon: "📊" },
-  { label: "Predictive", icon: "⚠️" },
+  { label: "Predictive", icon: "⚠" },
+  { label: "Settings", icon: "⚙️" },
 ];
 
 const workerItems = [

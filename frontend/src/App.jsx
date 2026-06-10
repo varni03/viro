@@ -10,6 +10,8 @@ import LogDefect from "./pages/LogDefect";
 import { COLORS } from "./components/Layout";
 import Login from "./pages/Login";
 import ProductionLine from "./pages/ProductionLine";
+import Settings from "./pages/Settings";
+
 
 
 function ReportTab({ report }) {
@@ -209,6 +211,9 @@ export default function App() {
       case "Analytics": return <Analytics company={company} />;
       case "Vehicle Search": return <VehicleSearch company={company} />;
       case "Log Defect": return <LogDefect company={company} stages={stages} />;
+      case "Settings": return <Settings company={company} user={user} onCompanyUpdate={(updates) => {
+        setCompany(prev => ({ ...prev, ...updates }));
+      }} />;      
       default: return <Dashboard company={company} />;
     }
   };

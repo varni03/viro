@@ -467,3 +467,304 @@ def update_status(product_id: str, status: str, company_id: str):
         UPDATE products SET status = ? WHERE product_id = ? AND company_id = ?
     """, (status, product_id, company_id))
     return {"message": "Status updated"}
+
+
+# Defect types table setup
+db.execute("""
+    CREATE TABLE IF NOT EXISTS defect_types (
+        id TEXT PRIMARY KEY,
+        company_id TEXT NOT NULL,
+        name TEXT NOT NULL,
+        default_severity TEXT DEFAULT 'medium',
+        created_at TEXT DEFAULT CURRENT_TIMESTAMP
+    )
+""")
+
+db.execute("""
+    CREATE TABLE IF NOT EXISTS connectors_config (
+        connector_id TEXT PRIMARY KEY,
+        company_id TEXT NOT NULL,
+        connector_name TEXT NOT NULL,
+        connector_type TEXT NOT NULL,
+        config JSONB,
+        column_mapping TEXT,
+        sync_schedule TEXT DEFAULT 'manual',
+        is_active INTEGER DEFAULT 1,
+        last_sync TEXT,
+        created_at TEXT DEFAULT CURRENT_TIMESTAMP
+    )
+""")
+
+db.execute("""
+    CREATE TABLE IF NOT EXISTS company_config (
+        company_id TEXT,
+        config_key TEXT,
+        config_value TEXT,
+        PRIMARY KEY (company_id, config_key)
+    )
+""")
+
+
+class StageCreate(BaseModel):
+    company_id: str
+    stage_number: int
+    stage_name: str
+    expected_duration_mins: Optional[int] = 30
+
+class DefectTypeCreate(BaseModel):
+    company_id: str
+    name: str
+    default_severity: str = "medium"
+
+class RoleUpdate(BaseModel):
+    role: str
+
+class CompanyUpdate(BaseModel):
+    name: str
+    industry: str
+    universal_id_field: str
+
+@app.post("/settings/stages")
+def add_stage(stage: StageCreate):
+    import uuid
+    stage_id = str(uuid.uuid4())
+    db.execute("""
+        INSERT INTO stages (stage_id, company_id, stage_number, stage_name, expected_duration_mins)
+        VALUES (?, ?, ?, ?, ?)
+    """, (stage_id, stage.company_id, stage.stage_number, stage.stage_name, stage.expected_duration_mins))
+    return {"stage_id": stage_id, "message": "Stage added"}
+
+@app.delete("/settings/stages/{stage_id}")
+def delete_stage(stage_id: str):
+    db.execute("DELETE FROM stages WHERE stage_id = ?", (stage_id,))
+    return {"message": "Stage deleted"}
+
+@app.get("/settings/defect-types/{company_id}")
+def get_defect_types(company_id: str):
+    result = db.query("SELECT * FROM defect_types WHERE company_id = ? ORDER BY name", (company_id,))
+    return result.to_dict(orient="records")
+
+@app.post("/settings/defect-types")
+def add_defect_type(dt: DefectTypeCreate):
+    import uuid
+    type_id = str(uuid.uuid4())
+    db.execute("""
+        INSERT INTO defect_types (id, company_id, name, default_severity)
+        VALUES (?, ?, ?, ?)
+    """, (type_id, dt.company_id, dt.name, dt.default_severity))
+    return {"id": type_id, "message": "Defect type added"}
+
+@app.delete("/settings/defect-types/{type_id}")
+def delete_defect_type(type_id: str):
+    db.execute("DELETE FROM defect_types WHERE id = ?", (type_id,))
+    return {"message": "Deleted"}
+
+@app.get("/settings/users/{company_id}")
+def get_users(company_id: str):
+    result = db.query("""
+        SELECT user_id, company_id, email, role, first_name, last_name, is_active
+        FROM users WHERE company_id = ?
+        ORDER BY role, first_name
+    """, (company_id,))
+    return result.to_dict(orient="records")
+
+@app.put("/settings/users/{user_id}/role")
+def update_user_role(user_id: str, update: RoleUpdate):
+    db.execute("UPDATE users SET role = ? WHERE user_id = ?", (update.role, user_id))
+    return {"message": "Role updated"}
+
+@app.put("/settings/users/{user_id}/deactivate")
+def deactivate_user(user_id: str):
+    db.execute("UPDATE users SET is_active = 0 WHERE user_id = ?", (user_id,))
+    return {"message": "User deactivated"}
+
+@app.put("/settings/company/{company_id}")
+def update_company(company_id: str, update: CompanyUpdate):
+    db.execute("""
+        UPDATE companies SET name = ?, industry = ?, universal_id_field = ?
+        WHERE company_id = ?
+    """, (update.name, update.industry, update.universal_id_field, company_id))
+    return {"message": "Company updated"}
+
+# ── Connectors ─────────────────────────────────────────────────
+import pandas as pd
+import io
+
+class ConnectorCreate(BaseModel):
+    company_id: str
+    connector_name: str
+    connector_type: str
+    sync_schedule: str = "manual"
+    column_mapping: Optional[str] = None
+
+class ColumnMapping(BaseModel):
+    company_id: str
+    connector_id: str
+    mapping: dict
+
+@app.get("/connectors/{company_id}")
+def get_connectors(company_id: str):
+    result = db.query(
+        "SELECT * FROM connectors_config WHERE company_id = ?",
+        (company_id,)
+    )
+    return result.to_dict(orient="records")
+
+@app.post("/connectors")
+def create_connector(connector: ConnectorCreate):
+    import uuid
+    connector_id = str(uuid.uuid4())
+    db.execute("""
+        INSERT INTO connectors_config
+        (connector_id, company_id, connector_name, connector_type, sync_schedule)
+        VALUES (?, ?, ?, ?, ?)
+    """, (connector_id, connector.company_id, connector.connector_name,
+          connector.connector_type, connector.sync_schedule))
+    return {"connector_id": connector_id, "message": "Connector created"}
+
+@app.delete("/connectors/{connector_id}")
+def delete_connector(connector_id: str):
+    db.execute("DELETE FROM connectors_config WHERE connector_id = ?", (connector_id,))
+    return {"message": "Connector deleted"}
+
+@app.post("/connectors/{connector_id}/upload")
+async def upload_file(connector_id: str, company_id: str, file: UploadFile = File(...)):
+    """Upload CSV or Excel file and preview columns"""
+    try:
+        contents = await file.read()
+
+        if file.filename.endswith(".csv"):
+            df = pd.read_csv(io.BytesIO(contents))
+        elif file.filename.endswith((".xlsx", ".xls")):
+            df = pd.read_excel(io.BytesIO(contents))
+        else:
+            raise HTTPException(status_code=400, detail="Only CSV and Excel files supported")
+
+        # Return column names and preview
+        return {
+            "columns": df.columns.tolist(),
+            "preview": df.head(3).to_dict(orient="records"),
+            "total_rows": len(df),
+            "filename": file.filename
+        }
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+@app.post("/connectors/{connector_id}/sync")
+async def sync_file(
+    connector_id: str,
+    company_id: str,
+    file: UploadFile = File(...),
+    product_id_col: str = "",
+    stage_col: str = "",
+    status_col: str = "",
+    issue_type_col: str = "",
+    severity_col: str = "",
+    logged_at_col: str = "",
+):
+    """Sync file data into Viro's standard model"""
+    try:
+        contents = await file.read()
+
+        if file.filename.endswith(".csv"):
+            df = pd.read_csv(io.BytesIO(contents))
+        else:
+            df = pd.read_excel(io.BytesIO(contents))
+
+        imported = 0
+        errors = 0
+
+        for _, row in df.iterrows():
+            try:
+                product_id = str(row[product_id_col]) if product_id_col else None
+                if not product_id:
+                    continue
+
+                # Upsert product
+                existing = db.query(
+                    "SELECT * FROM products WHERE product_id = ? AND company_id = ?",
+                    (product_id, company_id)
+                )
+
+                stage = int(row[stage_col]) if stage_col and stage_col in row else 110
+                status = str(row[status_col]) if status_col and status_col in row else "in_progress"
+
+                if existing.empty:
+                    db.execute("""
+                        INSERT INTO products (product_id, company_id, entry_date, current_stage, status)
+                        VALUES (?, ?, ?, ?, ?)
+                    """, (product_id, company_id, datetime.now().isoformat(), stage, status))
+                else:
+                    db.execute("""
+                        UPDATE products SET current_stage = ?, status = ?
+                        WHERE product_id = ? AND company_id = ?
+                    """, (stage, status, product_id, company_id))
+
+                # Import issue if present
+                if issue_type_col and issue_type_col in row and row[issue_type_col]:
+                    import uuid
+                    defect_id = str(uuid.uuid4())
+                    severity = str(row[severity_col]).lower() if severity_col and severity_col in row else "medium"
+                    if severity not in ["low", "medium", "high", "critical"]:
+                        severity = "medium"
+                    logged_at = str(row[logged_at_col]) if logged_at_col and logged_at_col in row else datetime.now().isoformat()
+
+                    db.execute("""
+                        INSERT INTO defects
+                        (defect_id, company_id, product_id, stage_number, defect_type, severity, logged_at)
+                        VALUES (?, ?, ?, ?, ?, ?, ?)
+                    """, (defect_id, company_id, product_id, stage,
+                          str(row[issue_type_col]), severity, logged_at))
+
+                imported += 1
+            except Exception:
+                errors += 1
+
+        # Update last sync
+        db.execute(
+            "UPDATE connectors_config SET last_sync = ? WHERE connector_id = ?",
+            (datetime.now().isoformat(), connector_id)
+        )
+
+        return {
+            "message": f"Sync complete",
+            "imported": imported,
+            "errors": errors
+        }
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+# ── Terminology config ──────────────────────────────────────────
+@app.get("/config/{company_id}")
+def get_config(company_id: str):
+    result = db.query(
+        "SELECT config_key, config_value FROM company_config WHERE company_id = ?",
+        (company_id,)
+    )
+    if result.empty:
+        return {
+            "term_product": "Product",
+            "term_defect": "Defect",
+            "term_stage": "Stage",
+            "term_issue": "Issue",
+        }
+    return dict(zip(result["config_key"], result["config_value"]))
+
+@app.post("/config/{company_id}")
+def save_config(company_id: str, config: dict):
+    for key, value in config.items():
+        existing = db.query(
+            "SELECT * FROM company_config WHERE company_id = ? AND config_key = ?",
+            (company_id, key)
+        )
+        if existing.empty:
+            db.execute(
+                "INSERT INTO company_config VALUES (?, ?, ?)",
+                (company_id, key, value)
+            )
+        else:
+            db.execute(
+                "UPDATE company_config SET config_value = ? WHERE company_id = ? AND config_key = ?",
+                (value, company_id, key)
+            )
+    return {"message": "Config saved"}
