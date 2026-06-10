@@ -11,7 +11,7 @@ import { COLORS } from "./components/Layout";
 import Login from "./pages/Login";
 import ProductionLine from "./pages/ProductionLine";
 import Settings from "./pages/Settings";
-
+import Onboarding from "./pages/Onboarding";
 
 
 function ReportTab({ report }) {
@@ -98,6 +98,7 @@ export default function App() {
   const [user, setUser] = useState(null);
   const [token, setToken] = useState(null);
   const [authChecked, setAuthChecked] = useState(false);
+  const [showOnboarding, setShowOnboarding] = useState(false);
   const [companies, setCompanies] = useState([]);
   const [company, setCompany] = useState(null);
   const [activePage, setActivePage] = useState("Dashboard");
@@ -130,7 +131,9 @@ export default function App() {
   const handleLogin = (userData, userToken) => {
     setUser(userData);
     setToken(userToken);
+    localStorage.setItem("viro_company_id", userData.company_id);
   };
+  
   
   const handleLogout = () => {
     localStorage.removeItem("viro_token");
@@ -144,10 +147,15 @@ export default function App() {
     getCompanies()
       .then(res => {
         setCompanies(res.data);
-        setCompany(res.data[0]);
+        const savedCompanyId = localStorage.getItem("viro_company_id");
+        const savedCompany = savedCompanyId
+          ? res.data.find(c => c.company_id === savedCompanyId)
+          : null;
+        setCompany(savedCompany || res.data.find(c => c.company_id === user?.company_id) || res.data[0]);
       })
       .catch(() => {});
-  }, []);
+  }, [user]);
+  
 
   useEffect(() => {
     if (!company) return;
@@ -220,7 +228,21 @@ export default function App() {
 
   if (!authChecked) return null;
 
-  if (!user) return <Login onLogin={handleLogin} />;
+  if (showOnboarding) return (
+    <Onboarding onComplete={(userData, token) => {
+      setShowOnboarding(false);
+      handleLogin(userData, token);
+    }} />
+  );
+  
+
+  if (!user) return (
+    <Login 
+      onLogin={handleLogin} 
+      onSignup={() => setShowOnboarding(true)}
+    />
+  );
+  
 
 
   return (

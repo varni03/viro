@@ -496,13 +496,17 @@ db.execute("""
 """)
 
 db.execute("""
-    CREATE TABLE IF NOT EXISTS company_config (
+    CREATE TABLE IF NOT EXISTS company_modules (
         company_id TEXT,
-        config_key TEXT,
-        config_value TEXT,
-        PRIMARY KEY (company_id, config_key)
+        module_id TEXT,
+        enabled INTEGER DEFAULT 1,
+        custom_label TEXT,
+        custom_icon TEXT,
+        sort_order INTEGER,
+        PRIMARY KEY (company_id, module_id)
     )
 """)
+
 
 
 class StageCreate(BaseModel):
@@ -768,3 +772,49 @@ def save_config(company_id: str, config: dict):
                 (value, company_id, key)
             )
     return {"message": "Config saved"}
+
+# ── Onboarding ─────────────────────────────────────────────────
+class CompanyCreate(BaseModel):
+    name: str
+    industry: str
+    universal_id_field: str = "product"
+
+@app.post("/onboarding/company")
+def create_company(company: CompanyCreate):
+    import uuid
+    company_id = str(uuid.uuid4())[:8].upper()
+    db.execute("""
+        INSERT INTO companies (company_id, name, industry, universal_id_field)
+        VALUES (?, ?, ?, ?)
+    """, (company_id, company.name, company.industry, company.universal_id_field))
+    return {"company_id": company_id, "message": "Company created"}
+
+# ── Modules ────────────────────────────────────────────────────
+class ModuleUpdate(BaseModel):
+    modules: list
+
+@app.get("/modules/{company_id}")
+def get_modules(company_id: str):
+    result = db.query(
+        "SELECT * FROM company_modules WHERE company_id = ? ORDER BY sort_order",
+        (company_id,)
+    )
+    return result.to_dict(orient="records")
+
+@app.post("/modules/{company_id}")
+def save_modules(company_id: str, update: ModuleUpdate):
+    db.execute("DELETE FROM company_modules WHERE company_id = ?", (company_id,))
+    for i, module in enumerate(update.modules):
+        db.execute("""
+            INSERT INTO company_modules 
+            (company_id, module_id, enabled, custom_label, custom_icon, sort_order)
+            VALUES (?, ?, ?, ?, ?, ?)
+        """, (
+            company_id,
+            module["id"],
+            1 if module.get("enabled", True) else 0,
+            module.get("custom_label", ""),
+            module.get("custom_icon", ""),
+            i
+        ))
+    return {"message": "Modules saved"}

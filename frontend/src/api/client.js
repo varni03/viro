@@ -39,3 +39,5 @@ export const updateStage = (productId, stage, companyId) =>
   API.put(`/products/${productId}/stage?stage=${stage}&company_id=${companyId}`);
 export const updateStatus = (productId, status, companyId) =>
   API.put(`/products/${productId}/status?status=${status}&company_id=${companyId}`);
+export const getModules = (companyId) => API.get(`/modules/${companyId}`);
+export const saveModules = (companyId, modules) => API.post(`/modules/${companyId}`, { modules });

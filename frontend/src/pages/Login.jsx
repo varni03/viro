@@ -2,7 +2,7 @@ import { useState } from "react";
 import { login } from "../api/client";
 import { COLORS } from "../components/Layout";
 
-export default function Login({ onLogin }) {
+export default function Login({ onLogin, onSignup }) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
@@ -171,6 +171,7 @@ export default function Login({ onLogin }) {
           {loading ? "Signing in..." : "Sign In →"}
         </button>
 
+
         {/* Test accounts */}
         <div style={{
           background: COLORS.card,
@@ -219,6 +220,21 @@ export default function Login({ onLogin }) {
             Password: password123 · Click to autofill
           </div>
         </div>
+
+        {/* Sign up link */}
+        <div style={{ textAlign: "center", marginTop: 16 }}>
+          <span style={{ fontSize: 13, color: COLORS.muted }}>New to Viro? </span>
+          <span
+            onClick={onSignup}
+            style={{
+              fontSize: 13, color: COLORS.accentLight,
+              cursor: "pointer", textDecoration: "underline",
+            }}
+          >
+            Set up your company →
+          </span>
+        </div>
+
       </div>
     </div>
   );

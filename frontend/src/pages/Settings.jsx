@@ -53,23 +53,25 @@ const [columnMapping, setColumnMapping] = useState({
 });
 const [syncing, setSyncing] = useState(false);
 const [selectedConnector, setSelectedConnector] = useState(null);
-
+const [companyModules, setCompanyModules] = useState([]);
 
 const load = async () => {
     setLoading(true);
     try {
-      const [stageRes, defectRes, userRes, connectorRes, configRes] = await Promise.all([
-        fetch(`${API}/stages/${company.company_id}`).then(r => r.json()),
-        fetch(`${API}/settings/defect-types/${company.company_id}`).then(r => r.json()),
-        fetch(`${API}/settings/users/${company.company_id}`).then(r => r.json()),
-        fetch(`${API}/connectors/${company.company_id}`).then(r => r.json()),
-        fetch(`${API}/config/${company.company_id}`).then(r => r.json()),
-      ]);
-      setStages(stageRes);
-      setDefectTypes(defectRes);
-      setUsers(userRes);
-      setConnectors(connectorRes);
-      setTerminology(configRes);
+        const [stageRes, defectRes, userRes, connectorRes, configRes, moduleRes] = await Promise.all([
+            fetch(`${API}/stages/${company.company_id}`).then(r => r.json()),
+            fetch(`${API}/settings/defect-types/${company.company_id}`).then(r => r.json()),
+            fetch(`${API}/settings/users/${company.company_id}`).then(r => r.json()),
+            fetch(`${API}/connectors/${company.company_id}`).then(r => r.json()),
+            fetch(`${API}/config/${company.company_id}`).then(r => r.json()),
+            fetch(`${API}/modules/${company.company_id}`).then(r => r.json()),
+          ]);
+          setStages(stageRes);
+          setDefectTypes(defectRes);
+          setUsers(userRes);
+          setConnectors(connectorRes);
+          setTerminology(configRes);
+          setCompanyModules(moduleRes);
     } catch {}
     setLoading(false);
 };
@@ -189,10 +191,12 @@ const load = async () => {
     { id: "stages", label: "🏭 Stages" },
     { id: "defects", label: "⚠️ Defect Types" },
     { id: "users", label: "👥 Users" },
+    { id: "modules", label: "🧩 Modules" },
     { id: "connectors", label: "🔌 Connectors" },
     { id: "terminology", label: "🏷️ Terminology" },
     { id: "company", label: "🏢 Company Profile" },
 ];
+
   
 
   const roleColor = (r) => ({
@@ -1084,6 +1088,95 @@ const load = async () => {
           </Card>
         </div>
       )}
+
+      {/* MODULES TAB */}
+{activeTab === "modules" && (
+  <div>
+    <SectionLabel>Platform Modules</SectionLabel>
+    <Card style={{ marginBottom: 16 }}>
+      <div style={{ fontSize: 13, color: COLORS.muted, marginBottom: 20, lineHeight: 1.6 }}>
+        Enable or disable features for your team. Changes take effect immediately.
+        Required modules cannot be disabled.
+      </div>
+
+      {[
+        { id: "dashboard", label: "Dashboard", icon: "⬡", desc: "Main overview with metrics and charts", required: true },
+        { id: "search", label: "Search", icon: "🔍", desc: "Search and view individual product history", required: true },
+        { id: "log_issue", label: "Log Issue", icon: "📸", desc: "Log defects and issues with AI photo analysis", required: true },
+        { id: "workflow", label: "Workflow Tracker", icon: "🔧", desc: "Track items through production stages", required: false },
+        { id: "analytics", label: "Analytics", icon: "📊", desc: "Trends, charts, and data exports", required: false },
+        { id: "predictive", label: "Predictive Risk", icon: "⚠️", desc: "AI-powered risk detection and flagging", required: false },
+        { id: "repair", label: "Repair Queue", icon: "🔨", desc: "Queue for repair team to resolve issues", required: false },
+        { id: "settings", label: "Settings", icon: "⚙️", desc: "Platform configuration", required: false },
+      ].map(module => {
+        const moduleData = companyModules.find(m => m.module_id === module.id);
+        const isEnabled = module.required || (moduleData ? moduleData.enabled !== 0 : false);
+        return (
+          <div key={module.id} style={{
+            display: "flex", alignItems: "center",
+            justifyContent: "space-between",
+            padding: "14px 0",
+            borderBottom: `1px solid ${COLORS.border}`,
+          }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+              <span style={{ fontSize: 20 }}>{module.icon}</span>
+              <div>
+                <div style={{ fontSize: 13, fontWeight: 600, color: COLORS.text }}>
+                  {module.label}
+                  {module.required && (
+                    <span style={{ fontSize: 10, color: COLORS.muted, marginLeft: 8 }}>Required</span>
+                  )}
+                </div>
+                <div style={{ fontSize: 11, color: COLORS.muted }}>{module.desc}</div>
+              </div>
+            </div>
+
+            <div
+              onClick={async () => {
+                if (module.required) return;
+                const updated = companyModules.map(m =>
+                  m.module_id === module.id ? { ...m, enabled: isEnabled ? 0 : 1 } : m
+                );
+                setCompanyModules(updated);
+                await fetch(`${API}/modules/${company.company_id}`, {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({
+                    modules: updated.map(m => ({
+                      id: m.module_id,
+                      enabled: m.enabled !== 0,
+                      custom_label: m.custom_label,
+                      custom_icon: m.custom_icon,
+                    }))
+                  })
+                });
+                showSuccess(`${module.label} ${isEnabled ? "disabled" : "enabled"}`);
+              }}
+              style={{
+                width: 44, height: 24, borderRadius: 12,
+                background: isEnabled ? COLORS.accent : COLORS.border,
+                position: "relative",
+                cursor: module.required ? "default" : "pointer",
+                transition: "background 0.2s",
+                flexShrink: 0,
+                opacity: module.required ? 0.6 : 1,
+              }}
+            >
+              <div style={{
+                width: 18, height: 18, borderRadius: "50%",
+                background: "white",
+                position: "absolute", top: 3,
+                left: isEnabled ? 23 : 3,
+                transition: "left 0.2s",
+              }} />
+            </div>
+          </div>
+        );
+      })}
+    </Card>
+  </div>
+)}
+
 
       {/* COMPANY PROFILE TAB */}
       {activeTab === "company" && (
