@@ -10,6 +10,109 @@ const severityColor = (s) => ({
   low: COLORS.low,
 }[s] || COLORS.muted);
 
+function SavedAnalysisCard({ analysis, company, onDelete }) {
+  const [data, setData] = useState([]);
+  const [columns, setColumns] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetch(`${API}/analytics/run`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        sql: analysis.sql_query,
+        company_id: company.company_id,
+      })
+    }).then(r => r.json()).then(res => {
+      setData(res.data || []);
+      setColumns(res.columns || []);
+      setLoading(false);
+    }).catch(() => setLoading(false));
+  }, [analysis.id]);
+
+  const maxVal = Math.max(...data.map(r => Number(Object.values(r)[1]) || 0), 1);
+
+  return (
+    <Card>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 12 }}>
+        <div>
+          <div style={{ fontSize: 14, fontWeight: 700, color: COLORS.text, marginBottom: 2 }}>
+            {analysis.title}
+          </div>
+          <div style={{ fontSize: 11, color: COLORS.muted }}>{analysis.description}</div>
+        </div>
+        <button
+          onClick={onDelete}
+          style={{
+            background: "transparent", border: "none",
+            color: COLORS.muted, cursor: "pointer", fontSize: 16,
+          }}
+        >
+          ✕
+        </button>
+      </div>
+
+      {loading ? (
+        <div style={{ color: COLORS.muted, fontSize: 12, textAlign: "center", padding: 12 }}>Loading...</div>
+      ) : data.length === 0 ? (
+        <div style={{ color: COLORS.muted, fontSize: 12, textAlign: "center", padding: 12 }}>No data</div>
+      ) : analysis.chart_type === "table" ? (
+        <div style={{ overflowX: "auto" }}>
+          <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12 }}>
+            <thead>
+              <tr>
+                {columns.map(col => (
+                  <th key={col} style={{
+                    padding: "6px 10px", textAlign: "left",
+                    color: COLORS.muted, fontSize: 10,
+                    borderBottom: `1px solid ${COLORS.border}`,
+                  }}>
+                    {col}
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {data.map((row, ri) => (
+                <tr key={ri} style={{ borderBottom: `1px solid ${COLORS.border}` }}>
+                  {columns.map(col => (
+                    <td key={col} style={{ padding: "6px 10px", color: COLORS.text }}>
+                      {String(row[col] ?? "")}
+                    </td>
+                  ))}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      ) : (
+        <div style={{ display: "flex", alignItems: "flex-end", gap: 4, height: 80 }}>
+          {data.map((row, i) => {
+            const val = Number(Object.values(row)[1]) || 0;
+            const label = String(Object.values(row)[0]).slice(0, 10);
+            return (
+              <div key={i} style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center" }}>
+                <div style={{ fontSize: 9, color: COLORS.muted, marginBottom: 2 }}>{val}</div>
+                <div style={{
+                  width: "100%",
+                  height: `${(val / maxVal) * 60}px`,
+                  background: `linear-gradient(180deg, ${COLORS.accent}, #4f46e5)`,
+                  borderRadius: "2px 2px 0 0",
+                  minHeight: 2,
+                }} />
+                <div style={{ fontSize: 8, color: COLORS.muted, marginTop: 2, textAlign: "center" }}>
+                  {label}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </Card>
+  );
+}
+
+
 export default function Analytics({ company }) {
   const [summary, setSummary] = useState(null);
   const [topDefects, setTopDefects] = useState([]);
@@ -18,6 +121,13 @@ export default function Analytics({ company }) {
   const [trends, setTrends] = useState([]);
   const [loading, setLoading] = useState(true);
   const [exportLoading, setExportLoading] = useState(false);
+  const [savedAnalytics, setSavedAnalytics] = useState([]);
+  const [showGenerator, setShowGenerator] = useState(false);
+  const [analyticsQuestion, setAnalyticsQuestion] = useState("");
+  const [generating, setGenerating] = useState(false);
+  const [generatedAnalysis, setGeneratedAnalysis] = useState(null);
+  const [generatorError, setGeneratorError] = useState(null);
+  
 
   useEffect(() => {
     if (!company) return;
@@ -27,15 +137,67 @@ export default function Analytics({ company }) {
       fetch(`${API}/analytics/stage-performance/${company.company_id}`).then(r => r.json()),
       fetch(`${API}/analytics/resolution-trend/${company.company_id}`).then(r => r.json()),
       fetch(`${API}/analytics/trends/${company.company_id}`).then(r => r.json()),
-    ]).then(([s, td, sp, rt, tr]) => {
+      fetch(`${API}/analytics/saved/${company.company_id}`).then(r => r.json()),
+    ]).then(([s, td, sp, rt, tr, sa]) => {
       setSummary(s);
       setTopDefects(td);
       setStagePerformance(sp);
       setResolutionTrend(rt);
       setTrends(tr);
+      setSavedAnalytics(sa);
       setLoading(false);
     }).catch(() => setLoading(false));
+
   }, [company]);
+
+  const generateAnalysis = async () => {
+    if (!analyticsQuestion) return;
+    setGenerating(true);
+    setGeneratorError(null);
+    setGeneratedAnalysis(null);
+    try {
+      const res = await fetch(`${API}/analytics/generate`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          company_id: company.company_id,
+          question: analyticsQuestion,
+        })
+      }).then(r => r.json());
+
+      if (res.error) {
+        setGeneratorError(res.error);
+      } else {
+        setGeneratedAnalysis(res);
+      }
+    } catch {
+      setGeneratorError("Failed to generate analysis");
+    }
+    setGenerating(false);
+  };
+
+  const saveAnalysis = async () => {
+    if (!generatedAnalysis) return;
+    try {
+      await fetch(`${API}/analytics/saved`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          company_id: company.company_id,
+          title: generatedAnalysis.title,
+          sql_query: generatedAnalysis.sql,
+          chart_type: generatedAnalysis.chart_type,
+          description: generatedAnalysis.description,
+        })
+      });
+      const updated = await fetch(`${API}/analytics/saved/${company.company_id}`).then(r => r.json());
+      setSavedAnalytics(updated);
+      setShowGenerator(false);
+      setGeneratedAnalysis(null);
+      setAnalyticsQuestion("");
+    } catch {}
+  };
+
 
   const exportCSV = () => {
     setExportLoading(true);
@@ -288,6 +450,175 @@ export default function Analytics({ company }) {
           </div>
         )}
       </Card>
+      {/* AI Custom Analytics Generator */}
+      <div style={{ marginTop: 16 }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
+          <div style={{ fontSize: 16, fontWeight: 700, color: COLORS.text }}>Custom Analytics</div>
+          <button
+            onClick={() => setShowGenerator(!showGenerator)}
+            style={{
+              background: `linear-gradient(135deg, ${COLORS.accent}, #4f46e5)`,
+              border: "none", borderRadius: 10,
+              padding: "10px 18px", color: "white",
+              fontSize: 13, fontWeight: 700, cursor: "pointer",
+            }}
+          >
+            + Create with AI
+          </button>
+        </div>
+
+        {/* Generator panel */}
+        {showGenerator && (
+          <Card style={{ marginBottom: 16 }}>
+            <div style={{ fontSize: 14, fontWeight: 700, color: COLORS.text, marginBottom: 8 }}>
+              Describe the analysis you want
+            </div>
+            <div style={{ fontSize: 12, color: COLORS.muted, marginBottom: 16 }}>
+              Examples: "Show defects by day of week", "Which product has the most issues?", "Compare critical vs high defects over time"
+            </div>
+
+            <div style={{ display: "flex", gap: 10, marginBottom: 16 }}>
+              <input
+                value={analyticsQuestion}
+                onChange={e => setAnalyticsQuestion(e.target.value)}
+                onKeyDown={e => e.key === "Enter" && generateAnalysis()}
+                placeholder="e.g. Show me defect counts by stage for this month..."
+                style={{
+                  flex: 1,
+                  background: COLORS.card,
+                  border: `1px solid ${COLORS.border}`,
+                  borderRadius: 10, padding: "12px 16px",
+                  color: COLORS.text, fontSize: 14,
+                  outline: "none",
+                }}
+              />
+              <button
+                onClick={generateAnalysis}
+                disabled={generating || !analyticsQuestion}
+                style={{
+                  background: generating ? COLORS.border : `linear-gradient(135deg, ${COLORS.accent}, #4f46e5)`,
+                  border: "none", borderRadius: 10,
+                  padding: "12px 20px", color: "white",
+                  fontSize: 13, fontWeight: 700,
+                  cursor: generating ? "not-allowed" : "pointer",
+                  whiteSpace: "nowrap",
+                }}
+              >
+                {generating ? "Generating..." : "Generate ✨"}
+              </button>
+            </div>
+
+            {generatorError && (
+              <div style={{
+                padding: "10px 16px",
+                background: COLORS.critical + "20",
+                border: `1px solid ${COLORS.critical}40`,
+                borderRadius: 10, color: COLORS.critical, fontSize: 13,
+                marginBottom: 16,
+              }}>
+                ❌ {generatorError}
+              </div>
+            )}
+
+            {generatedAnalysis && (
+              <div>
+                <div style={{
+                  background: COLORS.accentGlow,
+                  border: `1px solid ${COLORS.accent}33`,
+                  borderRadius: 12, padding: 16, marginBottom: 16,
+                }}>
+                  <div style={{ fontSize: 14, fontWeight: 700, color: COLORS.accentLight, marginBottom: 4 }}>
+                    {generatedAnalysis.title}
+                  </div>
+                  <div style={{ fontSize: 12, color: COLORS.muted, marginBottom: 12 }}>
+                    {generatedAnalysis.description}
+                  </div>
+
+                  {/* Preview table */}
+                  {generatedAnalysis.preview?.length > 0 && (
+                    <div style={{
+                      background: COLORS.bg,
+                      border: `1px solid ${COLORS.border}`,
+                      borderRadius: 10, overflow: "hidden",
+                    }}>
+                      <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12 }}>
+                        <thead>
+                          <tr style={{ background: COLORS.card }}>
+                            {generatedAnalysis.columns?.map(col => (
+                              <th key={col} style={{
+                                padding: "8px 12px", textAlign: "left",
+                                color: COLORS.muted, fontWeight: 600,
+                                fontSize: 10, letterSpacing: "0.06em",
+                                borderBottom: `1px solid ${COLORS.border}`,
+                              }}>
+                                {col}
+                              </th>
+                            ))}
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {generatedAnalysis.preview.map((row, ri) => (
+                            <tr key={ri} style={{ borderBottom: `1px solid ${COLORS.border}` }}>
+                              {generatedAnalysis.columns?.map(col => (
+                                <td key={col} style={{ padding: "8px 12px", color: COLORS.text }}>
+                                  {String(row[col] ?? "")}
+                                </td>
+                              ))}
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+                </div>
+
+                <div style={{ display: "flex", gap: 10 }}>
+                  <button
+                    onClick={saveAnalysis}
+                    style={{
+                      background: `linear-gradient(135deg, ${COLORS.low}, #16a34a)`,
+                      border: "none", borderRadius: 10,
+                      padding: "10px 20px", color: "white",
+                      fontSize: 13, fontWeight: 700, cursor: "pointer",
+                    }}
+                  >
+                    ✓ Save to Dashboard
+                  </button>
+                  <button
+                    onClick={() => { setGeneratedAnalysis(null); setAnalyticsQuestion(""); }}
+                    style={{
+                      background: COLORS.card,
+                      border: `1px solid ${COLORS.border}`,
+                      borderRadius: 10, padding: "10px 16px",
+                      color: COLORS.muted, fontSize: 13, cursor: "pointer",
+                    }}
+                  >
+                    Try Again
+                  </button>
+                </div>
+              </div>
+            )}
+          </Card>
+        )}
+
+        {/* Saved analytics */}
+        {savedAnalytics.length > 0 && (
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
+            {savedAnalytics.map((analysis, i) => (
+              <SavedAnalysisCard
+                key={i}
+                analysis={analysis}
+                company={company}
+                onDelete={async () => {
+                  await fetch(`${API}/analytics/saved/${analysis.id}`, { method: "DELETE" });
+                  setSavedAnalytics(prev => prev.filter(a => a.id !== analysis.id));
+                }}
+              />
+            ))}
+          </div>
+        )}
+      </div>
+
     </div>
   );
 }

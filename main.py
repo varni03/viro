@@ -261,6 +261,111 @@ def get_resolution_trend(company_id: str):
     """, (company_id,))
     return result.to_dict(orient="records")
 
+@app.get("/analytics/saved/{company_id}")
+def get_saved_analytics(company_id: str):
+    result = db.query(
+        "SELECT * FROM saved_analytics WHERE company_id = ? ORDER BY created_at DESC",
+        (company_id,)
+    )
+    return result.to_dict(orient="records")
+
+@app.delete("/analytics/saved/{analysis_id}")
+def delete_saved_analysis(analysis_id: str):
+    db.execute("DELETE FROM saved_analytics WHERE id = ?", (analysis_id,))
+    return {"message": "Deleted"}
+
+class AnalyticsRequest(BaseModel):
+    company_id: str
+    question: str
+
+class SaveAnalytics(BaseModel):
+    company_id: str
+    title: str
+    sql_query: str
+    chart_type: str
+    description: str
+
+@app.post("/analytics/generate")
+def generate_analytics(request: AnalyticsRequest):
+    try:
+        schema = """
+        Tables:
+        - products (product_id, company_id, current_stage, status, entry_date)
+        - defects (defect_id, company_id, product_id, stage_number, defect_type, severity, notes, logged_at, resolved)
+        - stages (stage_id, company_id, stage_number, stage_name)
+        - defect_custom_values (defect_id, field_id, value)
+        - custom_fields (field_id, company_id, field_name, field_label, field_type)
+        """
+
+        prompt = f"""You are a SQL expert for a manufacturing quality database.
+        
+        Database schema:
+        {schema}
+        
+        The user wants this analysis: "{request.question}"
+        
+        Generate a SQLite SQL query that answers this question for company_id = '{request.company_id}'.
+        
+        Rules:
+        - Always filter by company_id = '{request.company_id}'
+        - Return maximum 20 rows
+        - Use clear column aliases
+        - Only use SELECT statements, no INSERT/UPDATE/DELETE
+        - For time-based queries use logged_at field
+        - Keep it simple and readable
+        
+        Return ONLY a JSON object:
+        {{
+            "sql": "SELECT ...",
+            "title": "Short title for this analysis",
+            "description": "One sentence describing what this shows",
+            "chart_type": "bar or line or table",
+            "x_axis": "column name for x axis",
+            "y_axis": "column name for y axis"
+        }}
+        
+        Return ONLY the JSON, no other text."""
+
+        response = client.messages.create(
+            model="claude-sonnet-4-20250514",
+            max_tokens=500,
+            messages=[{"role": "user", "content": prompt}]
+        )
+
+        result = json.loads(response.content[0].text.strip())
+        
+        # Run the query to preview
+        try:
+            df = db.query(result["sql"])
+            preview = df.head(5).to_dict(orient="records")
+            columns = df.columns.tolist()
+        except Exception as e:
+            return {"error": f"Query failed: {str(e)}", "sql": result.get("sql", "")}
+
+        return {
+            "sql": result["sql"],
+            "title": result["title"],
+            "description": result["description"],
+            "chart_type": result["chart_type"],
+            "x_axis": result.get("x_axis", columns[0] if columns else ""),
+            "y_axis": result.get("y_axis", columns[1] if len(columns) > 1 else ""),
+            "preview": preview,
+            "columns": columns,
+        }
+
+    except Exception as e:
+        return {"error": str(e)}
+
+@app.post("/analytics/saved")
+def save_analysis(data: SaveAnalytics):
+    import uuid
+    analysis_id = str(uuid.uuid4())
+    db.execute("""
+        INSERT INTO saved_analytics (id, company_id, title, sql_query, chart_type, description)
+        VALUES (?, ?, ?, ?, ?, ?)
+    """, (analysis_id, data.company_id, data.title, data.sql_query, data.chart_type, data.description))
+    return {"id": analysis_id, "message": "Analysis saved"}
+
 
 # ── AI Assistant ───────────────────────────────────────────────
 class AIRequest(BaseModel):
@@ -701,6 +806,18 @@ db.execute("""
     )
 """)
 
+db.execute("""
+    CREATE TABLE IF NOT EXISTS saved_analytics (
+        id TEXT PRIMARY KEY,
+        company_id TEXT NOT NULL,
+        title TEXT NOT NULL,
+        sql_query TEXT NOT NULL,
+        chart_type TEXT DEFAULT 'bar',
+        description TEXT,
+        created_at TEXT DEFAULT CURRENT_TIMESTAMP
+    )
+""")
+
 
 
 
@@ -737,6 +854,25 @@ def add_stage(stage: StageCreate):
 def delete_stage(stage_id: str):
     db.execute("DELETE FROM stages WHERE stage_id = ?", (stage_id,))
     return {"message": "Stage deleted"}
+
+class RunQuery(BaseModel):
+    sql: str
+    company_id: str
+
+@app.post("/analytics/run")
+def run_saved_query(data: RunQuery):
+    try:
+        # Safety check - only allow SELECT
+        if not data.sql.strip().upper().startswith("SELECT"):
+            raise HTTPException(status_code=400, detail="Only SELECT queries allowed")
+        df = db.query(data.sql)
+        return {
+            "data": df.head(20).to_dict(orient="records"),
+            "columns": df.columns.tolist(),
+        }
+    except Exception as e:
+        return {"data": [], "columns": [], "error": str(e)}
+
 
 @app.get("/settings/defect-types/{company_id}")
 def get_defect_types(company_id: str):
