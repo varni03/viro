@@ -33,3 +33,9 @@ export const register = (data) => API.post('/auth/register', data);
 export const getMe = (token) => API.get('/auth/me', {
   headers: { Authorization: `Bearer ${token}` }
 });
+export const getProductionLine = (companyId) => API.get(`/production/line/${companyId}`);
+export const resolveDefect = (defectId) => API.put(`/defects/${defectId}/resolve`);
+export const updateStage = (productId, stage, companyId) => 
+  API.put(`/products/${productId}/stage?stage=${stage}&company_id=${companyId}`);
+export const updateStatus = (productId, status, companyId) =>
+  API.put(`/products/${productId}/status?status=${status}&company_id=${companyId}`);

@@ -423,3 +423,47 @@ def get_me(authorization: str = None):
         }
     except:
         raise HTTPException(status_code=401, detail="Invalid token")
+
+@app.get("/production/line/{company_id}")
+def get_production_line(company_id: str):
+    """Get all active vehicles with their stage and defect status"""
+    result = db.query("""
+        SELECT 
+            p.product_id,
+            p.current_stage,
+            p.status,
+            p.entry_date,
+            COUNT(d.defect_id) as total_defects,
+            SUM(CASE WHEN d.resolved = 0 THEN 1 ELSE 0 END) as open_defects,
+            SUM(CASE WHEN d.severity = 'critical' AND d.resolved = 0 THEN 1 ELSE 0 END) as critical_open,
+            SUM(CASE WHEN d.severity = 'high' AND d.resolved = 0 THEN 1 ELSE 0 END) as high_open
+        FROM products p
+        LEFT JOIN defects d ON p.product_id = d.product_id
+            AND d.company_id = p.company_id
+        WHERE p.company_id = ?
+        AND p.status != 'completed'
+        GROUP BY p.product_id
+        ORDER BY p.current_stage ASC, critical_open DESC
+    """, (company_id,))
+    return result.to_dict(orient="records")
+
+@app.put("/defects/{defect_id}/resolve")
+def resolve_defect(defect_id: str):
+    db.execute("""
+        UPDATE defects SET resolved = 1 WHERE defect_id = ?
+    """, (defect_id,))
+    return {"message": "Defect resolved"}
+
+@app.put("/products/{product_id}/stage")
+def update_stage(product_id: str, stage: int, company_id: str):
+    db.execute("""
+        UPDATE products SET current_stage = ? WHERE product_id = ? AND company_id = ?
+    """, (stage, product_id, company_id))
+    return {"message": "Stage updated"}
+
+@app.put("/products/{product_id}/status")
+def update_status(product_id: str, status: str, company_id: str):
+    db.execute("""
+        UPDATE products SET status = ? WHERE product_id = ? AND company_id = ?
+    """, (status, product_id, company_id))
+    return {"message": "Status updated"}

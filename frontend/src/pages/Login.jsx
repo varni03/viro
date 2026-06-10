@@ -188,7 +188,8 @@ export default function Login({ onLogin }) {
           {[
             { email: "manager@meridianvans.com", role: "Manager", color: COLORS.accentLight },
             { email: "worker@meridianvans.com", role: "Worker", color: COLORS.low },
-          ].map((acc, i) => (
+            { email: "repair@meridianvans.com", role: "Repair", color: COLORS.high },
+            ].map((acc, i) => (
             <div
               key={i}
               onClick={() => {
@@ -200,7 +201,7 @@ export default function Login({ onLogin }) {
                 alignItems: "center",
                 padding: "6px 0",
                 cursor: "pointer",
-                borderBottom: i === 0 ? `1px solid ${COLORS.border}` : "none",
+                borderBottom: i < 2 ? `1px solid ${COLORS.border}` : "none",
               }}
             >
               <span style={{ fontSize: 12, color: COLORS.muted }}>{acc.email}</span>

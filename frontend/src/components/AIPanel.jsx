@@ -15,10 +15,11 @@ export default function AIPanel({ company, onNewReport, activePage, onFilterChan
   const [messages, setMessages] = useState([
     {
       role: "assistant",
-      content: "Hi — I'm Viro AI. Ask me questions about your data, or tell me how to filter the dashboard. Try: 'show only critical defects' or 'filter to station 310'.",
+      content: `Hi, I'm your AI assistant. Ask me questions about your data, or tell me how to filter the dashboard. Try: 'show only critical defects' or 'filter to station 310'.`,
       data: null,
     }
   ]);
+
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const bottomRef = useRef();
@@ -135,7 +136,7 @@ export default function AIPanel({ company, onNewReport, activePage, onFilterChan
             🤖
           </div>
           <div>
-            <div style={{ fontSize: 15, fontWeight: 700, color: COLORS.text }}>Viro AI</div>
+            <div style={{ fontSize: 15, fontWeight: 700, color: COLORS.text }}>{company?.name} AI</div>
             <div style={{ fontSize: 10, color: COLORS.low, letterSpacing: "0.06em" }}>
               ● LIVE · Data + Web
             </div>
@@ -143,7 +144,7 @@ export default function AIPanel({ company, onNewReport, activePage, onFilterChan
           <button
             onClick={() => setMessages([{
               role: "assistant",
-              content: "Chat cleared. Ask me anything or tell me how to filter the dashboard.",
+              content: "Chat cleared. Ask me anything about your data or tell me how to filter the dashboard.",
               data: null,
             }])}
             style={{
@@ -262,7 +263,7 @@ export default function AIPanel({ company, onNewReport, activePage, onFilterChan
                     fontWeight: 700, marginBottom: 5,
                     letterSpacing: "0.08em"
                   }}>
-                    {msg.isFilterChange ? "DASHBOARD UPDATED" : "VIRO AI"}
+                    {msg.isFilterChange ? "DASHBOARD UPDATED" : `${company?.name?.toUpperCase()} AI`}
                   </div>
                 )}
                 <div style={{ whiteSpace: "pre-wrap" }}>{msg.content}</div>

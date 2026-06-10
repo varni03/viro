@@ -258,7 +258,7 @@ class ViroDB:
                 company_id TEXT NOT NULL,
                 email TEXT UNIQUE NOT NULL,
                 password_hash TEXT NOT NULL,
-                role TEXT NOT NULL CHECK (role IN ('worker', 'manager', 'admin')),
+                role TEXT NOT NULL CHECK (role IN ('worker', 'manager', 'admin', 'repair')),
                 first_name TEXT,
                 last_name TEXT,
                 created_at TEXT DEFAULT CURRENT_TIMESTAMP,

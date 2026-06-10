@@ -9,6 +9,8 @@ import VehicleSearch from "./pages/VehicleSearch";
 import LogDefect from "./pages/LogDefect";
 import { COLORS } from "./components/Layout";
 import Login from "./pages/Login";
+import ProductionLine from "./pages/ProductionLine";
+
 
 function ReportTab({ report }) {
   return (
@@ -202,6 +204,7 @@ export default function App() {
 
     switch (activePage) {
       case "Dashboard": return <Dashboard company={company} filters={filters} />;
+      case "Production Line": return <ProductionLine company={company} user={user} />;
       case "Predictive": return <Predictive company={company} />;
       case "Analytics": return <Analytics company={company} />;
       case "Vehicle Search": return <VehicleSearch company={company} />;

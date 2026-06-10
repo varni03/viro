@@ -4,6 +4,7 @@ const managerItems = [
   { label: "Dashboard", icon: "⬡" },
   { label: "Vehicle Search", icon: "🔍" },
   { label: "Log Defect", icon: "📸" },
+  { label: "Production Line", icon: "🔧" },
   { label: "Analytics", icon: "📊" },
   { label: "Predictive", icon: "⚠️" },
 ];
@@ -13,11 +14,21 @@ const workerItems = [
   { label: "Log Defect", icon: "📸" },
 ];
 
+const repairItems = [
+  { label: "Production Line", icon: "🔧" },
+  { label: "Vehicle Search", icon: "🔍" },
+];
+
+
 export default function Sidebar({
   activePage, setActivePage, company, companies,
   setCompany, stats, user, onLogout
 }) {
-  const navItems = user?.role === "worker" ? workerItems : managerItems;
+
+const navItems = user?.role === "worker" ? workerItems 
+  : user?.role === "repair" ? repairItems 
+  : managerItems;
+
 
   return (
     <div style={{
@@ -30,56 +41,62 @@ export default function Sidebar({
       height: "100vh",
     }}>
       {/* Logo */}
-      <div style={{ padding: "24px 24px 20px" }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-          <div style={{
-            width: 36, height: 36,
-            background: `linear-gradient(135deg, ${COLORS.accent}, #4f46e5)`,
-            borderRadius: 10,
-            display: "flex", alignItems: "center",
-            justifyContent: "center",
-            fontSize: 18, fontWeight: 800,
-          }}>
-            ⬡
-          </div>
-          <div>
-            <div style={{ fontSize: 20, fontWeight: 800, letterSpacing: "-0.02em" }}>Viro</div>
-            <div style={{ fontSize: 9, color: COLORS.muted, letterSpacing: "0.1em", textTransform: "uppercase" }}>
-              Manufacturing AI
-            </div>
-          </div>
-        </div>
+<div style={{ padding: "24px 24px 20px" }}>
+  <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+    <div style={{
+      width: 36, height: 36,
+      background: `linear-gradient(135deg, ${COLORS.accent}, #4f46e5)`,
+      borderRadius: 10,
+      display: "flex", alignItems: "center",
+      justifyContent: "center",
+      fontSize: 18, fontWeight: 800,
+    }}>
+      ⬡
+    </div>
+    <div>
+      <div style={{ fontSize: 16, fontWeight: 800, letterSpacing: "-0.02em" }}>
+        {company?.name || "Viro"}
       </div>
+      <div style={{ fontSize: 9, color: COLORS.muted, letterSpacing: "0.1em", textTransform: "uppercase" }}>
+        Powered by Viro
+      </div>
+    </div>
+  </div>
+</div>
 
-      {/* Company selector */}
-      <div style={{ padding: "0 16px 16px" }}>
-        <div style={{ fontSize: 10, color: COLORS.muted, letterSpacing: "0.08em", marginBottom: 6, paddingLeft: 4 }}>
-          COMPANY
-        </div>
-        <select
-          value={company?.company_id || ""}
-          onChange={e => {
-            const selected = companies.find(c => c.company_id === e.target.value);
-            setCompany(selected);
-          }}
-          style={{
-            width: "100%",
-            background: COLORS.card,
-            border: `1px solid ${COLORS.border}`,
-            borderRadius: 10,
-            padding: "10px 14px",
-            color: COLORS.text,
-            fontSize: 13,
-            fontWeight: 600,
-            cursor: "pointer",
-            outline: "none",
-          }}
-        >
-          {companies.map(c => (
-            <option key={c.company_id} value={c.company_id}>{c.name}</option>
-          ))}
-        </select>
-      </div>
+
+      {/* Company selector — admin only */}
+{user?.role === "admin" && (
+  <div style={{ padding: "0 16px 16px" }}>
+    <div style={{ fontSize: 10, color: COLORS.muted, letterSpacing: "0.08em", marginBottom: 6, paddingLeft: 4 }}>
+      COMPANY
+    </div>
+    <select
+      value={company?.company_id || ""}
+      onChange={e => {
+        const selected = companies.find(c => c.company_id === e.target.value);
+        setCompany(selected);
+      }}
+      style={{
+        width: "100%",
+        background: COLORS.card,
+        border: `1px solid ${COLORS.border}`,
+        borderRadius: 10,
+        padding: "10px 14px",
+        color: COLORS.text,
+        fontSize: 13,
+        fontWeight: 600,
+        cursor: "pointer",
+        outline: "none",
+      }}
+    >
+      {companies.map(c => (
+        <option key={c.company_id} value={c.company_id}>{c.name}</option>
+      ))}
+    </select>
+  </div>
+)}
+
 
       {/* Divider */}
       <div style={{ height: 1, background: COLORS.border, marginBottom: 8 }} />
