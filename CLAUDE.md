@@ -1,0 +1,147 @@
+# CLAUDE.md — Viro Project Context
+
+> Read this first. It is the single source of truth for working on Viro.
+> Keep it updated when architecture, priorities, or conventions change.
+
+## What Viro is
+
+AI-powered operations intelligence platform — “the operating system for operations.”
+Two core differentiators:
+
+1. **Generative UI** — a company describes its operation in a conversation; Viro generates
+   a custom dashboard/platform for them (config-driven, not hardcoded).
+1. **Role automations** — Viro drafts the documents every department writes by hand
+   (invoices, weekly quality reports, supplier emails, shift handovers).
+
+Founder: Varnika Jain.
+Customer zero: **Meridian Vans** (commercial van upfitter, Plant 1).
+Customer two (target): **Tidewater Marine** (marine procurement, Hong Kong — RFQ workflow).
+Goal: demo to the manager end of June; paying customer by end of July.
+
+## Stack & deployment
+
+|Layer   |Tech                                           |Where                                                  |
+|--------|-----------------------------------------------|-------------------------------------------------------|
+|Frontend|React + Vite, inline styles                    |Vercel — <https://viro-pearl.vercel.app>               |
+|Backend |Python FastAPI                                 |Railway — <https://web-production-0457e.up.railway.app>|
+|Database|PostgreSQL (prod) / SQLite (local dev)         |Supabase, project ref `vfukukknebzkbhjbglde`           |
+|AI      |Anthropic API, model `claude-sonnet-4-20250514`|key in Railway env + local .env                        |
+
+- Push to `main` → Railway and Vercel auto-deploy (~2 min).
+- Railway env vars: `ANTHROPIC_API_KEY`, `JWT_SECRET`, `DATABASE_URL`.
+- `DATABASE_URL` must use Supabase **Session Pooler** (IPv4):
+  `postgresql://postgres.vfukukknebzkbhjbglde:<PASSWORD>@aws-1-us-east-2.pooler.supabase.com:5432/postgres`
+- Railway filesystem is ephemeral — never store data on disk in prod.
+
+## Production data / credentials
+
+- Company: Meridian Vans, `company_id = 2F01E0D1`
+- Login: `manager@meridianvans.com` / `password123` (Dana Reyes, role=manager)
+- Seeded: 4 stages (110 Entry, 310 Upfit Line, 510 Quality Inspection, 710 Approved to Ship),
+  50 products `MV-VIN-0001..0050`, 189 defects (55 resolved).
+- Old company IDs F4A1E648 / FAC50A65 / 9FDA7C8E are dead (pre-Postgres resets).
+
+## Local dev
+
+```bash
+# Terminal 1 — backend (SQLite locally via viro_dev.db)
+cd ~/viro && source venv/bin/activate && PYTHONPATH=. uvicorn main:app --reload
+# Terminal 2 — frontend
+cd ~/viro/frontend && npm run dev   # localhost:5173
+```
+
+NOTE: frontend currently points at the PROD Railway URL everywhere (was sed-replaced).
+Office WiFi blocks Railway + Anthropic API intermittently — AI features and prod
+seeding must be tested on personal WiFi.
+
+## File map
+
+```
+~/viro/
+  main.py                      # all FastAPI endpoints + table creation at module level
+  database/db.py               # ViroDB: dual-mode SQLite/Postgres via SQLAlchemy
+  Procfile, runtime.txt, nixpacks.toml, requirements.txt, vercel.json
+  frontend/src/
+    App.jsx                    # auth, page switch, prefs, responsive shell
+    api/client.js              # axios baseURL = Railway prod
+    components/Layout.jsx      # COLORS + glass design system + AuroraBackground
+    components/Sidebar.jsx     # dynamic modules, notifications bell
+    components/AIPanel.jsx     # right-side AI: commands → filters → Q&A
+    pages/DynamicDashboard.jsx # ★ config-driven renderer (generative UI core)
+    pages/meridianConfig.js# hardcoded config feeding the renderer (temp)
+    pages/{Dashboard,Analytics,ProductionLine,Predictive,LogDefect,VehicleSearch,Settings,Onboarding}.jsx
+    hooks/useBreakpoint.js
+```
+
+## Generative UI architecture (the core system)
+
+- Dashboards are **JSON configs**, not code. `DynamicDashboard.jsx` walks
+  `config.sources` (endpoint paths with `{cid}` placeholder) and `config.sections[].blocks[]`,
+  rendering each block by `type` from a registry: `kpi`, `pipeline`, `ranked_bars`, `table`
+  (plus `bar_chart`/`line_chart` in earlier version).
+- Configs persist in `dashboard_config` table; endpoints:
+  `GET/POST /dashboard-config/{company_id}`.
+- Currently Dashboard renders `MERIDIAN_CONFIG` hardcoded import (App.jsx) —
+  next step is loading from the endpoint, then AI-generating it from onboarding answers.
+- Editing later = AI panel mutating the same config (extends existing `/ai/command`).
+
+## Design system — STRICT
+
+- Linear-inspired “frosted glass OS”. Background `#08090a`. Inter font, JetBrains Mono for IDs/VINs.
+- Glass cards: `rgba(255,255,255,0.05)` + `backdrop-filter: blur(20px)`,
+  border `rgba(255,255,255,0.08)`, radius 16, hover: lift -1px + border 0.16.
+- **Black/white only for UI. NO PURPLE on buttons/accents** (legacy purple still exists on
+  some pages — actively being removed). Color reserved for data severity:
+  critical `#ff4444`, high `#ff8800`, medium `#eab308`, low `#22c55e`.
+- Primary buttons: white bg, near-black text. Muted text `rgba(255,255,255,0.5)`.
+- Transitions: `cubic-bezier(0.16,1,0.3,1)`.
+- The Fable prototype (`viro-generative-prototype.html`, 5 screens: conversation →
+  generation → Meridian Vans dash → Tidewater dash → automations) is the visual north star
+  AND the future marketing/landing page.
+
+## Known bugs / debt (fix order)
+
+1. **Duplicate stages** in DB (each stage inserted twice) → duplicate columns on
+   Production Line + duplicate rows in Settings. Dedupe `stages` table.
+1. Pipeline block status lines (“● N blocked — critical”) not appearing — verify the
+   new DynamicDashboard.jsx fully replaced the old and `critical_open` aggregates.
+1. Purple gradients remain on: Search, Log Defect submit, Add Stage, Sign In, AIPanel send.
+1. FPY = 0% — every seeded vehicle has ≥1 defect. Seed ~12 clean vehicles.
+1. Delete temp `/debug/by-stage/{company_id}` endpoint in main.py.
+1. AI features untested in prod (panel Q&A, /ai/command, analytics generator) — needs
+   non-office WiFi.
+1. Seed script died at MV-VIN-0044 on one run (WiFi) — verify all 50 products exist.
+
+## Postgres gotchas (learned the hard way)
+
+- Routes: specific paths BEFORE wildcards (`/defects/by-stage/{cid}` before
+  `/defects/{cid}/{pid}`) or FastAPI swallows them.
+- No `julianday()` / `DATE('now','-30 days')` → use
+  `EXTRACT(EPOCH FROM (NOW() - col::timestamp))/3600` and `NOW() - INTERVAL '30 days'`.
+- Cast text timestamps: `DATE(logged_at::timestamp)`.
+- GROUP BY must list every non-aggregated column.
+- ONE cached SQLAlchemy engine (`pool_size=3, max_overflow=2, pool_pre_ping=True`) —
+  per-query engines exhaust Supabase’s 15-connection session-pool limit.
+- `db.query/execute` convert `?` placeholders to named `:p0..:pN` params internally.
+
+## Roadmap (agreed order)
+
+1. Fix bugs above; finish dashboard polish to match Fable prototype exactly.
+1. Purge purple platform-wide; apply glass treatment to remaining pages.
+1. Landing page from the Fable prototype at root URL (sign in / get started).
+1. **Insight layer**: AI-generated one-sentence insight per dashboard card;
+   click-any-card → “Explain / Change / Alert me”. Needs API access.
+1. Conversational onboarding → `/onboarding/generate` → Claude outputs dashboard
+   config JSON → renderer shows it (the full generative loop).
+1. Tidewater second-company config to prove differentiation.
+1. Role automations (invoices from ship events, weekly quality report, supplier emails).
+1. Later: Snowflake connector for real Meridian data (access granted, the manager walkthrough
+   pending); Stripe billing only when a customer is ready to pay.
+
+## Working conventions
+
+- Commit style: `git add . && git commit -m "..." && git push` (push = deploy).
+- User is a student founder; explain decisions briefly, give exact commands,
+  one step at a time, ask for terminal output when debugging.
+- Prefer diffs over full-file rewrites unless the file is broken.
+- Never reintroduce purple. Never store data on Railway disk. Always check route order.
