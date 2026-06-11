@@ -933,6 +933,46 @@ db.execute("""
     )
 """)
 
+db.execute("""
+    CREATE TABLE IF NOT EXISTS dashboard_config (
+        company_id TEXT PRIMARY KEY,
+        config TEXT NOT NULL,
+        updated_at TEXT DEFAULT CURRENT_TIMESTAMP
+    )
+""")
+
+@app.get("/dashboard-config/{company_id}")
+def get_dashboard_config(company_id: str):
+    result = db.query(
+        "SELECT config FROM dashboard_config WHERE company_id = ?",
+        (company_id,)
+    )
+    if result.empty:
+        return {"config": None}
+    return {"config": json.loads(result.iloc[0]["config"])}
+
+class DashboardConfig(BaseModel):
+    config: dict
+
+@app.post("/dashboard-config/{company_id}")
+def save_dashboard_config(company_id: str, body: DashboardConfig):
+    existing = db.query(
+        "SELECT company_id FROM dashboard_config WHERE company_id = ?",
+        (company_id,)
+    )
+    config_str = json.dumps(body.config)
+    if existing.empty:
+        db.execute(
+            "INSERT INTO dashboard_config (company_id, config) VALUES (?, ?)",
+            (company_id, config_str)
+        )
+    else:
+        db.execute(
+            "UPDATE dashboard_config SET config = ?, updated_at = ? WHERE company_id = ?",
+            (config_str, datetime.now().isoformat(), company_id)
+        )
+    return {"message": "Dashboard config saved"}
+
 
 class DisplayPrefs(BaseModel):
     font_size: Optional[str] = "normal"
