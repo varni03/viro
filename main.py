@@ -53,8 +53,12 @@ def get_product_defects(company_id: str, product_id: str):
 
 @app.get("/defects/by-stage/{company_id}")
 def get_defects_by_stage(company_id: str):
-    data = db.get_defects_by_stage(company_id)
-    return data.to_dict(orient="records")
+    try:
+        data = db.get_defects_by_stage(company_id)
+        return data.to_dict(orient="records")
+    except Exception as e:
+        return {"error": str(e)}
+
 
 class DefectCreate(BaseModel):
     company_id: str
