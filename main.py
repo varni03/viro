@@ -1374,3 +1374,23 @@ def save_modules(company_id: str, update: ModuleUpdate):
             i
         ))
     return {"message": "Modules saved"}
+
+class ProductCreate(BaseModel):
+    company_id: str
+    product_id: str
+    current_stage: int
+    status: str = "in_progress"
+
+@app.post("/products")
+def create_product(product: ProductCreate):
+    existing = db.query(
+        "SELECT * FROM products WHERE product_id = ? AND company_id = ?",
+        (product.product_id, product.company_id)
+    )
+    if existing.empty:
+        db.execute("""
+            INSERT INTO products (product_id, company_id, entry_date, current_stage, status)
+            VALUES (?, ?, ?, ?, ?)
+        """, (product.product_id, product.company_id, 
+              datetime.now().isoformat(), product.current_stage, product.status))
+    return {"message": "Product created"}
