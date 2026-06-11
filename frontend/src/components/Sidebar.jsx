@@ -25,7 +25,7 @@ export default function Sidebar({
 
   useEffect(() => {
     if (!company) return;
-    fetch(`http://localhost:8000/modules/${company.company_id}`)
+    fetch(`https://web-production-0457e.up.railway.app/modules/${company.company_id}`)
       .then(r => r.json())
       .then(data => {
         if (data && data.length > 0) {
@@ -42,7 +42,7 @@ export default function Sidebar({
   useEffect(() => {
     if (!company) return;
     const fetchNotifications = () => {
-      fetch(`http://localhost:8000/notifications/${company.company_id}`)
+      fetch(`https://web-production-0457e.up.railway.app/notifications/${company.company_id}`)
         .then(r => r.json())
         .then(setNotifications)
         .catch(() => {});
@@ -55,7 +55,7 @@ export default function Sidebar({
   const unreadCount = notifications.filter(n => n.read === 0).length;
 
   const markAllRead = () => {
-    fetch(`http://localhost:8000/notifications/${company.company_id}/read-all`, {
+    fetch(`https://web-production-0457e.up.railway.app/notifications/${company.company_id}/read-all`, {
       method: "PUT"
     }).then(() => {
       setNotifications(prev => prev.map(n => ({ ...n, read: 1 })));
@@ -256,7 +256,7 @@ export default function Sidebar({
                   <div
                     key={i}
                     onClick={() => {
-                      fetch(`http://localhost:8000/notifications/${n.notification_id}/read`, { method: "PUT" });
+                      fetch(`https://web-production-0457e.up.railway.app/notifications/${n.notification_id}/read`, { method: "PUT" });
                       setNotifications(prev => prev.map(notif =>
                         notif.notification_id === n.notification_id ? { ...notif, read: 1 } : notif
                       ));

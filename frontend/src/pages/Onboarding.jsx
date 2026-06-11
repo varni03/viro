@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { COLORS } from "../components/Layout";
 
-const API = "http://localhost:8000";
+const API = "https://web-production-0457e.up.railway.app";
 
 const INDUSTRY_TEMPLATES = {
   automotive: {

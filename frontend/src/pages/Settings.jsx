@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { COLORS, Card, PageHeader, SectionLabel, Input, Button } from "../components/Layout";
 
-const API = "http://localhost:8000";
+const API = "https://web-production-0457e.up.railway.app";
 
 export default function Settings({ company, user, onCompanyUpdate }) {
   const [activeTab, setActiveTab] = useState("stages");

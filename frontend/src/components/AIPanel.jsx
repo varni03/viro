@@ -55,7 +55,7 @@ export default function AIPanel({ company, onNewReport, activePage, onFilterChan
 
     try {
         // First check if this is a platform command
-        const commandRes = await fetch("http://localhost:8000/ai/command", {
+        const commandRes = await fetch("https://web-production-0457e.up.railway.app/ai/command", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
@@ -70,7 +70,7 @@ export default function AIPanel({ company, onNewReport, activePage, onFilterChan
           const newPrefs = { ...prefs, ...commandRes.changes };
           setPrefs && setPrefs(newPrefs);
           // Save to backend
-          await fetch(`http://localhost:8000/prefs/${company.company_id}`, {
+          await fetch(`https://web-production-0457e.up.railway.app/prefs/${company.company_id}`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify(newPrefs)
@@ -99,7 +99,7 @@ export default function AIPanel({ company, onNewReport, activePage, onFilterChan
   
         } else if (commandRes.type === "module") {
           // Toggle module
-          await fetch(`http://localhost:8000/modules/${company.company_id}`, {
+          await fetch(`https://web-production-0457e.up.railway.app/modules/${company.company_id}`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
@@ -116,7 +116,7 @@ export default function AIPanel({ company, onNewReport, activePage, onFilterChan
   
         } else {
           // Check if filter change
-          const filterRes = await fetch("http://localhost:8000/ai/interpret-filters", {
+          const filterRes = await fetch("https://web-production-0457e.up.railway.app/ai/interpret-filters", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({

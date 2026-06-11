@@ -173,7 +173,7 @@ export default function App() {
 
   useEffect(() => {
     if (!company) return;
-    fetch(`http://localhost:8000/prefs/${company.company_id}`)
+    fetch(`https://web-production-0457e.up.railway.app/prefs/${company.company_id}`)
     .then(r => r.json())
     .then(setPrefs)
     .catch(() => {});
@@ -191,7 +191,7 @@ export default function App() {
       });
     }).catch(() => {});
 
-    fetch(`http://localhost:8000/stages/${company.company_id}`)
+    fetch(`https://web-production-0457e.up.railway.app/stages/${company.company_id}`)
       .then(r => r.json())
       .then(setStages)
       .catch(() => {});

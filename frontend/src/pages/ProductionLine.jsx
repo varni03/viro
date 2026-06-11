@@ -3,7 +3,7 @@ import { getProductionLine, getDefects, resolveDefect, updateStage, updateStatus
 import { COLORS, Card, PageHeader, SectionLabel, Badge, severityColor } from "../components/Layout";
 
 const fetchStages = (companyId) => 
-    fetch(`http://localhost:8000/stages/${companyId}`).then(r => r.json());
+    fetch(`https://web-production-0457e.up.railway.app/stages/${companyId}`).then(r => r.json());
 
 const statusColor = (s) => ({
   completed: COLORS.low,

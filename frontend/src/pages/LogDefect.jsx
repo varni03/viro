@@ -22,7 +22,7 @@ export default function LogDefect({ company, stages }) {
 
   useEffect(() => {
     if (!company) return;
-    fetch(`http://localhost:8000/custom-fields/${company.company_id}`)
+    fetch(`https://web-production-0457e.up.railway.app/custom-fields/${company.company_id}`)
       .then(r => r.json())
       .then(setCustomFields)
       .catch(() => {});
@@ -72,7 +72,7 @@ export default function LogDefect({ company, stages }) {
         });
   
         if (res?.data?.defect_id && Object.keys(customValues).length > 0) {
-          await fetch(`http://localhost:8000/custom-fields/values`, {
+          await fetch(`https://web-production-0457e.up.railway.app/custom-fields/values`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
