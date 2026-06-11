@@ -799,7 +799,7 @@ def get_production_line(company_id: str):
             AND d.company_id = p.company_id
         WHERE p.company_id = ?
         AND p.status != 'completed'
-        GROUP BY p.product_id
+        GROUP BY p.product_id, p.current_stage, p.status, p.entry_date
         ORDER BY p.current_stage ASC, critical_open DESC
     """, (company_id,))
     return result.to_dict(orient="records")
