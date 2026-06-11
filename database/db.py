@@ -17,11 +17,19 @@ class ViroDB:
         else:
             self.conn = sqlite3.connect(DB_PATH, check_same_thread=False)
             self.conn.row_factory = sqlite3.Row
-        self.setup_tables()
+        self._tables()
 
     def get_engine(self):
-        from sqlalchemy import create_engine
-        return create_engine(self.db_url)
+        if not hasattr(self, '_engine'):
+            from sqlalchemy import create_engine
+            self._engine = create_engine(
+                self.db_url,
+                pool_size=3,
+                max_overflow=2,
+                pool_pre_ping=True,
+            )
+        return self._engine
+
 
     def query(self, sql, params=None):
         if USE_POSTGRES:
