@@ -12,13 +12,13 @@ const statusColor = (s) => ({
   flagged: COLORS.critical,
 }[s] || COLORS.muted);
 
-export default function ProductionLine({ company, user }) {
+export default function ProductionLine({ company, user, defaultView }) {
+  const [view, setView] = useState(defaultView || (user?.role === "repair" ? "queue" : "pipeline"));  
   const [vehicles, setVehicles] = useState([]);
   const [allDefects, setAllDefects] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selectedVehicle, setSelectedVehicle] = useState(null);
   const [vehicleDefects, setVehicleDefects] = useState([]);
-  const [view, setView] = useState(user?.role === "repair" ? "queue" : "pipeline");
   const [resolving, setResolving] = useState({});
   const [filter, setFilter] = useState("all");
   const [stages, setStages] = useState([]);

@@ -8,7 +8,7 @@ const ALL_MODULES = [
   { id: "workflow", label: "Production Line", icon: "🔧", page: "Production Line" },
   { id: "analytics", label: "Analytics", icon: "📊", page: "Analytics" },
   { id: "predictive", label: "Predictive Risk", icon: "⚠️", page: "Predictive" },
-  { id: "repair", label: "Repair Queue", icon: "🔨", page: "Production Line" },
+  { id: "repair", label: "Repair Queue", icon: "🔨", page: "Repair Queue" },
   { id: "settings", label: "Settings", icon: "⚙️", page: "Settings" },
 ];
 

@@ -261,7 +261,7 @@ def get_stage_performance(company_id: str):
         LEFT JOIN stages s ON d.stage_number = s.stage_number 
             AND s.company_id = d.company_id
         WHERE d.company_id = ?
-        GROUP BY d.stage_number
+        GROUP BY d.stage_number, s.stage_name
         ORDER BY total_defects DESC
     """, (company_id,))
     return result.to_dict(orient="records")
@@ -270,7 +270,7 @@ def get_stage_performance(company_id: str):
 def get_resolution_trend(company_id: str):
     result = db.query("""
         SELECT 
-            DATE(logged_at) as date,
+            DATE(logged_at::timestamp) as date,
             COUNT(*) as logged,
             SUM(CASE WHEN resolved = 1 THEN 1 ELSE 0 END) as resolved
         FROM defects
