@@ -24,7 +24,7 @@ class ViroDB:
             self.conn = sqlite3.connect(DB_PATH, check_same_thread=False)
             self.conn.row_factory = sqlite3.Row
         self.setup_tables()
-        self.setup_users()
+
 
     def get_engine(self):
         from sqlalchemy import create_engine
@@ -74,118 +74,53 @@ class ViroDB:
             self.conn.commit()
 
 
-    def setup_tables(self):
-        if USE_POSTGRES:
-            sql = """
-                CREATE TABLE IF NOT EXISTS companies (
-                    company_id TEXT PRIMARY KEY,
-                    name TEXT NOT NULL,
-                    industry TEXT,
-                    universal_id_field TEXT DEFAULT 'product_id'
-                );
-
-                CREATE TABLE IF NOT EXISTS products (
-                    product_id TEXT NOT NULL,
-                    company_id TEXT NOT NULL,
-                    entry_date TEXT,
-                    current_stage INTEGER,
-                    status TEXT,
-                    PRIMARY KEY (product_id, company_id)
-                );
-
-                CREATE TABLE IF NOT EXISTS stages (
-                    stage_id TEXT PRIMARY KEY,
-                    company_id TEXT NOT NULL,
-                    stage_number INTEGER,
-                    stage_name TEXT,
-                    expected_duration_mins INTEGER
-                );
-
-                CREATE TABLE IF NOT EXISTS defects (
-                    defect_id TEXT PRIMARY KEY,
-                    company_id TEXT NOT NULL,
-                    product_id TEXT NOT NULL,
-                    stage_number INTEGER,
-                    defect_type TEXT,
-                    severity TEXT,
-                    notes TEXT,
-                    logged_at TEXT,
-                    resolved INTEGER DEFAULT 0
-                );
-
-                CREATE TABLE IF NOT EXISTS inspections (
-                    inspection_id TEXT PRIMARY KEY,
-                    company_id TEXT NOT NULL,
-                    product_id TEXT NOT NULL,
-                    inspection_type TEXT,
-                    result TEXT,
-                    notes TEXT,
-                    inspected_at TEXT
-                );
-            """
-            conn = self.get_pg_conn()
-            try:
-                cur = conn.cursor()
-                for statement in sql.strip().split(";"):
-                    statement = statement.strip()
-                    if statement:
-                        cur.execute(statement)
-                conn.commit()
-            finally:
-                conn.close()
-        else:
-            self.conn.executescript("""
-                CREATE TABLE IF NOT EXISTS companies (
-                    company_id TEXT PRIMARY KEY,
-                    name TEXT NOT NULL,
-                    industry TEXT,
-                    universal_id_field TEXT DEFAULT 'product_id'
-                );
-
-                CREATE TABLE IF NOT EXISTS products (
-                    product_id TEXT NOT NULL,
-                    company_id TEXT NOT NULL,
-                    entry_date TEXT,
-                    current_stage INTEGER,
-                    status TEXT,
-                    PRIMARY KEY (product_id, company_id)
-                );
-
-                CREATE TABLE IF NOT EXISTS stages (
-                    stage_id TEXT PRIMARY KEY,
-                    company_id TEXT NOT NULL,
-                    stage_number INTEGER,
-                    stage_name TEXT,
-                    expected_duration_mins INTEGER
-                );
-
-                CREATE TABLE IF NOT EXISTS defects (
-                    defect_id TEXT PRIMARY KEY,
-                    company_id TEXT NOT NULL,
-                    product_id TEXT NOT NULL,
-                    stage_number INTEGER,
-                    defect_type TEXT,
-                    severity TEXT,
-                    notes TEXT,
-                    logged_at TEXT,
-                    resolved INTEGER DEFAULT 0
-                );
-
-                CREATE TABLE IF NOT EXISTS inspections (
-                    inspection_id TEXT PRIMARY KEY,
-                    company_id TEXT NOT NULL,
-                    product_id TEXT NOT NULL,
-                    inspection_type TEXT,
-                    result TEXT,
-                    notes TEXT,
-                    inspected_at TEXT
-                );
-            """)
-            self.conn.commit()
-
-    def setup_users(self):
-        sql = """
-            CREATE TABLE IF NOT EXISTS users (
+def setup_tables(self):
+    if USE_POSTGRES:
+        from sqlalchemy import create_engine, text
+        engine = create_engine(self.db_url)
+        statements = [
+            """CREATE TABLE IF NOT EXISTS companies (
+                company_id TEXT PRIMARY KEY,
+                name TEXT NOT NULL,
+                industry TEXT,
+                universal_id_field TEXT DEFAULT 'product_id'
+            )""",
+            """CREATE TABLE IF NOT EXISTS products (
+                product_id TEXT NOT NULL,
+                company_id TEXT NOT NULL,
+                entry_date TEXT,
+                current_stage INTEGER,
+                status TEXT,
+                PRIMARY KEY (product_id, company_id)
+            )""",
+            """CREATE TABLE IF NOT EXISTS stages (
+                stage_id TEXT PRIMARY KEY,
+                company_id TEXT NOT NULL,
+                stage_number INTEGER,
+                stage_name TEXT,
+                expected_duration_mins INTEGER
+            )""",
+            """CREATE TABLE IF NOT EXISTS defects (
+                defect_id TEXT PRIMARY KEY,
+                company_id TEXT NOT NULL,
+                product_id TEXT NOT NULL,
+                stage_number INTEGER,
+                defect_type TEXT,
+                severity TEXT,
+                notes TEXT,
+                logged_at TEXT,
+                resolved INTEGER DEFAULT 0
+            )""",
+            """CREATE TABLE IF NOT EXISTS inspections (
+                inspection_id TEXT PRIMARY KEY,
+                company_id TEXT NOT NULL,
+                product_id TEXT NOT NULL,
+                inspection_type TEXT,
+                result TEXT,
+                notes TEXT,
+                inspected_at TEXT
+            )""",
+            """CREATE TABLE IF NOT EXISTS users (
                 user_id TEXT PRIMARY KEY,
                 company_id TEXT NOT NULL,
                 email TEXT UNIQUE NOT NULL,
@@ -195,9 +130,58 @@ class ViroDB:
                 last_name TEXT,
                 created_at TEXT DEFAULT CURRENT_TIMESTAMP,
                 is_active INTEGER DEFAULT 1
-            )
-        """
-        self.execute(sql)
+            )"""
+        ]
+        with engine.connect() as conn:
+            for stmt in statements:
+                conn.execute(text(stmt))
+            conn.commit()
+    else:
+        self.conn.executescript("""
+            CREATE TABLE IF NOT EXISTS companies (
+                company_id TEXT PRIMARY KEY,
+                name TEXT NOT NULL,
+                industry TEXT,
+                universal_id_field TEXT DEFAULT 'product_id'
+            );
+            CREATE TABLE IF NOT EXISTS products (
+                product_id TEXT NOT NULL,
+                company_id TEXT NOT NULL,
+                entry_date TEXT,
+                current_stage INTEGER,
+                status TEXT,
+                PRIMARY KEY (product_id, company_id)
+            );
+            CREATE TABLE IF NOT EXISTS stages (
+                stage_id TEXT PRIMARY KEY,
+                company_id TEXT NOT NULL,
+                stage_number INTEGER,
+                stage_name TEXT,
+                expected_duration_mins INTEGER
+            );
+            CREATE TABLE IF NOT EXISTS defects (
+                defect_id TEXT PRIMARY KEY,
+                company_id TEXT NOT NULL,
+                product_id TEXT NOT NULL,
+                stage_number INTEGER,
+                defect_type TEXT,
+                severity TEXT,
+                notes TEXT,
+                logged_at TEXT,
+                resolved INTEGER DEFAULT 0
+            );
+            CREATE TABLE IF NOT EXISTS inspections (
+                inspection_id TEXT PRIMARY KEY,
+                company_id TEXT NOT NULL,
+                product_id TEXT NOT NULL,
+                inspection_type TEXT,
+                result TEXT,
+                notes TEXT,
+                inspected_at TEXT
+            );
+        """)
+        self.conn.commit()
+
 
     def get_products(self, company_id):
         return self.query("""
