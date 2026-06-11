@@ -1,4 +1,3 @@
-cat > ~/viro/database/db.py << 'ENDOFFILE'
 import os
 import pandas as pd
 import anthropic
@@ -275,4 +274,3 @@ class ViroDB:
                 GROUP BY DATE(logged_at)
                 ORDER BY date ASC
             """, (company_id,))
-ENDOFFILE
