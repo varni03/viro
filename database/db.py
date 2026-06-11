@@ -26,43 +26,53 @@ class ViroDB:
         self.setup_tables()
         self.setup_users()
 
-    def get_pg_conn(self):
-        return psycopg2.connect(self.db_url)
+    def get_engine(self):
+        from sqlalchemy import create_engine
+        return create_engine(self.db_url)
 
     def query(self, sql, params=None):
-        # Convert SQLite ? placeholders to PostgreSQL %s
         if USE_POSTGRES:
-            sql = sql.replace("?", "%s")
-            conn = self.get_pg_conn()
-            try:
-                df = pd.read_sql_query(sql, conn, params=params)
-                return df
-            finally:
-                conn.close()
+            from sqlalchemy import create_engine, text
+            engine = create_engine(self.db_url)
+            # Convert ? to :param1, :param2 etc
+            if params:
+                for i, _ in enumerate(params):
+                    sql = sql.replace("?", f":p{i}", 1)
+                param_dict = {f"p{i}": v for i, v in enumerate(params)}
+                with engine.connect() as conn:
+                    return pd.read_sql_query(text(sql), conn, params=param_dict)
+            else:
+                with engine.connect() as conn:
+                    return pd.read_sql_query(text(sql), conn)
         else:
             if params:
                 return pd.read_sql_query(sql, self.conn, params=params)
             return pd.read_sql_query(sql, self.conn)
 
+
+
     def execute(self, sql, params=None):
         if USE_POSTGRES:
-            sql = sql.replace("?", "%s")
-            conn = self.get_pg_conn()
-            try:
-                cur = conn.cursor()
-                if params:
-                    cur.execute(sql, params)
-                else:
-                    cur.execute(sql)
-                conn.commit()
-            finally:
-                conn.close()
+            from sqlalchemy import create_engine, text
+            engine = create_engine(self.db_url)
+            if params:
+                for i, _ in enumerate(params):
+                    sql = sql.replace("?", f":p{i}", 1)
+                param_dict = {f"p{i}": v for i, v in enumerate(params)}
+                with engine.connect() as conn:
+                    conn.execute(text(sql), param_dict)
+                    conn.commit()
+            else:
+                with engine.connect() as conn:
+                    conn.execute(text(sql))
+                    conn.commit()
         else:
             if params:
                 self.conn.execute(sql, params)
             else:
                 self.conn.execute(sql)
             self.conn.commit()
+
 
     def setup_tables(self):
         if USE_POSTGRES:
