@@ -1,18 +1,13 @@
+cat > ~/viro/database/db.py << 'ENDOFFILE'
 import os
 import pandas as pd
 import anthropic
 
 DATABASE_URL = os.getenv("DATABASE_URL")
+USE_POSTGRES = bool(DATABASE_URL)
 
-if DATABASE_URL:
-    # Production — PostgreSQL
-    import psycopg2
-    from psycopg2.extras import RealDictCursor
-    USE_POSTGRES = True
-else:
-    # Local — SQLite
+if not USE_POSTGRES:
     import sqlite3
-    USE_POSTGRES = False
     DB_PATH = "viro_dev.db"
 
 
@@ -25,7 +20,6 @@ class ViroDB:
             self.conn.row_factory = sqlite3.Row
         self.setup_tables()
 
-
     def get_engine(self):
         from sqlalchemy import create_engine
         return create_engine(self.db_url)
@@ -33,10 +27,9 @@ class ViroDB:
     def query(self, sql, params=None):
         if USE_POSTGRES:
             from sqlalchemy import create_engine, text
-            engine = create_engine(self.db_url)
-            # Convert ? to :param1, :param2 etc
+            engine = self.get_engine()
             if params:
-                for i, _ in enumerate(params):
+                for i in range(len(params)):
                     sql = sql.replace("?", f":p{i}", 1)
                 param_dict = {f"p{i}": v for i, v in enumerate(params)}
                 with engine.connect() as conn:
@@ -49,14 +42,12 @@ class ViroDB:
                 return pd.read_sql_query(sql, self.conn, params=params)
             return pd.read_sql_query(sql, self.conn)
 
-
-
     def execute(self, sql, params=None):
         if USE_POSTGRES:
             from sqlalchemy import create_engine, text
-            engine = create_engine(self.db_url)
+            engine = self.get_engine()
             if params:
-                for i, _ in enumerate(params):
+                for i in range(len(params)):
                     sql = sql.replace("?", f":p{i}", 1)
                 param_dict = {f"p{i}": v for i, v in enumerate(params)}
                 with engine.connect() as conn:
@@ -73,12 +64,8 @@ class ViroDB:
                 self.conn.execute(sql)
             self.conn.commit()
 
-
-def setup_tables(self):
-    if USE_POSTGRES:
-        from sqlalchemy import create_engine, text
-        engine = create_engine(self.db_url)
-        statements = [
+    def setup_tables(self):
+        tables = [
             """CREATE TABLE IF NOT EXISTS companies (
                 company_id TEXT PRIMARY KEY,
                 name TEXT NOT NULL,
@@ -130,69 +117,27 @@ def setup_tables(self):
                 last_name TEXT,
                 created_at TEXT DEFAULT CURRENT_TIMESTAMP,
                 is_active INTEGER DEFAULT 1
-            )"""
+            )""",
         ]
-        with engine.connect() as conn:
-            for stmt in statements:
-                conn.execute(text(stmt))
-            conn.commit()
-    else:
-        self.conn.executescript("""
-            CREATE TABLE IF NOT EXISTS companies (
-                company_id TEXT PRIMARY KEY,
-                name TEXT NOT NULL,
-                industry TEXT,
-                universal_id_field TEXT DEFAULT 'product_id'
-            );
-            CREATE TABLE IF NOT EXISTS products (
-                product_id TEXT NOT NULL,
-                company_id TEXT NOT NULL,
-                entry_date TEXT,
-                current_stage INTEGER,
-                status TEXT,
-                PRIMARY KEY (product_id, company_id)
-            );
-            CREATE TABLE IF NOT EXISTS stages (
-                stage_id TEXT PRIMARY KEY,
-                company_id TEXT NOT NULL,
-                stage_number INTEGER,
-                stage_name TEXT,
-                expected_duration_mins INTEGER
-            );
-            CREATE TABLE IF NOT EXISTS defects (
-                defect_id TEXT PRIMARY KEY,
-                company_id TEXT NOT NULL,
-                product_id TEXT NOT NULL,
-                stage_number INTEGER,
-                defect_type TEXT,
-                severity TEXT,
-                notes TEXT,
-                logged_at TEXT,
-                resolved INTEGER DEFAULT 0
-            );
-            CREATE TABLE IF NOT EXISTS inspections (
-                inspection_id TEXT PRIMARY KEY,
-                company_id TEXT NOT NULL,
-                product_id TEXT NOT NULL,
-                inspection_type TEXT,
-                result TEXT,
-                notes TEXT,
-                inspected_at TEXT
-            );
-        """)
-        self.conn.commit()
 
+        if USE_POSTGRES:
+            from sqlalchemy import create_engine, text
+            engine = self.get_engine()
+            with engine.connect() as conn:
+                for stmt in tables:
+                    conn.execute(text(stmt))
+                conn.commit()
+        else:
+            script = ";\n".join(tables)
+            self.conn.executescript(script)
+            self.conn.commit()
 
     def get_products(self, company_id):
         return self.query("""
-            SELECT 
-                p.product_id,
-                p.current_stage,
-                p.status,
-                p.entry_date,
+            SELECT p.product_id, p.current_stage, p.status, p.entry_date,
                 COUNT(d.defect_id) as total_defects
             FROM products p
-            LEFT JOIN defects d ON p.product_id = d.product_id 
+            LEFT JOIN defects d ON p.product_id = d.product_id
                 AND d.company_id = p.company_id
             WHERE p.company_id = ?
             GROUP BY p.product_id, p.current_stage, p.status, p.entry_date
@@ -214,8 +159,7 @@ def setup_tables(self):
 
     def get_defects_by_stage(self, company_id):
         return self.query("""
-            SELECT 
-                stage_number,
+            SELECT stage_number,
                 COUNT(*) as total_defects,
                 SUM(CASE WHEN severity = 'critical' THEN 1 ELSE 0 END) as critical,
                 SUM(CASE WHEN severity = 'high' THEN 1 ELSE 0 END) as high,
@@ -233,8 +177,8 @@ def setup_tables(self):
         from datetime import datetime
         defect_id = str(uuid.uuid4())
         self.execute("""
-            INSERT INTO defects 
-            (defect_id, company_id, product_id, stage_number, 
+            INSERT INTO defects
+            (defect_id, company_id, product_id, stage_number,
              defect_type, severity, notes, logged_at)
             VALUES (?, ?, ?, ?, ?, ?, ?, ?)
         """, (defect_id, company_id, product_id, stage_number,
@@ -243,32 +187,23 @@ def setup_tables(self):
 
     def get_schema(self):
         return """
-        Database Schema:
+        Tables:
         companies (company_id, name, industry, universal_id_field)
         products (product_id, company_id, entry_date, current_stage, status)
         stages (stage_id, company_id, stage_number, stage_name, expected_duration_mins)
-        defects (defect_id, company_id, product_id, stage_number, 
+        defects (defect_id, company_id, product_id, stage_number,
                     defect_type, severity, notes, logged_at, resolved)
-        users (user_id, company_id, email, password_hash, role, first_name, last_name)
+        users (user_id, company_id, email, role, first_name, last_name)
         """
 
     def natural_language_query(self, question, company_id):
         schema = self.get_schema()
         client = anthropic.Anthropic()
         dialect = "PostgreSQL" if USE_POSTGRES else "SQLite"
-        prompt = f"""
-        Convert this question to a {dialect} SQL query.
-        Return ONLY the SQL query, nothing else.
-        
+        prompt = f"""Convert this to a {dialect} SQL query. Return ONLY the SQL.
         Schema: {schema}
-        
-        Rules:
-        - Always filter by company_id = '{company_id}'
-        - Only SELECT statements
-        - Use {dialect} syntax
-        
-        Question: {question}
-        """
+        Rules: Filter by company_id = '{company_id}'. SELECT only.
+        Question: {question}"""
         response = client.messages.create(
             model="claude-sonnet-4-20250514",
             max_tokens=500,
@@ -283,15 +218,12 @@ def setup_tables(self):
 
     def get_at_risk_products(self, company_id):
         return self.query("""
-            SELECT 
-                p.product_id,
-                p.current_stage,
-                p.status,
+            SELECT p.product_id, p.current_stage, p.status,
                 COUNT(d.defect_id) as total_defects,
                 SUM(CASE WHEN d.severity = 'critical' THEN 3
-                            WHEN d.severity = 'high' THEN 2
-                            WHEN d.severity = 'medium' THEN 1
-                            ELSE 0 END) as risk_score,
+                         WHEN d.severity = 'high' THEN 2
+                         WHEN d.severity = 'medium' THEN 1
+                         ELSE 0 END) as risk_score,
                 SUM(CASE WHEN d.resolved = 0 THEN 1 ELSE 0 END) as unresolved_defects
             FROM products p
             LEFT JOIN defects d ON p.product_id = d.product_id
@@ -308,9 +240,7 @@ def setup_tables(self):
 
     def get_stage_health(self, company_id):
         return self.query("""
-            SELECT
-                s.stage_number,
-                s.stage_name,
+            SELECT s.stage_number, s.stage_name,
                 COUNT(d.defect_id) as total_defects,
                 SUM(CASE WHEN d.severity IN ('high', 'critical') THEN 1 ELSE 0 END) as serious_defects,
                 SUM(CASE WHEN d.resolved = 0 THEN 1 ELSE 0 END) as unresolved
@@ -325,8 +255,7 @@ def setup_tables(self):
     def get_defect_trends(self, company_id):
         if USE_POSTGRES:
             return self.query("""
-                SELECT
-                    DATE(logged_at::timestamp) as date,
+                SELECT DATE(logged_at::timestamp) as date,
                     COUNT(*) as total_defects,
                     SUM(CASE WHEN severity = 'critical' THEN 1 ELSE 0 END) as critical,
                     SUM(CASE WHEN severity = 'high' THEN 1 ELSE 0 END) as high
@@ -337,8 +266,7 @@ def setup_tables(self):
             """, (company_id,))
         else:
             return self.query("""
-                SELECT
-                    DATE(logged_at) as date,
+                SELECT DATE(logged_at) as date,
                     COUNT(*) as total_defects,
                     SUM(CASE WHEN severity = 'critical' THEN 1 ELSE 0 END) as critical,
                     SUM(CASE WHEN severity = 'high' THEN 1 ELSE 0 END) as high
@@ -347,3 +275,4 @@ def setup_tables(self):
                 GROUP BY DATE(logged_at)
                 ORDER BY date ASC
             """, (company_id,))
+ENDOFFILE
