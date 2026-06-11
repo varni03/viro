@@ -172,9 +172,9 @@ export default function AIPanel({ company, onNewReport, activePage, onFilterChan
 
   return (
     <div style={{
-      width: 360,
-      background: COLORS.surface,
-      borderLeft: `1px solid ${COLORS.border}`,
+      width: 380,
+      background: "rgba(255,255,255,0.02)",
+      borderLeft: "1px solid rgba(255,255,255,0.06)",
       display: "flex",
       flexDirection: "column",
       height: "100vh",

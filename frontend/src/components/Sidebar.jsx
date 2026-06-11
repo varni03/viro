@@ -83,7 +83,7 @@ export default function Sidebar({
 
   return (
     <div style={{
-      width: 220,
+      width: 240,
       background: "rgba(255,255,255,0.03)",
       backdropFilter: "blur(40px)",
       WebkitBackdropFilter: "blur(40px)",
@@ -99,30 +99,24 @@ export default function Sidebar({
       {/* Logo */}
       <div style={{ padding: "20px 16px 16px" }}>
         <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-          <div style={{
-            width: 30, height: 30,
-            background: "rgba(255,255,255,0.95)",
-            borderRadius: 8,
+        <div style={{
+            width: 22, height: 22,
+            background: "rgba(255,255,255,0.9)",
+            borderRadius: 5,
             display: "flex", alignItems: "center",
             justifyContent: "center",
-            fontSize: 16, fontWeight: 900,
-            color: "#050507",
+            fontSize: 12, fontWeight: 900,
+            color: "#08090a",
           }}>
             ⬡
           </div>
           <div>
             <div style={{
-              fontSize: 14, fontWeight: 700,
+              fontSize: 13, fontWeight: 600,
               letterSpacing: "-0.02em",
-              color: "#ffffff",
+              color: "rgba(255,255,255,0.85)",
             }}>
               {company?.name || "Viro"}
-            </div>
-            <div style={{
-              fontSize: 9, color: "rgba(255,255,255,0.25)",
-              letterSpacing: "0.08em", textTransform: "uppercase",
-            }}>
-              Powered by Viro
             </div>
           </div>
         </div>
@@ -162,8 +156,7 @@ export default function Sidebar({
       )}
 
       {/* Divider */}
-      <div style={{ height: 1, background: "rgba(255,255,255,0.05)", marginBottom: 8 }} />
-
+      <div style={{ height: 1, background: "rgba(255,255,255,0.04)" }} />
       {/* Nav */}
       <div style={{ flex: 1, padding: "8px 12px", overflowY: "auto" }}>
         {navItems.map(item => {
@@ -174,14 +167,15 @@ export default function Sidebar({
               onClick={() => setActivePage(item.page)}
               className={`nav-item ${isActive ? "active" : ""}`}
               style={{
-                display: "flex", alignItems: "center", gap: 10,
-                padding: "9px 12px",
-                marginBottom: 2,
-                color: isActive ? "#ffffff" : "rgba(255,255,255,0.4)",
-                fontSize: 13, fontWeight: isActive ? 500 : 400,
+                display: "flex", alignItems: "center", gap: 8,
+                padding: "6px 10px",
+                marginBottom: 1,
+                color: isActive ? "#ffffff" : "rgba(255,255,255,0.55)",
+                fontSize: 13, fontWeight: isActive ? 600 : 400,
+                letterSpacing: "-0.01em",
               }}
             >
-              <span style={{ fontSize: 15, opacity: isActive ? 1 : 0.6 }}>{item.icon}</span>
+              <span style={{ fontSize: 14, opacity: isActive ? 1 : 0.6 }}>{item.icon}</span>
               {item.label}
             </div>
 
@@ -190,7 +184,7 @@ export default function Sidebar({
       </div>
 
       {/* Divider */}
-      <div style={{ height: 1, background: "rgba(255,255,255,0.05)", marginBottom: 8 }} />
+      <div style={{ height: 1, background: "rgba(255,255,255,0.04)" }} />
 
       {/* Notifications bell */}
       {user?.role === "manager" || user?.role === "admin" ? (
@@ -318,7 +312,7 @@ export default function Sidebar({
       </div>
 
       {/* Divider */}
-      <div style={{ height: 1, background: "rgba(255,255,255,0.05)", marginBottom: 8 }} />
+      <div style={{ height: 1, background: "rgba(255,255,255,0.04)" }} />
 
       {/* User profile */}
       <div style={{

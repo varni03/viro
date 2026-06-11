@@ -1,6 +1,6 @@
 export const COLORS = {
-  bg: "#050507",
-  surface: "rgba(255,255,255,0.03)",
+  bg: "#08090a",
+  surface: "rgba(255,255,255,0.02)",
   card: "rgba(255,255,255,0.05)",
   cardHover: "rgba(255,255,255,0.08)",
   border: "rgba(255,255,255,0.08)",
@@ -13,8 +13,8 @@ export const COLORS = {
   medium: "#ffcc00",
   low: "#00dd66",
   text: "#ffffff",
-  muted: "rgba(255,255,255,0.4)",
-  mutedLight: "rgba(255,255,255,0.6)",
+  muted: "rgba(255,255,255,0.5)",
+  mutedLight: "rgba(255,255,255,0.65)",
 };
 
 export function AuroraBackground() {
@@ -25,7 +25,7 @@ export function AuroraBackground() {
         *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
         html, body {
           font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
-          background: #050507;
+          background: #08090a;
           color: #ffffff;
           -webkit-font-smoothing: antialiased;
           overflow: hidden;

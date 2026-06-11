@@ -403,7 +403,7 @@ export default function App() {
         {/* Page content */}
         <div style={{
           flex: 1, overflow: "auto",
-          padding: isMobile ? "16px" : isTablet ? "24px" : "32px 36px",
+          padding: isMobile ? "16px" : isTablet ? "20px 24px" : "28px 32px",
         }}>
           {renderPage()}
         </div>
