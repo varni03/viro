@@ -46,11 +46,6 @@ def get_defects(company_id: str):
     defects = db.get_defects(company_id)
     return defects.to_dict(orient="records")
 
-@app.get("/defects/{company_id}/{product_id}")
-def get_product_defects(company_id: str, product_id: str):
-    defects = db.get_defects(company_id, product_id)
-    return defects.to_dict(orient="records")
-
 @app.get("/defects/by-stage/{company_id}")
 def get_defects_by_stage(company_id: str):
     try:
@@ -58,6 +53,11 @@ def get_defects_by_stage(company_id: str):
         return {"count": len(data), "data": data.to_dict(orient="records"), "company_id": company_id}
     except Exception as e:
         return {"error": str(e)}
+    
+@app.get("/defects/{company_id}/{product_id}")
+def get_product_defects(company_id: str, product_id: str):
+    defects = db.get_defects(company_id, product_id)
+    return defects.to_dict(orient="records")
 
 
 @app.get("/debug/by-stage/{company_id}")
