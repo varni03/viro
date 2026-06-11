@@ -52,12 +52,21 @@ def get_product_defects(company_id: str, product_id: str):
     return defects.to_dict(orient="records")
 
 @app.get("/defects/by-stage/{company_id}")
-def get_defects_by_stage(company_id: str):
-    try:
-        data = db.get_defects_by_stage(company_id)
-        return data.to_dict(orient="records")
-    except Exception as e:
-        return {"error": str(e)}
+def get_defects_by_stage(self, company_id):
+    return self.query("""
+        SELECT 
+            stage_number,
+            COUNT(*) as total_defects,
+            SUM(CASE WHEN severity = 'critical' THEN 1 ELSE 0 END) as critical,
+            SUM(CASE WHEN severity = 'high' THEN 1 ELSE 0 END) as high,
+            SUM(CASE WHEN severity = 'medium' THEN 1 ELSE 0 END) as medium,
+            SUM(CASE WHEN severity = 'low' THEN 1 ELSE 0 END) as low
+        FROM defects
+        WHERE company_id = ?
+        GROUP BY stage_number
+        ORDER BY stage_number
+    """, (company_id,))
+
 
 @app.get("/debug/by-stage/{company_id}")
 def debug_by_stage(company_id: str):
