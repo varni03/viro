@@ -64,12 +64,15 @@ def get_defects_by_stage(company_id: str):
 def debug_by_stage(company_id: str):
     try:
         result = db.query(
-            "SELECT stage_number, COUNT(*) as total FROM defects WHERE company_id = ? GROUP BY stage_number",
+            """SELECT stage_number, COUNT(*) as total_defects,
+            SUM(CASE WHEN severity = 'critical' THEN 1 ELSE 0 END) as critical
+            FROM defects WHERE company_id = ? GROUP BY stage_number""",
             (company_id,)
         )
         return result.to_dict(orient="records")
     except Exception as e:
         return {"error": str(e)}
+
 
 
 
