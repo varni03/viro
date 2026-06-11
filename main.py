@@ -50,7 +50,7 @@ def get_defects(company_id: str):
 def get_defects_by_stage(company_id: str):
     try:
         data = db.get_defects_by_stage(company_id)
-        return {"count": len(data), "data": data.to_dict(orient="records"), "company_id": company_id}
+        return data.to_dict(orient="records")
     except Exception as e:
         return {"error": str(e)}
     
