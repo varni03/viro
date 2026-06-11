@@ -52,20 +52,12 @@ def get_product_defects(company_id: str, product_id: str):
     return defects.to_dict(orient="records")
 
 @app.get("/defects/by-stage/{company_id}")
-def get_defects_by_stage(self, company_id):
-    return self.query("""
-        SELECT 
-            stage_number,
-            COUNT(*) as total_defects,
-            SUM(CASE WHEN severity = 'critical' THEN 1 ELSE 0 END) as critical,
-            SUM(CASE WHEN severity = 'high' THEN 1 ELSE 0 END) as high,
-            SUM(CASE WHEN severity = 'medium' THEN 1 ELSE 0 END) as medium,
-            SUM(CASE WHEN severity = 'low' THEN 1 ELSE 0 END) as low
-        FROM defects
-        WHERE company_id = ?
-        GROUP BY stage_number
-        ORDER BY stage_number
-    """, (company_id,))
+def get_defects_by_stage(company_id: str):
+    try:
+        data = db.get_defects_by_stage(company_id)
+        return {"count": len(data), "data": data.to_dict(orient="records"), "company_id": company_id}
+    except Exception as e:
+        return {"error": str(e)}
 
 
 @app.get("/debug/by-stage/{company_id}")
@@ -202,7 +194,7 @@ def get_analytics_summary(company_id: str):
     # Average resolution time in hours
     avg_time = db.query("""
         SELECT AVG(
-            (julianday(datetime('now')) - julianday(logged_at)) * 24
+            EXTRACT(EPOCH FROM (NOW() - logged_at::timestamp)) / 3600
         ) as avg_hours
         FROM defects 
         WHERE company_id = ? AND resolved = 1
@@ -260,7 +252,7 @@ def get_stage_performance(company_id: str):
             SUM(CASE WHEN d.severity = 'high' THEN 1 ELSE 0 END) as high,
             SUM(CASE WHEN d.resolved = 0 THEN 1 ELSE 0 END) as open_defects,
             ROUND(AVG(CASE WHEN d.resolved = 1 
-                THEN (julianday(datetime('now')) - julianday(d.logged_at)) * 24 
+                THEN EXTRACT(EPOCH FROM (NOW() - d.logged_at::timestamp)) / 3600
                 ELSE NULL END), 1) as avg_resolution_hours
         FROM defects d
         LEFT JOIN stages s ON d.stage_number = s.stage_number 
@@ -280,8 +272,8 @@ def get_resolution_trend(company_id: str):
             SUM(CASE WHEN resolved = 1 THEN 1 ELSE 0 END) as resolved
         FROM defects
         WHERE company_id = ?
-        AND logged_at >= DATE('now', '-30 days')
-        GROUP BY DATE(logged_at)
+        AND logged_at::timestamp >= NOW() - INTERVAL '30 days'
+        GROUP BY DATE(logged_at::timestamp)
         ORDER BY date ASC
     """, (company_id,))
     return result.to_dict(orient="records")
@@ -928,6 +920,16 @@ db.execute("""
         custom_prefs TEXT DEFAULT '{}'
     )
 """)
+
+db.execute("""
+    CREATE TABLE IF NOT EXISTS company_config (
+        company_id TEXT,
+        config_key TEXT,
+        config_value TEXT,
+        PRIMARY KEY (company_id, config_key)
+    )
+""")
+
 
 class DisplayPrefs(BaseModel):
     font_size: Optional[str] = "normal"
