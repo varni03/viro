@@ -59,6 +59,18 @@ def get_defects_by_stage(company_id: str):
     except Exception as e:
         return {"error": str(e)}
 
+@app.get("/debug/by-stage/{company_id}")
+def debug_by_stage(company_id: str):
+    try:
+        result = db.query(
+            "SELECT stage_number, COUNT(*) as total FROM defects WHERE company_id = ? GROUP BY stage_number",
+            (company_id,)
+        )
+        return result.to_dict(orient="records")
+    except Exception as e:
+        return {"error": str(e)}
+
+
 
 class DefectCreate(BaseModel):
     company_id: str
