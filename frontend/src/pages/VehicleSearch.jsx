@@ -65,11 +65,11 @@ export default function VehicleSearch({ company }) {
           onClick={search}
           onKeyDown={e => e.key === "Enter" && search()}
           style={{
-            background: `linear-gradient(135deg, ${COLORS.accent}, #4f46e5)`,
+            background: `linear-gradient(135deg, ${COLORS.accent}, #ffffff)`,
             border: "none",
             borderRadius: 12,
             padding: "12px 28px",
-            color: "white",
+            color: "#08090a",
             fontWeight: 700,
             cursor: "pointer",
             fontSize: 14,

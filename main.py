@@ -1,7 +1,7 @@
 from fastapi import FastAPI, HTTPException, UploadFile, File
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
-from typing import Optional, List
+from typing import Optional, List, Any
 import anthropic
 import base64
 import json
@@ -27,6 +27,10 @@ app.add_middleware(
 
 db = ViroDB()
 client = anthropic.Anthropic()
+
+# Single source of truth for the Claude model. Bump to "claude-opus-4-8" for
+# richer output at higher cost. (claude-sonnet-4-20250514 retired 2026-06-15.)
+AI_MODEL = "claude-sonnet-4-6"
 
 # ── Companies ──────────────────────────────────────────────────
 @app.get("/companies")
@@ -58,22 +62,6 @@ def get_defects_by_stage(company_id: str):
 def get_product_defects(company_id: str, product_id: str):
     defects = db.get_defects(company_id, product_id)
     return defects.to_dict(orient="records")
-
-
-@app.get("/debug/by-stage/{company_id}")
-def debug_by_stage(company_id: str):
-    try:
-        result = db.query(
-            """SELECT stage_number, COUNT(*) as total_defects,
-            SUM(CASE WHEN severity = 'critical' THEN 1 ELSE 0 END) as critical
-            FROM defects WHERE company_id = ? GROUP BY stage_number""",
-            (company_id,)
-        )
-        return result.to_dict(orient="records")
-    except Exception as e:
-        return {"error": str(e)}
-
-
 
 
 class DefectCreate(BaseModel):
@@ -127,7 +115,7 @@ async def analyze_image(file: UploadFile = File(...)):
         media_type = file.content_type or "image/jpeg"
 
         response = client.messages.create(
-            model="claude-sonnet-4-20250514",
+            model=AI_MODEL,
             max_tokens=500,
             messages=[{
                 "role": "user",
@@ -347,7 +335,7 @@ def generate_analytics(request: AnalyticsRequest):
         Return ONLY the JSON, no other text."""
 
         response = client.messages.create(
-            model="claude-sonnet-4-20250514",
+            model=AI_MODEL,
             max_tokens=500,
             messages=[{"role": "user", "content": prompt}]
         )
@@ -449,7 +437,7 @@ When you see problems in the data, provide specific recommendations."""
             """
 
         response = client.messages.create(
-            model="claude-sonnet-4-20250514",
+            model=AI_MODEL,
             max_tokens=1000,
             system=system_prompt,
             tools=[{
@@ -589,7 +577,7 @@ def interpret_filters(request: AIFilterRequest):
         """
 
         response = client.messages.create(
-            model="claude-sonnet-4-20250514",
+            model=AI_MODEL,
             max_tokens=400,
             messages=[{"role": "user", "content": prompt}]
         )
@@ -661,7 +649,7 @@ Examples:
 Return ONLY the JSON."""
 
         response = client.messages.create(
-            model="claude-sonnet-4-20250514",
+            model=AI_MODEL,
             max_tokens=300,
             messages=[{"role": "user", "content": prompt}]
         )
@@ -671,6 +659,109 @@ Return ONLY the JSON."""
 
     except Exception as e:
         return {"type": "none", "message": ""}
+
+
+# ── Insight layer (per-card AI annotations + click-any-card) ────
+def _company_identity(company_id: str):
+    info = db.query(
+        "SELECT name, industry FROM companies WHERE company_id = ?",
+        (company_id,)
+    )
+    if info.empty:
+        return "the company", "operations"
+    return info.iloc[0]["name"], (info.iloc[0]["industry"] or "operations")
+
+def _strip_json_fences(text: str) -> str:
+    text = text.strip()
+    if text.startswith("```"):
+        # drop opening fence (``` or ```json) and trailing fence
+        text = text.split("```", 2)[1] if text.count("```") >= 2 else text
+        if text.lower().startswith("json"):
+            text = text[4:]
+    return text.strip()
+
+class CardInsightItem(BaseModel):
+    key: str
+    label: str
+    type: Optional[str] = None
+    data: Any = None
+
+class DashboardInsightsRequest(BaseModel):
+    cards: List[CardInsightItem]
+
+@app.post("/dashboard/insights/{company_id}")
+def dashboard_insights(company_id: str, req: DashboardInsightsRequest):
+    """One Claude call → a one-sentence insight per dashboard card."""
+    try:
+        name, industry = _company_identity(company_id)
+        cards = [
+            {"key": c.key, "label": c.label, "type": c.type, "data": c.data}
+            for c in req.cards
+        ]
+        cards_json = json.dumps(cards, default=str)
+        prompt = f"""You are the intelligence layer of Viro, an operations platform for {name} ({industry}).
+
+For each dashboard card below, write ONE sentence (max 18 words) naming the single most important thing the live numbers reveal — a decision, risk, or opportunity, never a description of what the card shows. Use the actual numbers. If a card has no data, write a short note saying so.
+
+Cards (JSON):
+{cards_json}
+
+Return ONLY a JSON object mapping each card's "key" to its sentence. No other text."""
+
+        response = client.messages.create(
+            model=AI_MODEL,
+            max_tokens=700,
+            messages=[{"role": "user", "content": prompt}],
+        )
+        text = _strip_json_fences(response.content[0].text)
+        return {"insights": json.loads(text)}
+    except Exception as e:
+        return {"insights": {}, "error": str(e)}
+
+class CardActionRequest(BaseModel):
+    company_id: str
+    action: str            # "explain" | "alert"
+    label: str
+    summary: Any = None
+    question: Optional[str] = None
+
+@app.post("/ai/card-action")
+def card_action(req: CardActionRequest):
+    """Click-any-card control plane: explain a card in context, or set an alert."""
+    try:
+        name, industry = _company_identity(req.company_id)
+
+        if req.action == "alert":
+            import uuid
+            db.execute("""
+                INSERT INTO notifications
+                (notification_id, company_id, title, message, severity)
+                VALUES (?, ?, ?, ?, ?)
+            """, (str(uuid.uuid4()), req.company_id, "🔔 Alert set",
+                  f"You'll be notified when '{req.label}' changes significantly.", "low"))
+            return {"answer": f"Done — I'll alert you when {req.label} changes significantly."}
+
+        summary_json = json.dumps(req.summary, default=str)
+        ask = req.question or "Explain what this means and what to do about it."
+        prompt = f"""You are the intelligence layer of Viro for {name} ({industry}).
+A manager clicked on the dashboard card "{req.label}".
+
+Card data (JSON):
+{summary_json}
+
+{ask}
+
+Answer in 2-3 punchy sentences using the actual numbers. Be specific and actionable. No preamble."""
+
+        response = client.messages.create(
+            model=AI_MODEL,
+            max_tokens=400,
+            messages=[{"role": "user", "content": prompt}],
+        )
+        answer = "".join(b.text for b in response.content if hasattr(b, "text"))
+        return {"answer": answer}
+    except Exception as e:
+        return {"answer": f"Error: {str(e)}"}
 
 
 # ── Auth ───────────────────────────────────────────────────────
@@ -1464,3 +1555,21 @@ def create_product(product: ProductCreate):
         """, (product.product_id, product.company_id, 
               datetime.now().isoformat(), product.current_stage, product.status))
     return {"message": "Product created"}
+
+@app.post("/admin/dedupe-stages/{company_id}")
+def dedupe_stages(company_id: str):
+    # keep the lowest stage_id per stage_number, delete the rest
+    rows = db.query(
+        "SELECT stage_id, stage_number FROM stages WHERE company_id = ? ORDER BY stage_number, stage_id",
+        (company_id,)
+    )
+    seen = set()
+    deleted = 0
+    for _, r in rows.iterrows():
+        num = r["stage_number"]
+        if num in seen:
+            db.execute("DELETE FROM stages WHERE stage_id = ?", (r["stage_id"],))
+            deleted += 1
+        else:
+            seen.add(num)
+    return {"deleted": deleted, "kept": len(seen)}

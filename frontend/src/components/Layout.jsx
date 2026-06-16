@@ -139,14 +139,14 @@ export function AuroraBackground() {
       {/* Deep background */}
       <div style={{
         position: "fixed", inset: 0, zIndex: 0, pointerEvents: "none",
-        background: "radial-gradient(ellipse 80% 60% at 50% 0%, rgba(120,80,255,0.06) 0%, transparent 60%)",
+        background: "radial-gradient(ellipse 80% 60% at 50% 0%, rgba(255,255,255,0.04) 0%, transparent 60%)",
       }} />
 
       {/* Floating orbs */}
       {[
-        { color: "rgba(100,60,255,0.12)", x: "20%", y: "25%", w: 700, h: 500, dur: "20s" },
-        { color: "rgba(60,100,255,0.08)", x: "80%", y: "70%", w: 600, h: 600, dur: "28s" },
-        { color: "rgba(150,50,255,0.06)", x: "60%", y: "15%", w: 400, h: 400, dur: "24s" },
+        { color: "rgba(255,255,255,0.05)", x: "20%", y: "25%", w: 700, h: 500, dur: "20s" },
+        { color: "rgba(255,255,255,0.035)", x: "80%", y: "70%", w: 600, h: 600, dur: "28s" },
+        { color: "rgba(255,255,255,0.025)", x: "60%", y: "15%", w: 400, h: 400, dur: "24s" },
       ].map((orb, i) => (
         <div key={i} style={{
           position: "fixed",

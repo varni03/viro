@@ -58,7 +58,7 @@ export default function Login({ onLogin, onSignup }) {
         <div style={{ textAlign: "center", marginBottom: 32 }}>
           <div style={{
             width: 52, height: 52,
-            background: `linear-gradient(135deg, ${COLORS.accent}, #4f46e5)`,
+            background: `linear-gradient(135deg, ${COLORS.accent}, #ffffff)`,
             borderRadius: 14,
             display: "flex", alignItems: "center",
             justifyContent: "center",
@@ -156,11 +156,11 @@ export default function Login({ onLogin, onSignup }) {
             width: "100%",
             background: loading
               ? COLORS.border
-              : `linear-gradient(135deg, ${COLORS.accent}, #4f46e5)`,
+              : `linear-gradient(135deg, ${COLORS.accent}, #ffffff)`,
             border: "none",
             borderRadius: 12,
             padding: "14px",
-            color: "white",
+            color: "#08090a",
             fontSize: 15,
             fontWeight: 700,
             cursor: loading ? "not-allowed" : "pointer",

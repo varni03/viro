@@ -293,7 +293,7 @@ const moduleData = ALL_MODULES.map(m => ({
 
   const inputStyle = {
     width: "100%",
-    background: "#12122a",
+    background: "rgba(255,255,255,0.04)",
     border: `1px solid ${COLORS.border}`,
     borderRadius: 10,
     padding: "12px 16px",
@@ -338,7 +338,7 @@ const moduleData = ALL_MODULES.map(m => ({
         <div style={{ textAlign: "center", marginBottom: 32 }}>
           <div style={{
             width: 52, height: 52,
-            background: `linear-gradient(135deg, ${COLORS.accent}, #4f46e5)`,
+            background: `linear-gradient(135deg, ${COLORS.accent}, #ffffff)`,
             borderRadius: 14,
             display: "flex", alignItems: "center",
             justifyContent: "center",
@@ -430,9 +430,9 @@ const moduleData = ALL_MODULES.map(m => ({
                 onClick={() => setStep(2)}
                 style={{
                   width: "100%",
-                  background: `linear-gradient(135deg, ${COLORS.accent}, #4f46e5)`,
+                  background: `linear-gradient(135deg, ${COLORS.accent}, #ffffff)`,
                   border: "none", borderRadius: 12,
-                  padding: "14px", color: "white",
+                  padding: "14px", color: "#08090a",
                   fontSize: 15, fontWeight: 700, cursor: "pointer",
                 }}
               >
@@ -493,9 +493,9 @@ const moduleData = ALL_MODULES.map(m => ({
                   }}
                   style={{
                     flex: 2,
-                    background: `linear-gradient(135deg, ${COLORS.accent}, #4f46e5)`,
+                    background: `linear-gradient(135deg, ${COLORS.accent}, #ffffff)`,
                     border: "none", borderRadius: 12,
-                    padding: "12px", color: "white",
+                    padding: "12px", color: "#08090a",
                     fontSize: 14, fontWeight: 700, cursor: "pointer",
                   }}
                 >
@@ -561,9 +561,9 @@ const moduleData = ALL_MODULES.map(m => ({
                   }}
                   style={{
                     flex: 2,
-                    background: `linear-gradient(135deg, ${COLORS.accent}, #4f46e5)`,
+                    background: `linear-gradient(135deg, ${COLORS.accent}, #ffffff)`,
                     border: "none", borderRadius: 12,
-                    padding: "12px", color: "white",
+                    padding: "12px", color: "#08090a",
                     fontSize: 14, fontWeight: 700, cursor: "pointer",
                   }}
                 >
@@ -652,9 +652,9 @@ const moduleData = ALL_MODULES.map(m => ({
         onClick={() => setStep(5)}
         style={{
           flex: 2,
-          background: `linear-gradient(135deg, ${COLORS.accent}, #4f46e5)`,
+          background: `linear-gradient(135deg, ${COLORS.accent}, #ffffff)`,
           border: "none", borderRadius: 12,
-          padding: "12px", color: "white",
+          padding: "12px", color: "#08090a",
           fontSize: 14, fontWeight: 700, cursor: "pointer",
         }}
       >
@@ -781,9 +781,9 @@ const moduleData = ALL_MODULES.map(m => ({
                   onClick={() => setStep(6)}
                   style={{
                     flex: 2,
-                    background: `linear-gradient(135deg, ${COLORS.accent}, #4f46e5)`,
+                    background: `linear-gradient(135deg, ${COLORS.accent}, #ffffff)`,
                     border: "none", borderRadius: 12,
-                    padding: "12px", color: "white",
+                    padding: "12px", color: "#08090a",
                     fontSize: 14, fontWeight: 700, cursor: "pointer",
                   }}
                 >
@@ -867,9 +867,9 @@ const moduleData = ALL_MODULES.map(m => ({
                   disabled={loading}
                   style={{
                     flex: 2,
-                    background: loading ? COLORS.border : `linear-gradient(135deg, ${COLORS.accent}, #4f46e5)`,
+                    background: loading ? COLORS.border : `linear-gradient(135deg, ${COLORS.accent}, #ffffff)`,
                     border: "none", borderRadius: 12,
-                    padding: "12px", color: "white",
+                    padding: "12px", color: "#08090a",
                     fontSize: 14, fontWeight: 700,
                     cursor: loading ? "not-allowed" : "pointer",
                   }}

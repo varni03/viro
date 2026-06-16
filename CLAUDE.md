@@ -145,3 +145,47 @@ seeding must be tested on personal WiFi.
   one step at a time, ask for terminal output when debugging.
 - Prefer diffs over full-file rewrites unless the file is broken.
 - Never reintroduce purple. Never store data on Railway disk. Always check route order.
+
+## Product design thesis — the soul of Viro (do not lose this)
+
+What separates “a dashboard” from something the manager opens every morning because it
+makes him better at his job. This is the north star for every in-product screen.
+
+1. **Every screen answers a question, it doesn’t display data.**
+   Power BI shows charts; Viro shows answers. the manager’s morning question is “what’s
+   blocking shipping” — so the top of his screen is a sentence, not a chart:
+   “3 vehicles blocked at QC — all lift malfunctions, all from batch AL-2241.
+   Resolving these ships $240K this week.” The data below it is the proof.
+   Implementation: each config block gets an optional AI-generated `insight` string,
+   one sentence written by Claude from the live numbers, refreshed when data changes.
+1. **The AI panel is the control plane, not a chatbot sidebar.**
+   Extend /ai/command: every card becomes clickable → “Explain this” / “Change this” /
+   “Alert me when this changes.” “Why is FPY down?” answers in the context of THAT
+   card’s data. Because the dashboard is config, “make this weekly” or “swap this for
+   resolution time” actually rebuilds the screen live. That live reshape is the demo
+   moment that makes people gasp.
+1. **Generation is per-role, not just per-company.**
+   Floor worker on an iPad → two giant buttons (Log Defect, My Queue). the manager → the
+   overview. CFO → cost-of-quality. The onboarding conversation (“who works here?”)
+   generates different layouts per role from the same config system. This makes
+   “operating system for operations” literal.
+1. **It should feel alive — like mission control.**
+   Pulse dots on live data, numbers that tick when a defect is logged, critical alerts
+   that slide in rather than waiting for a bell-icon poll, the blocked stage glowing
+   red. The plant should feel like it’s breathing inside the screen.
+1. **Each tab rebuilt around its single job:**
+- Production Line → vehicles as cards flowing through stage columns, drag to advance,
+  red ones float to top.
+- Analytics → insights first (“your week in 4 sentences”), charts as evidence below,
+  plus the AI analytics generator.
+- Predictive → not risk scores, but a feed: “MV-VIN-0046 likely to fail QC — 3
+  defects at entry, pattern matches 12 prior failures.”
+- Log Defect → 10-second flow: photo → AI fills everything → confirm. Floor workers
+  wear gloves; minimize taps.
+
+**Highest-leverage build after the renderer:** insight annotations + click-any-card-to-ask.
+Needs the Claude API (home/hotspot WiFi). ~1 day of work; transforms the feel from
+“dashboard” to “intelligence.”
+
+**Build order (agreed):** finish dashboard polish → landing page from Fable prototype →
+insight layer → conversational onboarding → per-role generation → automations.

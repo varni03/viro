@@ -13,6 +13,8 @@ import ProductionLine from "./pages/ProductionLine";
 import Settings from "./pages/Settings";
 import Onboarding from "./pages/Onboarding";
 import { useBreakpoint } from "./hooks/useBreakpoint";
+import DynamicDashboard from "./pages/DynamicDashboard";
+import { MERIDIAN_CONFIG } from "./pages/meridianConfig";
 
 
 function ReportTab({ report }) {
@@ -232,16 +234,16 @@ export default function App() {
     }
 
     switch (activePage) {
-      case "Dashboard": return <Dashboard company={company} filters={filters} prefs={prefs} />;
+      case "Dashboard": return <DynamicDashboard company={company} config={MERIDIAN_CONFIG} />;
       case "Production Line": return <ProductionLine company={company} user={user} />;
       case "Predictive": return <Predictive company={company} />;
       case "Analytics": return <Analytics company={company} />;
       case "Vehicle Search": return <VehicleSearch company={company} />;
       case "Log Defect": return <LogDefect company={company} stages={stages} />;
-      case "Settings": return <Settings company={company} user={user} onCompanyUpdate={(updates) => {
       case "Repair Queue": return <ProductionLine company={company} user={user} defaultView="queue" />;
+      case "Settings": return <Settings company={company} user={user} onCompanyUpdate={(updates) => {
         setCompany(prev => ({ ...prev, ...updates }));
-      }} />;      
+      }} />;     
       default: return <Dashboard company={company} />;
     }
   };

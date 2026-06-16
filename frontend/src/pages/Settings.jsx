@@ -532,9 +532,9 @@ const load = async () => {
               }}
               disabled={syncing}
               style={{
-                background: syncing ? COLORS.border : `linear-gradient(135deg, ${COLORS.accent}, #4f46e5)`,
+                background: syncing ? COLORS.border : `linear-gradient(135deg, ${COLORS.accent}, #ffffff)`,
                 border: "none", borderRadius: 10,
-                padding: "12px 24px", color: "white",
+                padding: "12px 24px", color: "#08090a",
                 fontSize: 13, fontWeight: 700,
                 cursor: syncing ? "not-allowed" : "pointer",
               }}
@@ -638,9 +638,9 @@ const load = async () => {
           } catch { showError("Failed to add connector"); }
         }}
         style={{
-          background: `linear-gradient(135deg, ${COLORS.accent}, #4f46e5)`,
+          background: `linear-gradient(135deg, ${COLORS.accent}, #ffffff)`,
           border: "none", borderRadius: 10,
-          padding: "10px 20px", color: "white",
+          padding: "10px 20px", color: "#08090a",
           fontSize: 13, fontWeight: 700, cursor: "pointer",
         }}
       >
@@ -729,9 +729,9 @@ const load = async () => {
       }}
       disabled={saving}
       style={{
-        background: saving ? COLORS.border : `linear-gradient(135deg, ${COLORS.accent}, #4f46e5)`,
+        background: saving ? COLORS.border : `linear-gradient(135deg, ${COLORS.accent}, #ffffff)`,
         border: "none", borderRadius: 10,
-        padding: "12px 24px", color: "white",
+        padding: "12px 24px", color: "#08090a",
         fontSize: 13, fontWeight: 700,
         cursor: saving ? "not-allowed" : "pointer",
       }}
@@ -829,9 +829,9 @@ const load = async () => {
             <button
               onClick={addStage}
               style={{
-                background: `linear-gradient(135deg, ${COLORS.accent}, #4f46e5)`,
+                background: `linear-gradient(135deg, ${COLORS.accent}, #ffffff)`,
                 border: "none", borderRadius: 10,
-                padding: "10px 20px", color: "white",
+                padding: "10px 20px", color: "#08090a",
                 fontSize: 13, fontWeight: 700, cursor: "pointer",
               }}
             >
@@ -923,9 +923,9 @@ const load = async () => {
             <button
               onClick={addDefectType}
               style={{
-                background: `linear-gradient(135deg, ${COLORS.accent}, #4f46e5)`,
+                background: `linear-gradient(135deg, ${COLORS.accent}, #ffffff)`,
                 border: "none", borderRadius: 10,
-                padding: "10px 20px", color: "white",
+                padding: "10px 20px", color: "#08090a",
                 fontSize: 13, fontWeight: 700, cursor: "pointer",
               }}
             >
@@ -1090,9 +1090,9 @@ const load = async () => {
             <button
               onClick={addUser}
               style={{
-                background: `linear-gradient(135deg, ${COLORS.accent}, #4f46e5)`,
+                background: `linear-gradient(135deg, ${COLORS.accent}, #ffffff)`,
                 border: "none", borderRadius: 10,
-                padding: "10px 20px", color: "white",
+                padding: "10px 20px", color: "#08090a",
                 fontSize: 13, fontWeight: 700, cursor: "pointer",
               }}
             >
@@ -1329,9 +1329,9 @@ const load = async () => {
           } catch { showError("Failed to add field"); }
         }}
         style={{
-          background: `linear-gradient(135deg, ${COLORS.accent}, #4f46e5)`,
+          background: `linear-gradient(135deg, ${COLORS.accent}, #ffffff)`,
           border: "none", borderRadius: 10,
-          padding: "10px 20px", color: "white",
+          padding: "10px 20px", color: "#08090a",
           fontSize: 13, fontWeight: 700, cursor: "pointer",
         }}
       >
@@ -1380,9 +1380,9 @@ const load = async () => {
               onClick={saveProfile}
               disabled={saving}
               style={{
-                background: saving ? COLORS.border : `linear-gradient(135deg, ${COLORS.accent}, #4f46e5)`,
+                background: saving ? COLORS.border : `linear-gradient(135deg, ${COLORS.accent}, #ffffff)`,
                 border: "none", borderRadius: 10,
-                padding: "12px 24px", color: "white",
+                padding: "12px 24px", color: "#08090a",
                 fontSize: 13, fontWeight: 700,
                 cursor: saving ? "not-allowed" : "pointer",
               }}

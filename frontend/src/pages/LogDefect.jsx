@@ -417,11 +417,11 @@ export default function LogDefect({ company, stages }) {
               width: "100%",
               background: submitting
                 ? COLORS.border
-                : `linear-gradient(135deg, ${COLORS.accent}, #4f46e5)`,
+                : `linear-gradient(135deg, ${COLORS.accent}, #ffffff)`,
               border: "none",
               borderRadius: 12,
               padding: "14px",
-              color: "white",
+              color: "#08090a",
               fontSize: 14,
               fontWeight: 700,
               cursor: submitting ? "not-allowed" : "pointer",

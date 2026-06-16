@@ -106,7 +106,7 @@ export default function AIAssistant({ company }) {
             <div style={{ maxWidth: "75%" }}>
               <div style={{
                 background: msg.role === "user"
-                  ? `linear-gradient(135deg, ${COLORS.accent}, #4f46e5)`
+                  ? `linear-gradient(135deg, ${COLORS.accent}, #ffffff)`
                   : COLORS.surface,
                 border: `1px solid ${msg.role === "user" ? "transparent" : COLORS.border}`,
                 borderRadius: msg.role === "user"
@@ -248,11 +248,11 @@ export default function AIAssistant({ company }) {
           onKeyDown={e => e.key === "Enter" && send(input)}
           disabled={loading}
           style={{
-            background: `linear-gradient(135deg, ${COLORS.accent}, #4f46e5)`,
+            background: `linear-gradient(135deg, ${COLORS.accent}, #ffffff)`,
             border: "none",
             borderRadius: 12,
             padding: "12px 28px",
-            color: "white",
+            color: "#08090a",
             fontWeight: 700,
             cursor: loading ? "not-allowed" : "pointer",
             fontSize: 14,

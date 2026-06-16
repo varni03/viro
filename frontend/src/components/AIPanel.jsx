@@ -2,6 +2,8 @@ import { useState, useRef, useEffect } from "react";
 import { askAI } from "../api/client";
 import { COLORS } from "./Layout";
 
+const API = "https://web-production-0457e.up.railway.app";
+
 const SUGGESTIONS = [
   "Show only critical defects",
   "Filter to station 310",
@@ -55,7 +57,7 @@ export default function AIPanel({ company, onNewReport, activePage, onFilterChan
 
     try {
         // First check if this is a platform command
-        const commandRes = await fetch("https://web-production-0457e.up.railway.app/ai/command", {
+        const commandRes = await fetch(`${API}/ai/command`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
@@ -70,7 +72,7 @@ export default function AIPanel({ company, onNewReport, activePage, onFilterChan
           const newPrefs = { ...prefs, ...commandRes.changes };
           setPrefs && setPrefs(newPrefs);
           // Save to backend
-          await fetch(`https://web-production-0457e.up.railway.app/prefs/${company.company_id}`, {
+          await fetch(`${API}/prefs/${company.company_id}`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify(newPrefs)
@@ -99,7 +101,7 @@ export default function AIPanel({ company, onNewReport, activePage, onFilterChan
   
         } else if (commandRes.type === "module") {
           // Toggle module
-          await fetch(`https://web-production-0457e.up.railway.app/modules/${company.company_id}`, {
+          await fetch(`${API}/modules/${company.company_id}`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
@@ -116,7 +118,7 @@ export default function AIPanel({ company, onNewReport, activePage, onFilterChan
   
         } else {
           // Check if filter change
-          const filterRes = await fetch("https://web-production-0457e.up.railway.app/ai/interpret-filters", {
+          const filterRes = await fetch(`${API}/ai/interpret-filters`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
@@ -190,7 +192,8 @@ export default function AIPanel({ company, onNewReport, activePage, onFilterChan
         <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 10 }}>
           <div style={{
             width: 32, height: 32,
-            background: `linear-gradient(135deg, ${COLORS.accent}, #4f46e5)`,
+            background: "rgba(255,255,255,0.1)",
+            border: `1px solid ${COLORS.border}`,
             borderRadius: 8,
             display: "flex", alignItems: "center",
             justifyContent: "center", fontSize: 16,
@@ -301,7 +304,7 @@ export default function AIPanel({ company, onNewReport, activePage, onFilterChan
             <div style={{ maxWidth: "88%" }}>
               <div style={{
                 background: msg.role === "user"
-                  ? `linear-gradient(135deg, ${COLORS.accent}, #4f46e5)`
+                  ? "rgba(255,255,255,0.12)"
                   : msg.isFilterChange
                   ? COLORS.low + "20"
                   : COLORS.card,
@@ -454,10 +457,10 @@ export default function AIPanel({ company, onNewReport, activePage, onFilterChan
             onClick={() => send(input)}
             disabled={loading}
             style={{
-              background: `linear-gradient(135deg, ${COLORS.accent}, #4f46e5)`,
+              background: "rgba(255,255,255,0.95)",
               border: "none", borderRadius: 10,
               padding: "10px 16px",
-              color: "white", fontWeight: 700,
+              color: "#08090a", fontWeight: 700,
               cursor: loading ? "not-allowed" : "pointer",
               fontSize: 14, opacity: loading ? 0.6 : 1,
             }}

@@ -96,7 +96,7 @@ function SavedAnalysisCard({ analysis, company, onDelete }) {
                 <div style={{
                   width: "100%",
                   height: `${(val / maxVal) * 60}px`,
-                  background: `linear-gradient(180deg, ${COLORS.accent}, #4f46e5)`,
+                  background: `linear-gradient(180deg, ${COLORS.accent}, #ffffff)`,
                   borderRadius: "2px 2px 0 0",
                   minHeight: 2,
                 }} />
@@ -309,7 +309,7 @@ export default function Analytics({ company }) {
                     width: `${(defect.count / maxDefectCount) * 100}%`,
                     background: defect.critical_count > 0
                       ? `linear-gradient(90deg, ${COLORS.critical}, ${COLORS.high})`
-                      : `linear-gradient(90deg, ${COLORS.accent}, #4f46e5)`,
+                      : `linear-gradient(90deg, ${COLORS.accent}, #ffffff)`,
                     borderRadius: 3,
                     transition: "width 0.5s ease",
                   }} />
@@ -354,7 +354,7 @@ export default function Analytics({ company }) {
                     width: `${(stage.total_defects / maxStageDefects) * 100}%`,
                     background: stage.critical > 0
                       ? `linear-gradient(90deg, ${COLORS.critical}, ${COLORS.high})`
-                      : `linear-gradient(90deg, ${COLORS.accent}, #4f46e5)`,
+                      : `linear-gradient(90deg, ${COLORS.accent}, #ffffff)`,
                     borderRadius: 3,
                   }} />
                 </div>
@@ -389,7 +389,7 @@ export default function Analytics({ company }) {
                     height: `${(t.count / maxTrend) * 90}px`,
                     background: t.count > maxTrend * 0.7
                       ? `linear-gradient(180deg, ${COLORS.critical}, ${COLORS.high})`
-                      : `linear-gradient(180deg, ${COLORS.accent}, #4f46e5)`,
+                      : `linear-gradient(180deg, ${COLORS.accent}, #ffffff)`,
                     borderRadius: "3px 3px 0 0",
                     minHeight: 4,
                   }} />
@@ -457,9 +457,9 @@ export default function Analytics({ company }) {
           <button
             onClick={() => setShowGenerator(!showGenerator)}
             style={{
-              background: `linear-gradient(135deg, ${COLORS.accent}, #4f46e5)`,
+              background: `linear-gradient(135deg, ${COLORS.accent}, #ffffff)`,
               border: "none", borderRadius: 10,
-              padding: "10px 18px", color: "white",
+              padding: "10px 18px", color: "#08090a",
               fontSize: 13, fontWeight: 700, cursor: "pointer",
             }}
           >
@@ -496,9 +496,9 @@ export default function Analytics({ company }) {
                 onClick={generateAnalysis}
                 disabled={generating || !analyticsQuestion}
                 style={{
-                  background: generating ? COLORS.border : `linear-gradient(135deg, ${COLORS.accent}, #4f46e5)`,
+                  background: generating ? COLORS.border : `linear-gradient(135deg, ${COLORS.accent}, #ffffff)`,
                   border: "none", borderRadius: 10,
-                  padding: "12px 20px", color: "white",
+                  padding: "12px 20px", color: "#08090a",
                   fontSize: 13, fontWeight: 700,
                   cursor: generating ? "not-allowed" : "pointer",
                   whiteSpace: "nowrap",

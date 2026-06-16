@@ -449,9 +449,9 @@ export default function ProductionLine({ company, user, defaultView }) {
                       style={{
                         background: selectedVehicle.critical_open > 0
                           ? COLORS.border
-                          : `linear-gradient(135deg, ${COLORS.accent}, #4f46e5)`,
+                          : `linear-gradient(135deg, ${COLORS.accent}, #ffffff)`,
                         border: "none", borderRadius: 10,
-                        padding: "10px 18px", color: "white",
+                        padding: "10px 18px", color: "#08090a",
                         fontWeight: 700, fontSize: 13,
                         cursor: selectedVehicle.critical_open > 0 ? "not-allowed" : "pointer",
                         opacity: selectedVehicle.critical_open > 0 ? 0.5 : 1,
