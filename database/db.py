@@ -217,6 +217,13 @@ class ViroDB:
             messages=[{"role": "user", "content": prompt}]
         )
         sql = response.content[0].text.strip()
+        # Models often wrap SQL in a markdown code fence despite "Return ONLY the SQL".
+        # Running that raw fails the query, so strip it.
+        if sql.startswith("```"):
+            sql = sql.split("```")[1]
+            if sql.lower().startswith("sql"):
+                sql = sql[3:]
+            sql = sql.strip()
         try:
             result = self.query(sql)
             return result, sql
