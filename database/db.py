@@ -212,7 +212,7 @@ class ViroDB:
         Rules: Filter by company_id = '{company_id}'. SELECT only.
         Question: {question}"""
         response = client.messages.create(
-            model="claude-sonnet-4-20250514",
+            model="claude-sonnet-4-6",  # keep in sync with AI_MODEL in main.py (old model retired 2026-06-15)
             max_tokens=500,
             messages=[{"role": "user", "content": prompt}]
         )
