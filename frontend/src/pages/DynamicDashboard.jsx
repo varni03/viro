@@ -84,6 +84,19 @@ function ensureStyles() {
       border:1px solid rgba(255,255,255,0.12);border-radius:16px;padding:22px;
       box-shadow:0 20px 60px rgba(0,0,0,0.5);
     }
+    .vdyn-vpill{display:inline-flex;align-items:center}
+    .vdyn-vpill-act{
+      display:inline-flex;gap:1px;align-items:center;margin-left:-2px;
+      max-width:0;overflow:hidden;opacity:0;
+      transition:max-width .2s cubic-bezier(.16,1,.3,1),opacity .2s ease;
+    }
+    .vdyn-vpill:hover .vdyn-vpill-act{max-width:60px;opacity:1}
+    .vdyn-vicon{
+      width:22px;height:26px;display:flex;align-items:center;justify-content:center;
+      background:transparent;border:none;cursor:pointer;font-size:11px;
+      color:rgba(255,255,255,0.45);
+    }
+    .vdyn-vicon:hover{color:#fff}
   `;
   document.head.appendChild(el);
 }
@@ -434,7 +447,66 @@ function buildCards(config, data) {
   return cards;
 }
 
-export default function DynamicDashboard({ company, config }) {
+function ViewSwitcher({ views, activeViewId, onSwitchView, onSaveView, onDeleteView, onSetDefault }) {
+  const [naming, setNaming] = useState(false);
+  const [name, setName] = useState("");
+
+  const pill = (active) => ({
+    background: active ? "rgba(255,255,255,0.12)" : "rgba(255,255,255,0.04)",
+    border: `1px solid ${active ? "rgba(255,255,255,0.2)" : "rgba(255,255,255,0.08)"}`,
+    color: active ? "#fff" : "rgba(255,255,255,0.6)",
+    borderRadius: 8, padding: "6px 12px", fontSize: 12.5,
+    fontWeight: active ? 600 : 500, cursor: "pointer", whiteSpace: "nowrap",
+  });
+
+  const commit = () => {
+    const n = name.trim();
+    if (n) { onSaveView(n); setName(""); setNaming(false); }
+  };
+
+  return (
+    <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap", marginTop: 16 }}>
+      <button style={pill(activeViewId === "base")} onClick={() => onSwitchView("base")}>Overview</button>
+
+      {views.map(v => (
+        <span key={v.view_id} className="vdyn-vpill">
+          <button style={pill(activeViewId === v.view_id)} onClick={() => onSwitchView(v)}>
+            {v.is_default ? "★ " : ""}{v.name}
+          </button>
+          <span className="vdyn-vpill-act">
+            <button className="vdyn-vicon" title="Set as default"
+              onClick={() => onSetDefault(v.view_id)}>{v.is_default ? "★" : "☆"}</button>
+            <button className="vdyn-vicon" title="Delete view"
+              onClick={() => onDeleteView(v.view_id)}>✕</button>
+          </span>
+        </span>
+      ))}
+
+      {naming ? (
+        <span style={{ display: "inline-flex", gap: 6, alignItems: "center" }}>
+          <input
+            autoFocus value={name}
+            onChange={e => setName(e.target.value)}
+            onKeyDown={e => { if (e.key === "Enter") commit(); if (e.key === "Escape") { setNaming(false); setName(""); } }}
+            placeholder="Name this view…"
+            style={{ background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.16)",
+              borderRadius: 8, padding: "6px 10px", color: "#fff", fontSize: 12.5, outline: "none", width: 150 }}
+          />
+          <button onClick={commit} style={{ background: "rgba(255,255,255,0.95)", color: "#08090a",
+            border: "none", borderRadius: 8, padding: "6px 12px", fontSize: 12.5, fontWeight: 700, cursor: "pointer" }}>Save</button>
+          <button onClick={() => { setNaming(false); setName(""); }} style={{ background: "transparent",
+            border: "none", color: "rgba(255,255,255,0.45)", fontSize: 13, cursor: "pointer" }}>✕</button>
+        </span>
+      ) : (
+        <button onClick={() => setNaming(true)} style={{ ...pill(false),
+          borderStyle: "dashed", color: "rgba(255,255,255,0.55)" }}>＋ Save current view</button>
+      )}
+    </div>
+  );
+}
+
+export default function DynamicDashboard({ company, config, views = [], activeViewId = "base",
+  onSwitchView, onSaveView, onDeleteView, onSetDefault }) {
   const [data, setData] = useState({});
   const [loading, setLoading] = useState(true);
   const [insights, setInsights] = useState({});
@@ -512,6 +584,16 @@ export default function DynamicDashboard({ company, config }) {
         <h1 style={{ fontSize: 22, fontWeight: 800, letterSpacing: "-0.03em",
           margin: 0, marginBottom: 5 }}>{config.title || "Dashboard"}</h1>
         {subtitle && <p style={{ color: "rgba(255,255,255,0.35)", fontSize: 13, margin: 0 }}>{subtitle}</p>}
+        {onSwitchView && (
+          <ViewSwitcher
+            views={views}
+            activeViewId={activeViewId}
+            onSwitchView={onSwitchView}
+            onSaveView={onSaveView}
+            onDeleteView={onDeleteView}
+            onSetDefault={onSetDefault}
+          />
+        )}
       </div>
 
       {config.sections.map((section, si) => (

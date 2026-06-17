@@ -16,6 +16,8 @@ import { useBreakpoint } from "./hooks/useBreakpoint";
 import DynamicDashboard from "./pages/DynamicDashboard";
 import { MERIDIAN_CONFIG } from "./pages/meridianConfig";
 
+const API = "https://web-production-0457e.up.railway.app";
+
 
 function ReportTab({ report }) {
   return (
@@ -109,6 +111,8 @@ export default function App() {
   const [stats, setStats] = useState({});
   const [reportTabs, setReportTabs] = useState([]);
   const [dashboardConfig, setDashboardConfig] = useState(MERIDIAN_CONFIG);
+  const [views, setViews] = useState([]);
+  const [activeViewId, setActiveViewId] = useState("base");
 
   const [filters, setFilters] = useState({
     dateRange: null,
@@ -200,6 +204,51 @@ export default function App() {
       .catch(() => {});
   }, [company]);
 
+  // Load saved dashboard views; open the default if one exists.
+  useEffect(() => {
+    if (!company) return;
+    fetch(`${API}/dashboard-views/${company.company_id}`)
+      .then(r => r.json())
+      .then(vs => {
+        const list = Array.isArray(vs) ? vs : [];
+        setViews(list);
+        const def = list.find(v => v.is_default);
+        if (def) { setDashboardConfig(def.config); setActiveViewId(def.view_id); }
+        else { setDashboardConfig(MERIDIAN_CONFIG); setActiveViewId("base"); }
+      })
+      .catch(() => {});
+  }, [company]);
+
+  const refreshViews = async () => {
+    const vs = await fetch(`${API}/dashboard-views/${company.company_id}`).then(r => r.json());
+    const list = Array.isArray(vs) ? vs : [];
+    setViews(list);
+    return list;
+  };
+  const switchView = (v) => {
+    if (v === "base") { setDashboardConfig(MERIDIAN_CONFIG); setActiveViewId("base"); }
+    else { setDashboardConfig(v.config); setActiveViewId(v.view_id); }
+  };
+  const saveCurrentView = async (name) => {
+    await fetch(`${API}/dashboard-views/${company.company_id}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name, config: dashboardConfig, make_default: views.length === 0 }),
+    });
+    const list = await refreshViews();
+    const saved = list.find(v => v.name === name);
+    if (saved) setActiveViewId(saved.view_id);
+  };
+  const deleteView = async (viewId) => {
+    await fetch(`${API}/dashboard-views/${viewId}`, { method: "DELETE" });
+    await refreshViews();
+    if (activeViewId === viewId) switchView("base");
+  };
+  const setDefaultView = async (viewId) => {
+    await fetch(`${API}/dashboard-views/${company.company_id}/default/${viewId}`, { method: "PUT" });
+    await refreshViews();
+  };
+
   const addReportTab = (report) => {
     const id = Date.now();
     setReportTabs(prev => [...prev, { ...report, id }]);
@@ -235,7 +284,16 @@ export default function App() {
     }
 
     switch (activePage) {
-      case "Dashboard": return <DynamicDashboard company={company} config={dashboardConfig} />;
+      case "Dashboard": return <DynamicDashboard
+        company={company}
+        config={dashboardConfig}
+        views={views}
+        activeViewId={activeViewId}
+        onSwitchView={switchView}
+        onSaveView={saveCurrentView}
+        onDeleteView={deleteView}
+        onSetDefault={setDefaultView}
+      />;
       case "Production Line": return <ProductionLine company={company} user={user} />;
       case "Predictive": return <Predictive company={company} />;
       case "Analytics": return <Analytics company={company} />;

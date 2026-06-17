@@ -1103,6 +1103,17 @@ db.execute("""
     )
 """)
 
+db.execute("""
+    CREATE TABLE IF NOT EXISTS dashboard_views (
+        view_id TEXT PRIMARY KEY,
+        company_id TEXT NOT NULL,
+        name TEXT NOT NULL,
+        config TEXT NOT NULL,
+        is_default INTEGER DEFAULT 0,
+        created_at TEXT DEFAULT CURRENT_TIMESTAMP
+    )
+""")
+
 @app.get("/dashboard-config/{company_id}")
 def get_dashboard_config(company_id: str):
     result = db.query(
@@ -1134,6 +1145,62 @@ def save_dashboard_config(company_id: str, body: DashboardConfig):
             (config_str, datetime.now().isoformat(), company_id)
         )
     return {"message": "Dashboard config saved"}
+
+
+# ── Saved dashboard views (named, AI-built dashboards) ──────────
+class DashboardViewCreate(BaseModel):
+    name: str
+    config: dict
+    make_default: Optional[bool] = False
+
+@app.get("/dashboard-views/{company_id}")
+def list_dashboard_views(company_id: str):
+    rows = db.query(
+        "SELECT view_id, name, config, is_default FROM dashboard_views WHERE company_id = ? ORDER BY created_at",
+        (company_id,)
+    )
+    out = []
+    for _, r in rows.iterrows():
+        out.append({
+            "view_id": r["view_id"],
+            "name": r["name"],
+            "is_default": int(r["is_default"] or 0),
+            "config": json.loads(r["config"]),
+        })
+    return out
+
+@app.post("/dashboard-views/{company_id}")
+def save_dashboard_view(company_id: str, body: DashboardViewCreate):
+    import uuid
+    config_str = json.dumps(body.config)
+    existing = db.query(
+        "SELECT view_id FROM dashboard_views WHERE company_id = ? AND name = ?",
+        (company_id, body.name)
+    )
+    if existing.empty:
+        view_id = str(uuid.uuid4())
+        db.execute(
+            "INSERT INTO dashboard_views (view_id, company_id, name, config, is_default) VALUES (?, ?, ?, ?, ?)",
+            (view_id, company_id, body.name, config_str, 1 if body.make_default else 0)
+        )
+    else:
+        view_id = existing.iloc[0]["view_id"]
+        db.execute("UPDATE dashboard_views SET config = ? WHERE view_id = ?", (config_str, view_id))
+    if body.make_default:
+        db.execute("UPDATE dashboard_views SET is_default = 0 WHERE company_id = ?", (company_id,))
+        db.execute("UPDATE dashboard_views SET is_default = 1 WHERE view_id = ?", (view_id,))
+    return {"view_id": view_id, "message": "View saved"}
+
+@app.delete("/dashboard-views/{view_id}")
+def delete_dashboard_view(view_id: str):
+    db.execute("DELETE FROM dashboard_views WHERE view_id = ?", (view_id,))
+    return {"message": "View deleted"}
+
+@app.put("/dashboard-views/{company_id}/default/{view_id}")
+def set_default_dashboard_view(company_id: str, view_id: str):
+    db.execute("UPDATE dashboard_views SET is_default = 0 WHERE company_id = ?", (company_id,))
+    db.execute("UPDATE dashboard_views SET is_default = 1 WHERE view_id = ?", (view_id,))
+    return {"message": "Default set"}
 
 
 class DisplayPrefs(BaseModel):
