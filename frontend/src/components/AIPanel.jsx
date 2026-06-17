@@ -5,19 +5,19 @@ import { COLORS } from "./Layout";
 const API = "https://web-production-0457e.up.railway.app";
 
 const SUGGESTIONS = [
-  "Show only critical defects",
-  "Filter to station 310",
-  "Show flagged vehicles",
-  "Reset filters",
+  "Focus the dashboard on critical defects",
+  "Show me resolution time trends",
+  "Add a table of at-risk vehicles",
   "Which stage has the most defects?",
-  "What are best practices for reducing defects?",
+  "What's blocking shipping today?",
+  "Best practices for reducing defects?",
 ];
 
-export default function AIPanel({ company, onNewReport, activePage, onFilterChange, currentFilters, prefs, onPrefsChange: setPrefs }) {
+export default function AIPanel({ company, onNewReport, activePage, onFilterChange, currentFilters, prefs, onPrefsChange: setPrefs, onReshape, currentConfig }) {
     const [messages, setMessages] = useState([
     {
       role: "assistant",
-      content: `Hi, I'm your AI assistant. Ask me questions about your data, or tell me how to filter the dashboard. Try: 'show only critical defects' or 'filter to station 310'.`,
+      content: `Hi, I'm your AI assistant. Tell me to rebuild the dashboard — "focus on critical defects", "show resolution trends" — and the screen reshapes live. Or just ask a question and I'll answer here.`,
       data: null,
     }
   ]);
@@ -46,6 +46,35 @@ export default function AIPanel({ company, onNewReport, activePage, onFilterChan
         date_from: null, date_to: null
       });
     }
+  };
+
+  // Live dashboard reshape — rebuilds the Dashboard config from a request.
+  // Returns true if it handled the message (a reshape), false to fall through.
+  const tryReshape = async (question) => {
+    try {
+      const res = await fetch(`${API}/ai/reshape-dashboard`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          company_id: company.company_id,
+          instruction: question,
+          current_config: currentConfig,
+        }),
+      }).then(r => r.json());
+      if (res.is_reshape && res.config) {
+        onReshape(res.config);
+        setMessages(prev => [...prev, {
+          role: "assistant",
+          content: `✅ ${res.message}\n\nThe dashboard has been rebuilt to match.`,
+          data: null,
+          isFilterChange: true,
+        }]);
+        return true;
+      }
+    } catch {
+      // fall through to the normal Q&A path
+    }
+    return false;
   };
 
   const send = async (question) => {
@@ -116,6 +145,9 @@ export default function AIPanel({ company, onNewReport, activePage, onFilterChan
             isCommand: true,
           }]);
   
+        } else if (onReshape && currentConfig && activePage === "Dashboard" &&
+                   await tryReshape(question)) {
+          // handled by tryReshape (rebuilt the dashboard live)
         } else {
           // Check if filter change
           const filterRes = await fetch(`${API}/ai/interpret-filters`, {

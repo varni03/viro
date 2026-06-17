@@ -764,6 +764,65 @@ Answer in 2-3 punchy sentences using the actual numbers. Be specific and actiona
         return {"answer": f"Error: {str(e)}"}
 
 
+# ── Live dashboard reshape (AI panel as control plane) ──────────
+RESHAPE_SOURCES_DOC = """AVAILABLE DATA SOURCES — use these exact endpoint paths as the values in "sources" ({cid} is a literal placeholder):
+- "/analytics/summary/{cid}" -> object: total_defects, resolved, unresolved, critical, avg_resolution_hours, first_pass_yield, total_products
+- "/defects/by-stage/{cid}" -> list: stage_number, total_defects, critical
+- "/analytics/top-defects/{cid}" -> list: defect_type, count, critical_count, high_count, open_count
+- "/production/line/{cid}" -> list: product_id, current_stage, status, total_defects, open_defects, critical_open, high_open
+- "/analytics/stage-performance/{cid}" -> list: stage_number, stage_name, total_defects, critical, high, open_defects, avg_resolution_hours
+- "/analytics/resolution-trend/{cid}" -> list: date, logged, resolved"""
+
+RESHAPE_BLOCKS_DOC = """BLOCK TYPES (only these four exist):
+- kpi: {"type":"kpi","source":<key>,"field":<a field on a summary-style object source>,"label":str,"suffix":""|"%"|"h","sub":str,"accent":bool,"danger":bool}
+- pipeline: {"type":"pipeline","source":<key to a list source>,"label":str,"stage_field":"current_stage","unit":"vehicles","stages":[{"number":int,"name":str}]}
+- ranked_bars: {"type":"ranked_bars","source":<key to a list source>,"label":str,"name":<field used as the row label>,"value":<numeric field>,"limit":int}
+- table: {"type":"table","source":<key to a list source>,"label":str,"limit":int,"columns":[{"field":<field>,"label":str,"type":"severity"(optional),"mono":true(optional)}]}"""
+
+class ReshapeRequest(BaseModel):
+    company_id: str
+    instruction: str
+    current_config: dict
+
+@app.post("/ai/reshape-dashboard")
+def reshape_dashboard(req: ReshapeRequest):
+    """Turn a natural-language instruction into a new dashboard config, live."""
+    try:
+        name, industry = _company_identity(req.company_id)
+        prompt = f"""You control a live, config-driven operations dashboard for {name} ({industry}). The entire dashboard is defined by a JSON config. A manager said: "{req.instruction}".
+
+Decide whether this is a request to CHANGE THE DASHBOARD (refocus it, add/remove/replace cards, reorder, filter the view, change what metric is shown) or just a QUESTION to answer in chat.
+
+CURRENT CONFIG:
+{json.dumps(req.current_config)}
+
+{RESHAPE_SOURCES_DOC}
+
+{RESHAPE_BLOCKS_DOC}
+
+RULES:
+- "sources" is an object mapping short keys (e.g. "summary","line") to endpoint paths from the list above. Every block's "source" MUST be a key you defined in "sources".
+- Keep the existing "title" and "subtitle_template".
+- "sections" is a list of objects like {{"cols":"repeat(4, 1fr)" or "1.5fr 1fr","blocks":[...]}}.
+- Only reference fields that exist on the chosen source. Make it genuinely answer the manager's intent and look great.
+
+Return ONLY this JSON, nothing else:
+{{"is_reshape": true|false, "config": <the FULL new config object, or null if just a question>, "message": "<one sentence describing what changed>"}}"""
+
+        response = client.messages.create(
+            model=AI_MODEL,
+            max_tokens=1800,
+            messages=[{"role": "user", "content": prompt}],
+        )
+        result = json.loads(_strip_json_fences(response.content[0].text))
+        cfg = result.get("config")
+        if result.get("is_reshape") and isinstance(cfg, dict) and isinstance(cfg.get("sections"), list) and isinstance(cfg.get("sources"), dict):
+            return {"is_reshape": True, "config": cfg, "message": result.get("message", "Dashboard updated.")}
+        return {"is_reshape": False, "config": None, "message": ""}
+    except Exception as e:
+        return {"is_reshape": False, "config": None, "message": "", "error": str(e)}
+
+
 # ── Auth ───────────────────────────────────────────────────────
 SECRET_KEY = os.getenv("JWT_SECRET", "viro-secret-key-change-in-production")
 

@@ -108,6 +108,7 @@ export default function App() {
   const [stages, setStages] = useState([]);
   const [stats, setStats] = useState({});
   const [reportTabs, setReportTabs] = useState([]);
+  const [dashboardConfig, setDashboardConfig] = useState(MERIDIAN_CONFIG);
 
   const [filters, setFilters] = useState({
     dateRange: null,
@@ -234,7 +235,7 @@ export default function App() {
     }
 
     switch (activePage) {
-      case "Dashboard": return <DynamicDashboard company={company} config={MERIDIAN_CONFIG} />;
+      case "Dashboard": return <DynamicDashboard company={company} config={dashboardConfig} />;
       case "Production Line": return <ProductionLine company={company} user={user} />;
       case "Predictive": return <Predictive company={company} />;
       case "Analytics": return <Analytics company={company} />;
@@ -422,6 +423,8 @@ export default function App() {
         currentFilters={filters}
         prefs={prefs}
         onPrefsChange={setPrefs}
+        onReshape={setDashboardConfig}
+        currentConfig={dashboardConfig}
       />
 
       ) : (
@@ -456,6 +459,10 @@ export default function App() {
                 activePage={activePage}
                 onFilterChange={setFilters}
                 currentFilters={filters}
+                prefs={prefs}
+                onPrefsChange={setPrefs}
+                onReshape={setDashboardConfig}
+                currentConfig={dashboardConfig}
               />
             </div>
           </div>
