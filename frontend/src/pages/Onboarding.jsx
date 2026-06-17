@@ -1,16 +1,12 @@
-import { useState } from "react";
-import { COLORS } from "../components/Layout";
+import { useState, useEffect } from "react";
 
 const API = "https://web-production-0457e.up.railway.app";
+const GREEN = "#34d399";
 
 const INDUSTRY_TEMPLATES = {
   automotive: {
-    label: "Automotive / Vehicle Manufacturing",
-    icon: "🚗",
-    term_product: "Vehicle",
-    term_defect: "Defect",
-    term_stage: "Station",
-    term_issue: "Issue",
+    label: "Automotive / Vehicle Manufacturing", icon: "🚗",
+    term_product: "Vehicle", term_defect: "Defect", term_stage: "Station", term_issue: "Issue",
     stages: [
       { stage_number: 110, stage_name: "Entry — In The Door", expected_duration_mins: 30 },
       { stage_number: 310, stage_name: "Production Line", expected_duration_mins: 120 },
@@ -18,22 +14,15 @@ const INDUSTRY_TEMPLATES = {
       { stage_number: 710, stage_name: "Approved to Ship", expected_duration_mins: 15 },
     ],
     defect_types: [
-      { name: "scratch", default_severity: "low" },
-      { name: "dent", default_severity: "medium" },
-      { name: "paint_issue", default_severity: "low" },
-      { name: "electrical_fault", default_severity: "high" },
-      { name: "mechanical_failure", default_severity: "critical" },
-      { name: "alignment_issue", default_severity: "medium" },
+      { name: "scratch", default_severity: "low" }, { name: "dent", default_severity: "medium" },
+      { name: "paint_issue", default_severity: "low" }, { name: "electrical_fault", default_severity: "high" },
+      { name: "mechanical_failure", default_severity: "critical" }, { name: "alignment_issue", default_severity: "medium" },
     ],
-    modules: ["dashboard", "search", "log_issue", "workflow", "analytics", "predictive", "repair", "settings"]
-},
-marine: {
-    label: "Marine / Shipping Procurement",
-    icon: "🚢",
-    term_product: "RFQ",
-    term_defect: "Issue",
-    term_stage: "Stage",
-    term_issue: "Delay",
+    modules: ["dashboard", "search", "log_issue", "workflow", "analytics", "predictive", "repair", "settings"],
+  },
+  marine: {
+    label: "Marine / Shipping Procurement", icon: "🚢",
+    term_product: "RFQ", term_defect: "Issue", term_stage: "Stage", term_issue: "Delay",
     stages: [
       { stage_number: 100, stage_name: "Enquiry Received", expected_duration_mins: 30 },
       { stage_number: 200, stage_name: "Suppliers Identified", expected_duration_mins: 60 },
@@ -42,21 +31,15 @@ marine: {
       { stage_number: 500, stage_name: "Delivered", expected_duration_mins: 15 },
     ],
     defect_types: [
-      { name: "wrong_parts", default_severity: "high" },
-      { name: "supplier_delay", default_severity: "medium" },
-      { name: "quality_issue", default_severity: "high" },
-      { name: "customs_hold", default_severity: "medium" },
+      { name: "wrong_parts", default_severity: "high" }, { name: "supplier_delay", default_severity: "medium" },
+      { name: "quality_issue", default_severity: "high" }, { name: "customs_hold", default_severity: "medium" },
       { name: "missing_documentation", default_severity: "low" },
     ],
-    modules: ["dashboard", "search", "log_issue", "analytics", "settings"]
+    modules: ["dashboard", "search", "log_issue", "analytics", "settings"],
   },
   food: {
-    label: "Food Production",
-    icon: "🥫",
-    term_product: "Batch",
-    term_defect: "Finding",
-    term_stage: "Phase",
-    term_issue: "Contamination Risk",
+    label: "Food Production", icon: "🥫",
+    term_product: "Batch", term_defect: "Finding", term_stage: "Phase", term_issue: "Contamination Risk",
     stages: [
       { stage_number: 100, stage_name: "Raw Material Intake", expected_duration_mins: 45 },
       { stage_number: 200, stage_name: "Processing", expected_duration_mins: 120 },
@@ -65,22 +48,15 @@ marine: {
       { stage_number: 500, stage_name: "Dispatch", expected_duration_mins: 30 },
     ],
     defect_types: [
-      { name: "contamination", default_severity: "critical" },
-      { name: "weight_variance", default_severity: "medium" },
-      { name: "seal_failure", default_severity: "high" },
-      { name: "labeling_error", default_severity: "low" },
+      { name: "contamination", default_severity: "critical" }, { name: "weight_variance", default_severity: "medium" },
+      { name: "seal_failure", default_severity: "high" }, { name: "labeling_error", default_severity: "low" },
       { name: "temperature_breach", default_severity: "critical" },
     ],
-    modules: ["dashboard", "search", "log_issue", "workflow", "analytics", "settings"]
-
+    modules: ["dashboard", "search", "log_issue", "workflow", "analytics", "settings"],
   },
   medical: {
-    label: "Medical Devices",
-    icon: "🏥",
-    term_product: "Device",
-    term_defect: "Non-Conformance",
-    term_stage: "Phase",
-    term_issue: "Compliance Issue",
+    label: "Medical Devices", icon: "🏥",
+    term_product: "Device", term_defect: "Non-Conformance", term_stage: "Phase", term_issue: "Compliance Issue",
     stages: [
       { stage_number: 100, stage_name: "Assembly", expected_duration_mins: 90 },
       { stage_number: 200, stage_name: "Sterilization", expected_duration_mins: 120 },
@@ -89,22 +65,15 @@ marine: {
       { stage_number: 500, stage_name: "Packaging & Release", expected_duration_mins: 30 },
     ],
     defect_types: [
-      { name: "dimensional_error", default_severity: "high" },
-      { name: "surface_defect", default_severity: "medium" },
-      { name: "sterility_failure", default_severity: "critical" },
-      { name: "labeling_error", default_severity: "high" },
+      { name: "dimensional_error", default_severity: "high" }, { name: "surface_defect", default_severity: "medium" },
+      { name: "sterility_failure", default_severity: "critical" }, { name: "labeling_error", default_severity: "high" },
       { name: "assembly_fault", default_severity: "critical" },
     ],
-    modules: ["dashboard", "search", "log_issue", "workflow", "analytics", "predictive", "settings"]
-
+    modules: ["dashboard", "search", "log_issue", "workflow", "analytics", "predictive", "settings"],
   },
   logistics: {
-    label: "Logistics / Warehousing",
-    icon: "📦",
-    term_product: "Shipment",
-    term_defect: "Incident",
-    term_stage: "Stage",
-    term_issue: "Delay",
+    label: "Logistics / Warehousing", icon: "📦",
+    term_product: "Shipment", term_defect: "Incident", term_stage: "Stage", term_issue: "Delay",
     stages: [
       { stage_number: 100, stage_name: "Order Received", expected_duration_mins: 15 },
       { stage_number: 200, stage_name: "Picked & Packed", expected_duration_mins: 45 },
@@ -113,821 +82,404 @@ marine: {
       { stage_number: 500, stage_name: "Delivered", expected_duration_mins: 15 },
     ],
     defect_types: [
-      { name: "damaged_goods", default_severity: "high" },
-      { name: "wrong_item", default_severity: "high" },
-      { name: "delivery_delay", default_severity: "medium" },
-      { name: "missing_items", default_severity: "high" },
+      { name: "damaged_goods", default_severity: "high" }, { name: "wrong_item", default_severity: "high" },
+      { name: "delivery_delay", default_severity: "medium" }, { name: "missing_items", default_severity: "high" },
       { name: "address_error", default_severity: "medium" },
     ],
-    modules: ["dashboard", "search", "log_issue", "workflow", "analytics", "settings"]
-
+    modules: ["dashboard", "search", "log_issue", "workflow", "analytics", "settings"],
   },
   custom: {
-    label: "Custom / Other",
-    icon: "⚙️",
-    term_product: "Item",
-    term_defect: "Issue",
-    term_stage: "Stage",
-    term_issue: "Problem",
-    stages: [],
-    defect_types: [],
-    modules: ["dashboard", "search", "log_issue", "settings"]
-  }
+    label: "Custom / Other", icon: "⚙️",
+    term_product: "Item", term_defect: "Issue", term_stage: "Stage", term_issue: "Problem",
+    stages: [], defect_types: [], modules: ["dashboard", "search", "log_issue", "settings"],
+  },
 };
 const ALL_MODULES = [
-    { id: "dashboard", label: "Dashboard", icon: "⬡", required: true },
-    { id: "search", label: "Search", icon: "🔍", required: true },
-    { id: "log_issue", label: "Log Issue", icon: "📸", required: true },
-    { id: "workflow", label: "Workflow Tracker", icon: "🔧", required: false },
-    { id: "analytics", label: "Analytics", icon: "📊", required: false },
-    { id: "predictive", label: "Predictive Risk", icon: "⚠️", required: false },
-    { id: "repair", label: "Repair Queue", icon: "🔨", required: false },
-    { id: "settings", label: "Settings", icon: "⚙️", required: false },
-  ];
-  
-    
-  const STEPS = [
-    { id: 1, label: "Welcome" },
-    { id: 2, label: "Company" },
-    { id: 3, label: "Industry" },
-    { id: 4, label: "Modules" },
-    { id: 5, label: "Workflow" },
-    { id: 6, label: "Team" },
-    { id: 7, label: "Done" },
-  ];
-  
+  { id: "dashboard", label: "Dashboard", icon: "⬡", required: true },
+  { id: "search", label: "Search", icon: "🔍", required: true },
+  { id: "log_issue", label: "Log Issue", icon: "📸", required: true },
+  { id: "workflow", label: "Workflow Tracker", icon: "🔧", required: false },
+  { id: "analytics", label: "Analytics", icon: "📊", required: false },
+  { id: "predictive", label: "Predictive Risk", icon: "⚠️", required: false },
+  { id: "repair", label: "Repair Queue", icon: "🔨", required: false },
+  { id: "settings", label: "Settings", icon: "⚙️", required: false },
+];
+const STEPS = ["Welcome", "Company", "Industry", "Modules", "Workflow", "Team"];
+
+const STYLE_ID = "viro-onboarding-styles";
+function useOnboardingStyles() {
+  useEffect(() => {
+    if (document.getElementById(STYLE_ID)) return;
+    const el = document.createElement("style");
+    el.id = STYLE_ID;
+    el.textContent = `
+      @import url('https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,300..900&family=JetBrains+Mono:wght@400;500;700&display=swap');
+      .ob-root{font-family:'Inter',-apple-system,sans-serif;background:#08090a;color:#fff;-webkit-font-smoothing:antialiased}
+      .ob-mono{font-family:'JetBrains Mono',monospace}
+      .ob-grid{position:fixed;inset:0;z-index:0;pointer-events:none;
+        background-image:linear-gradient(rgba(255,255,255,0.022) 1px,transparent 1px),
+          linear-gradient(90deg,rgba(255,255,255,0.022) 1px,transparent 1px);background-size:54px 54px;
+        mask-image:radial-gradient(ellipse 62% 56% at 50% 36%,#000,transparent 76%);
+        -webkit-mask-image:radial-gradient(ellipse 62% 56% at 50% 36%,#000,transparent 76%)}
+      .ob-step{animation:ob-in .5s cubic-bezier(.16,1,.3,1)}
+      @keyframes ob-in{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:none}}
+      @keyframes ob-spin{to{transform:rotate(405deg)}}
+      @keyframes ob-rise{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+      .ob-eyebrow{font-family:'JetBrains Mono',monospace;font-size:11px;letter-spacing:0.14em;
+        text-transform:uppercase;color:rgba(255,255,255,0.4)}
+      .ob-h{font-size:clamp(26px,3.6vw,34px);font-weight:800;letter-spacing:-0.03em;line-height:1.08;margin:12px 0 0}
+      .ob-sub{font-size:15px;line-height:1.55;color:rgba(255,255,255,0.5);margin:10px 0 0}
+      .ob-card{background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);border-radius:16px}
+      .ob-input{width:100%;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.1);
+        border-radius:11px;padding:12px 15px;color:#fff;font-size:14px;outline:none;box-sizing:border-box;
+        font-family:inherit;transition:border-color .18s ease,background .18s ease,box-shadow .18s ease}
+      .ob-input::placeholder{color:rgba(255,255,255,0.28)}
+      .ob-input:focus{border-color:rgba(255,255,255,0.28);background:rgba(255,255,255,0.06);box-shadow:0 0 0 3px rgba(255,255,255,0.05)}
+      .ob-lbl{font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:0.12em;text-transform:uppercase;
+        color:rgba(255,255,255,0.4);margin-bottom:7px}
+      .ob-btn{border:none;border-radius:12px;font-size:14px;font-weight:700;font-family:inherit;letter-spacing:-0.01em;
+        cursor:pointer;transition:transform .18s cubic-bezier(.16,1,.3,1),box-shadow .18s ease,background .18s ease,border-color .18s ease}
+      .ob-btn-primary{background:#fff;color:#08090a;padding:13px 22px}
+      .ob-btn-primary:not(:disabled):hover{transform:translateY(-1px);box-shadow:0 12px 32px rgba(255,255,255,0.16)}
+      .ob-btn-ghost{background:rgba(255,255,255,0.05);color:rgba(255,255,255,0.8);border:1px solid rgba(255,255,255,0.1);padding:13px 20px}
+      .ob-btn-ghost:hover{background:rgba(255,255,255,0.09);border-color:rgba(255,255,255,0.2)}
+      .ob-tmpl{background:rgba(255,255,255,0.035);border:1px solid rgba(255,255,255,0.08);border-radius:14px;padding:16px;
+        cursor:pointer;transition:transform .18s cubic-bezier(.16,1,.3,1),border-color .18s ease,background .18s ease}
+      .ob-tmpl:hover{transform:translateY(-2px);border-color:rgba(255,255,255,0.18);background:rgba(255,255,255,0.05)}
+      .ob-tmpl.sel{border-color:rgba(255,255,255,0.4);background:rgba(255,255,255,0.07)}
+      .ob-toggle{width:44px;height:24px;border-radius:12px;position:relative;flex-shrink:0;transition:background .2s ease}
+      .ob-toggle .knob{width:18px;height:18px;border-radius:50%;background:#08090a;position:absolute;top:3px;transition:left .2s cubic-bezier(.16,1,.3,1)}
+    `;
+    document.head.appendChild(el);
+  }, []);
+}
 
 export default function Onboarding({ onComplete }) {
+  useOnboardingStyles();
   const [step, setStep] = useState(1);
-  const [loading, setLoading] = useState(false);
+  const [phase, setPhase] = useState("form"); // form | generating | done
+  const [genActive, setGenActive] = useState(0);
   const [error, setError] = useState(null);
 
-  // Form state
-  const [company, setCompany] = useState({
-    name: "",
-    industry: "",
-    universal_id_field: "",
-  });
+  const [company, setCompany] = useState({ name: "", industry: "", universal_id_field: "" });
   const [selectedTemplate, setSelectedTemplate] = useState(null);
   const [stages, setStages] = useState([]);
   const [defectTypes, setDefectTypes] = useState([]);
-  const [terminology, setTerminology] = useState({
-    term_product: "Product",
-    term_defect: "Defect",
-    term_stage: "Stage",
-    term_issue: "Issue",
-  });
-  const [adminUser, setAdminUser] = useState({
-    first_name: "",
-    last_name: "",
-    email: "",
-    password: "",
-  });
+  const [terminology, setTerminology] = useState({ term_product: "Product", term_defect: "Defect", term_stage: "Stage", term_issue: "Issue" });
+  const [adminUser, setAdminUser] = useState({ first_name: "", last_name: "", email: "", password: "" });
   const [createdCompany, setCreatedCompany] = useState(null);
+
   const [enabledModules, setEnabledModules] = useState([]);
 
+  const genSteps = [
+    `Creating ${company.name || "your company"}`,
+    `Configuring ${stages.length} workflow ${stages.length === 1 ? "stage" : "stages"}`,
+    `Setting up ${defectTypes.length} issue ${defectTypes.length === 1 ? "type" : "types"}`,
+    "Applying your terminology",
+    "Provisioning your team & modules",
+    "Composing your dashboard layout",
+  ];
+
+  useEffect(() => {
+    if (phase !== "generating") return;
+    setGenActive(0);
+    const timers = [];
+    for (let i = 1; i <= genSteps.length; i++) timers.push(setTimeout(() => setGenActive(i), i * 820));
+    return () => timers.forEach(clearTimeout);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [phase]);
 
   const selectTemplate = (key) => {
-    const template = INDUSTRY_TEMPLATES[key];
+    const t = INDUSTRY_TEMPLATES[key];
     setSelectedTemplate(key);
-    setStages([...template.stages]);
-    setDefectTypes([...template.defect_types]);
-    setTerminology({
-      term_product: template.term_product,
-      term_defect: template.term_defect,
-      term_stage: template.term_stage,
-      term_issue: template.term_issue,
-    });
-    setCompany(prev => ({ ...prev, industry: template.label }));
-    setEnabledModules(template.modules);
+    setStages([...t.stages]);
+    setDefectTypes([...t.defect_types]);
+    setTerminology({ term_product: t.term_product, term_defect: t.term_defect, term_stage: t.term_stage, term_issue: t.term_issue });
+    setCompany(prev => ({ ...prev, industry: t.label }));
+    setEnabledModules(t.modules);
   };
 
-  const handleComplete = async () => {
-    setLoading(true);
+  const runSetup = async () => {
     setError(null);
-
+    setPhase("generating");
+    const started = Date.now();
+    let userRes, companyRes;
     try {
-      // 1. Create company
-      const companyRes = await fetch(`${API}/onboarding/company`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          name: company.name,
-          industry: company.industry,
-          universal_id_field: company.universal_id_field || terminology.term_product.toLowerCase().replace(" ", "_"),
-        })
+      companyRes = await fetch(`${API}/onboarding/company`, {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: company.name, industry: company.industry,
+          universal_id_field: company.universal_id_field || terminology.term_product.toLowerCase().replace(" ", "_") })
       }).then(r => r.json());
-
       const companyId = companyRes.company_id;
 
-      // 2. Create stages
       for (const stage of stages) {
-        await fetch(`${API}/settings/stages`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ ...stage, company_id: companyId })
-        });
+        await fetch(`${API}/settings/stages`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ...stage, company_id: companyId }) });
       }
-
-      // 3. Create defect types
       for (const dt of defectTypes) {
-        await fetch(`${API}/settings/defect-types`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ ...dt, company_id: companyId })
-        });
+        await fetch(`${API}/settings/defect-types`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ...dt, company_id: companyId }) });
       }
+      await fetch(`${API}/config/${companyId}`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(terminology) });
 
-      // 4. Save terminology
-      await fetch(`${API}/config/${companyId}`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(terminology)
-      });
-
-      // 5. Create admin user
-      const userRes = await fetch(`${API}/auth/register`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          ...adminUser,
-          role: "manager",
-          company_id: companyId,
-        })
+      userRes = await fetch(`${API}/auth/register`, {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ...adminUser, role: "manager", company_id: companyId })
       }).then(r => r.json());
 
-// Save modules
-const moduleData = ALL_MODULES.map(m => ({
-    id: m.id,
-    enabled: enabledModules.includes(m.id),
-    custom_label: m.label,
-    custom_icon: m.icon,
-  }));
-  
-  await fetch(`${API}/modules/${companyId}`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ modules: moduleData })
-  });
-  
-  setCreatedCompany({ companyId, ...companyRes });
-  setStep(7);
-  
+      const moduleData = ALL_MODULES.map(m => ({ id: m.id, enabled: enabledModules.includes(m.id), custom_label: m.label, custom_icon: m.icon }));
+      await fetch(`${API}/modules/${companyId}`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ modules: moduleData }) });
 
-      // Auto login
-      if (userRes.token) {
+      setCreatedCompany({ companyId, ...companyRes });
+    } catch (e) {
+      setError("Something went wrong. Please try again.");
+      setPhase("form");
+      return;
+    }
+
+    // hold for the generation animation to play out, then reveal Done + auto-login
+    const minMs = genSteps.length * 820 + 700;
+    setTimeout(() => {
+      setPhase("done");
+      if (userRes && userRes.token) {
         setTimeout(() => {
           localStorage.setItem("viro_token", userRes.token);
           localStorage.setItem("viro_user", JSON.stringify(userRes.user));
           localStorage.setItem("viro_company_id", companyRes.company_id);
           if (onComplete) onComplete(userRes.user, userRes.token);
-        }, 3000);
+        }, 2800);
       }
-      
-
-    } catch (e) {
-      setError("Something went wrong. Please try again.");
-    }
-    setLoading(false);
+    }, Math.max(0, minMs - (Date.now() - started)));
   };
 
-  const inputStyle = {
-    width: "100%",
-    background: "rgba(255,255,255,0.04)",
-    border: `1px solid ${COLORS.border}`,
-    borderRadius: 10,
-    padding: "12px 16px",
-    color: COLORS.text,
-    fontSize: 14,
-    outline: "none",
-    boxSizing: "border-box",
-  };
-
-  const labelStyle = {
-    fontSize: 11,
-    color: COLORS.muted,
-    letterSpacing: "0.08em",
-    marginBottom: 6,
-    display: "block",
-  };
+  const BackNext = ({ onBack, onNext, nextLabel = "Continue →", nextWide }) => (
+    <div style={{ display: "flex", gap: 12, marginTop: 26 }}>
+      {onBack && <button className="ob-btn ob-btn-ghost" style={{ flex: 1 }} onClick={onBack}>← Back</button>}
+      <button className="ob-btn ob-btn-primary" style={{ flex: nextWide ? 2 : 1 }} onClick={onNext}>{nextLabel}</button>
+    </div>
+  );
 
   return (
-    <div style={{
-      minHeight: "100vh",
-      background: COLORS.bg,
-      display: "flex",
-      alignItems: "center",
-      justifyContent: "center",
-      padding: 24,
-    }}>
-      {/* Background glow */}
-      <div style={{
-        position: "fixed",
-        width: 600, height: 600,
-        background: COLORS.accent + "08",
-        borderRadius: "50%",
-        filter: "blur(100px)",
-        pointerEvents: "none",
-        top: "50%", left: "50%",
-        transform: "translate(-50%, -50%)",
-      }} />
+    <div className="ob-root" style={{ minHeight: "100vh", height: "100vh", overflowY: "auto", display: "flex", alignItems: "center", justifyContent: "center", padding: 24, position: "relative" }}>
+      <div className="ob-grid" />
+      <div style={{ position: "fixed", width: 520, height: 420, top: "26%", left: "50%", transform: "translate(-50%,-50%)", background: "rgba(255,255,255,0.045)", borderRadius: "50%", filter: "blur(120px)", pointerEvents: "none" }} />
 
-      <div style={{ width: "100%", maxWidth: 640, position: "relative" }}>
-
-        {/* Logo */}
-        <div style={{ textAlign: "center", marginBottom: 32 }}>
-          <div style={{
-            width: 52, height: 52,
-            background: `linear-gradient(135deg, ${COLORS.accent}, #ffffff)`,
-            borderRadius: 14,
-            display: "flex", alignItems: "center",
-            justifyContent: "center",
-            fontSize: 26, margin: "0 auto 12px",
-          }}>
-            ⬡
+      <div style={{ width: "100%", maxWidth: 660, position: "relative", zIndex: 1, padding: "40px 0" }}>
+        {/* logo + progress */}
+        <div style={{ display: "flex", alignItems: "center", gap: 11, justifyContent: "center", marginBottom: 22 }}>
+          <div style={{ width: 30, height: 30, borderRadius: 8, background: "#fff", display: "flex", alignItems: "center", justifyContent: "center" }}>
+            <svg width="15" height="15" viewBox="0 0 100 100"><polygon points="50,23 73.4,36.5 73.4,63.5 50,77 26.6,63.5 26.6,36.5" fill="#08090a" /></svg>
           </div>
-          <div style={{ fontSize: 28, fontWeight: 800, letterSpacing: "-0.02em", marginBottom: 4 }}>
-            Welcome to Viro
-          </div>
-          <div style={{ color: COLORS.muted, fontSize: 14 }}>
-            Let's get your platform set up in a few minutes
-          </div>
+          <span style={{ fontSize: 16, fontWeight: 800, letterSpacing: "-0.02em" }}>Viro</span>
+        </div>
+        <div style={{ display: "flex", gap: 6, marginBottom: 36, maxWidth: 420, margin: "0 auto 36px" }}>
+          {STEPS.map((_, i) => {
+            const idx = i + 1;
+            const active = phase === "done" ? true : phase === "generating" ? idx <= 6 : idx <= step;
+            return <div key={i} style={{ flex: 1, height: 3, borderRadius: 2, background: active ? "#fff" : "rgba(255,255,255,0.12)", transition: "background .35s ease" }} />;
+          })}
         </div>
 
-        {/* Progress bar */}
-        <div style={{ display: "flex", gap: 6, marginBottom: 32 }}>
-          {STEPS.map(s => (
-            <div key={s.id} style={{ flex: 1, textAlign: "center" }}>
-              <div style={{
-                height: 4,
-                borderRadius: 2,
-                background: s.id <= step ? COLORS.accent : COLORS.border,
-                marginBottom: 6,
-                transition: "background 0.3s",
-              }} />
-              <div style={{
-                fontSize: 10,
-                color: s.id === step ? COLORS.accentLight : COLORS.muted,
-                fontWeight: s.id === step ? 700 : 400,
-              }}>
-                {s.label}
-              </div>
+        {error && (
+          <div style={{ marginBottom: 18, padding: "12px 15px", background: "rgba(255,90,90,0.12)", border: "1px solid rgba(255,90,90,0.3)", borderRadius: 12, color: "#ff5a5a", fontSize: 13 }}>{error}</div>
+        )}
+
+        {/* ── GENERATING ── */}
+        {phase === "generating" && (
+          <div className="ob-step" style={{ textAlign: "center", paddingTop: 10 }}>
+            <div style={{ width: 70, height: 70, margin: "0 auto 26px", borderRadius: 18, background: "#fff", display: "flex", alignItems: "center", justifyContent: "center", transform: "rotate(45deg)", animation: "ob-spin 3.4s cubic-bezier(.6,0,.4,1) infinite" }}>
+              <svg width="31" height="31" viewBox="0 0 100 100" style={{ transform: "rotate(-45deg)" }}><polygon points="50,23 73.4,36.5 73.4,63.5 50,77 26.6,63.5 26.6,36.5" fill="#08090a" /></svg>
             </div>
-          ))}
-        </div>
-
-        {/* Card */}
-        <div style={{
-          background: COLORS.surface,
-          border: `1px solid ${COLORS.border}`,
-          borderRadius: 20,
-          padding: 40,
-        }}>
-
-          {/* Error */}
-          {error && (
-            <div style={{
-              marginBottom: 20, padding: "12px 16px",
-              background: COLORS.critical + "20",
-              border: `1px solid ${COLORS.critical}40`,
-              borderRadius: 10, color: COLORS.critical, fontSize: 13,
-            }}>
-              ❌ {error}
-            </div>
-          )}
-
-          {/* STEP 1 — Welcome */}
-          {step === 1 && (
-            <div style={{ textAlign: "center" }}>
-              <div style={{ fontSize: 40, marginBottom: 16 }}>👋</div>
-              <div style={{ fontSize: 22, fontWeight: 800, marginBottom: 12 }}>
-                Let's set up your Viro platform
-              </div>
-              <div style={{ color: COLORS.muted, fontSize: 14, lineHeight: 1.7, marginBottom: 32 }}>
-                Viro is an AI-powered operations intelligence platform.
-                We'll walk you through setting up your company profile,
-                workflow stages, issue types, and your first team members.
-                It takes about 5 minutes.
-              </div>
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 12, marginBottom: 32 }}>
-                {[
-                  { icon: "🏭", label: "Any industry" },
-                  { icon: "🤖", label: "AI built in" },
-                  { icon: "⚡", label: "5 min setup" },
-                ].map((item, i) => (
-                  <div key={i} style={{
-                    background: COLORS.card,
-                    border: `1px solid ${COLORS.border}`,
-                    borderRadius: 12, padding: "16px 12px",
-                    textAlign: "center",
-                  }}>
-                    <div style={{ fontSize: 24, marginBottom: 6 }}>{item.icon}</div>
-                    <div style={{ fontSize: 12, color: COLORS.muted }}>{item.label}</div>
+            <h1 className="ob-h">Building your platform</h1>
+            <p className="ob-sub" style={{ maxWidth: 440, margin: "10px auto 0" }}>
+              Designing an operations system for <span className="ob-mono" style={{ color: "#fff", fontSize: 13.5 }}>{company.name || "your company"}</span> — not a template.
+            </p>
+            <div style={{ marginTop: 32, display: "flex", flexDirection: "column", gap: 5, textAlign: "left", maxWidth: 460, margin: "32px auto 0" }}>
+              {genSteps.map((s, i) => {
+                const state = i < genActive ? "done" : i === genActive ? "doing" : "todo";
+                return (
+                  <div key={i} style={{ display: "flex", alignItems: "center", gap: 13, padding: "11px 15px", borderRadius: 11,
+                    background: state === "doing" ? "rgba(255,255,255,0.07)" : "transparent", border: `1px solid ${state === "doing" ? "rgba(255,255,255,0.1)" : "transparent"}`, transition: "all .35s ease" }}>
+                    <span style={{ width: 21, height: 21, borderRadius: "50%", flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12,
+                      background: state === "done" ? GREEN : "transparent", border: state === "done" ? "none" : "1px solid rgba(255,255,255,0.22)", color: state === "done" ? "#08090a" : "rgba(255,255,255,0.6)" }}>
+                      {state === "done" ? "✓" : state === "doing" ? <span style={{ display: "inline-block", animation: "ob-spin 1s linear infinite" }}>◴</span> : ""}
+                    </span>
+                    <span style={{ fontSize: 14, color: state === "todo" ? "rgba(255,255,255,0.4)" : "#fff", fontWeight: state === "doing" ? 600 : 400 }}>{s}</span>
                   </div>
-                ))}
-              </div>
-              <button
-                onClick={() => setStep(2)}
-                style={{
-                  width: "100%",
-                  background: `linear-gradient(135deg, ${COLORS.accent}, #ffffff)`,
-                  border: "none", borderRadius: 12,
-                  padding: "14px", color: "#08090a",
-                  fontSize: 15, fontWeight: 700, cursor: "pointer",
-                }}
-              >
-                Get Started →
-              </button>
-            </div>
-          )}
-
-          {/* STEP 2 — Company */}
-          {step === 2 && (
-            <div>
-              <div style={{ fontSize: 20, fontWeight: 800, marginBottom: 6 }}>Your company</div>
-              <div style={{ color: COLORS.muted, fontSize: 13, marginBottom: 24 }}>
-                Tell us about your company
-              </div>
-
-              <div style={{ marginBottom: 16 }}>
-                <label style={labelStyle}>COMPANY NAME *</label>
-                <input
-                  style={inputStyle}
-                  value={company.name}
-                  onChange={e => setCompany(prev => ({ ...prev, name: e.target.value }))}
-                  placeholder="e.g. Meridian Vans, Tidewater Marine"
-                />
-              </div>
-
-              <div style={{ marginBottom: 24 }}>
-                <label style={labelStyle}>WHAT DO YOU CALL YOUR MAIN TRACKED ITEM?</label>
-                <input
-                  style={inputStyle}
-                  value={company.universal_id_field}
-                  onChange={e => setCompany(prev => ({ ...prev, universal_id_field: e.target.value }))}
-                  placeholder="e.g. Vehicle, RFQ, Batch, Shipment, Order"
-                />
-                <div style={{ fontSize: 11, color: COLORS.muted, marginTop: 6 }}>
-                  This is what you track through your workflow — we'll use this term throughout your platform
-                </div>
-              </div>
-
-              <div style={{ display: "flex", gap: 12 }}>
-                <button
-                  onClick={() => setStep(1)}
-                  style={{
-                    flex: 1, background: COLORS.card,
-                    border: `1px solid ${COLORS.border}`,
-                    borderRadius: 12, padding: "12px",
-                    color: COLORS.muted, fontSize: 14,
-                    cursor: "pointer",
-                  }}
-                >
-                  ← Back
-                </button>
-                <button
-                  onClick={() => {
-                    if (!company.name) return setError("Company name is required");
-                    setError(null);
-                    setStep(3);
-                  }}
-                  style={{
-                    flex: 2,
-                    background: `linear-gradient(135deg, ${COLORS.accent}, #ffffff)`,
-                    border: "none", borderRadius: 12,
-                    padding: "12px", color: "#08090a",
-                    fontSize: 14, fontWeight: 700, cursor: "pointer",
-                  }}
-                >
-                  Continue →
-                </button>
-              </div>
-            </div>
-          )}
-
-          {/* STEP 3 — Industry template */}
-          {step === 3 && (
-            <div>
-              <div style={{ fontSize: 20, fontWeight: 800, marginBottom: 6 }}>Your industry</div>
-              <div style={{ color: COLORS.muted, fontSize: 13, marginBottom: 24 }}>
-                Choose a template to pre-fill your workflow — you can customize everything after
-              </div>
-
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 24 }}>
-                {Object.entries(INDUSTRY_TEMPLATES).map(([key, template]) => (
-                  <div
-                    key={key}
-                    onClick={() => selectTemplate(key)}
-                    style={{
-                      background: selectedTemplate === key ? COLORS.accentGlow : COLORS.card,
-                      border: `1px solid ${selectedTemplate === key ? COLORS.accent + "55" : COLORS.border}`,
-                      borderRadius: 12, padding: "16px",
-                      cursor: "pointer", transition: "all 0.15s",
-                    }}
-                  >
-                    <div style={{ fontSize: 24, marginBottom: 8 }}>{template.icon}</div>
-                    <div style={{
-                      fontSize: 13, fontWeight: 600,
-                      color: selectedTemplate === key ? COLORS.accentLight : COLORS.text,
-                    }}>
-                      {template.label}
-                    </div>
-                    {key !== "custom" && (
-                      <div style={{ fontSize: 11, color: COLORS.muted, marginTop: 4 }}>
-                        {template.stages.length} stages · {template.defect_types.length} issue types
-                      </div>
-                    )}
-                  </div>
-                ))}
-              </div>
-
-              <div style={{ display: "flex", gap: 12 }}>
-                <button
-                  onClick={() => setStep(2)}
-                  style={{
-                    flex: 1, background: COLORS.card,
-                    border: `1px solid ${COLORS.border}`,
-                    borderRadius: 12, padding: "12px",
-                    color: COLORS.muted, fontSize: 14, cursor: "pointer",
-                  }}
-                >
-                  ← Back
-                </button>
-                <button
-                  onClick={() => {
-                    if (!selectedTemplate) return setError("Please select an industry template");
-                    setError(null);
-                    setStep(4);
-                  }}
-                  style={{
-                    flex: 2,
-                    background: `linear-gradient(135deg, ${COLORS.accent}, #ffffff)`,
-                    border: "none", borderRadius: 12,
-                    padding: "12px", color: "#08090a",
-                    fontSize: 14, fontWeight: 700, cursor: "pointer",
-                  }}
-                >
-                  Continue →
-                </button>
-              </div>
-            </div>
-          )}
-          {/* STEP 4 — Modules */}
-{step === 4 && (
-  <div>
-    <div style={{ fontSize: 20, fontWeight: 800, marginBottom: 6 }}>Your modules</div>
-    <div style={{ color: COLORS.muted, fontSize: 13, marginBottom: 20 }}>
-      Choose which features your team needs — you can change this anytime in Settings
-    </div>
-
-    <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 24 }}>
-      {ALL_MODULES.map(module => {
-        const isEnabled = enabledModules.includes(module.id);
-        return (
-          <div
-            key={module.id}
-            onClick={() => {
-              if (module.required) return;
-              setEnabledModules(prev =>
-                isEnabled
-                  ? prev.filter(m => m !== module.id)
-                  : [...prev, module.id]
-              );
-            }}
-            style={{
-              display: "flex", alignItems: "center",
-              justifyContent: "space-between",
-              background: isEnabled ? COLORS.accentGlow : COLORS.card,
-              border: `1px solid ${isEnabled ? COLORS.accent + "44" : COLORS.border}`,
-              borderRadius: 12, padding: "14px 16px",
-              cursor: module.required ? "default" : "pointer",
-              transition: "all 0.15s",
-            }}
-          >
-            <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-              <span style={{ fontSize: 20 }}>{module.icon}</span>
-              <div>
-                <div style={{ fontSize: 14, fontWeight: 600, color: isEnabled ? COLORS.accentLight : COLORS.text }}>
-                  {module.label}
-                </div>
-                {module.required && (
-                  <div style={{ fontSize: 11, color: COLORS.muted }}>Required</div>
-                )}
-              </div>
-            </div>
-
-            <div style={{
-              width: 44, height: 24, borderRadius: 12,
-              background: isEnabled ? COLORS.accent : COLORS.border,
-              position: "relative", transition: "background 0.2s",
-              flexShrink: 0,
-            }}>
-              <div style={{
-                width: 18, height: 18, borderRadius: "50%",
-                background: "white",
-                position: "absolute",
-                top: 3,
-                left: isEnabled ? 23 : 3,
-                transition: "left 0.2s",
-              }} />
+                );
+              })}
             </div>
           </div>
-        );
-      })}
-    </div>
+        )}
 
-    <div style={{ display: "flex", gap: 12 }}>
-      <button
-        onClick={() => setStep(3)}
-        style={{
-          flex: 1, background: COLORS.card,
-          border: `1px solid ${COLORS.border}`,
-          borderRadius: 12, padding: "12px",
-          color: COLORS.muted, fontSize: 14, cursor: "pointer",
-        }}
-      >
-        ← Back
-      </button>
-      <button
-        onClick={() => setStep(5)}
-        style={{
-          flex: 2,
-          background: `linear-gradient(135deg, ${COLORS.accent}, #ffffff)`,
-          border: "none", borderRadius: 12,
-          padding: "12px", color: "#08090a",
-          fontSize: 14, fontWeight: 700, cursor: "pointer",
-        }}
-      >
-        Continue →
-      </button>
-    </div>
-  </div>
-)}
-
-
-          {/* STEP 5 — Review workflow */}
-          {step === 5 && (
-            <div>
-              <div style={{ fontSize: 20, fontWeight: 800, marginBottom: 6 }}>Your workflow</div>
-              <div style={{ color: COLORS.muted, fontSize: 13, marginBottom: 20 }}>
-                Review and customize your stages and terminology
-              </div>
-
-              {/* Terminology */}
-              <div style={{
-                background: COLORS.card, border: `1px solid ${COLORS.border}`,
-                borderRadius: 12, padding: 16, marginBottom: 16,
-              }}>
-                <div style={{ fontSize: 12, fontWeight: 700, color: COLORS.muted, marginBottom: 12, letterSpacing: "0.06em" }}>
-                  TERMINOLOGY
+        {/* ── DONE ── */}
+        {phase === "done" && (
+          <div className="ob-step" style={{ textAlign: "center" }}>
+            <div style={{ fontSize: 52, marginBottom: 14 }}>🎉</div>
+            <h1 className="ob-h">{company.name} is live on Viro.</h1>
+            <p className="ob-sub" style={{ maxWidth: 420, margin: "10px auto 0" }}>Your platform is ready. Taking you to your dashboard…</p>
+            <div className="ob-card" style={{ padding: 22, marginTop: 26, textAlign: "left", maxWidth: 460, margin: "26px auto 0" }}>
+              <div className="ob-eyebrow" style={{ marginBottom: 14 }}>Your setup</div>
+              {[
+                ["Company", company.name],
+                ["Industry", company.industry],
+                ["Workflow", `${stages.length} stages configured`],
+                ["Issue types", `${defectTypes.length} configured`],
+                ["Terminology", `${terminology.term_product}, ${terminology.term_defect}`],
+              ].map((row, i) => (
+                <div key={i} style={{ display: "flex", justifyContent: "space-between", padding: "9px 0", borderTop: i ? "1px solid rgba(255,255,255,0.05)" : "none" }}>
+                  <span style={{ fontSize: 13, color: "rgba(255,255,255,0.45)" }}>{row[0]}</span>
+                  <span style={{ fontSize: 13, fontWeight: 600 }}>{row[1]}</span>
                 </div>
-                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
-                  {[
-                    { key: "term_product", label: "Item name" },
-                    { key: "term_defect", label: "Issue name" },
-                    { key: "term_stage", label: "Stage name" },
-                    { key: "term_issue", label: "Problem name" },
-                  ].map(field => (
-                    <div key={field.key}>
-                      <div style={{ fontSize: 10, color: COLORS.muted, marginBottom: 4 }}>{field.label.toUpperCase()}</div>
-                      <input
-                        style={{ ...inputStyle, padding: "8px 12px", fontSize: 13 }}
-                        value={terminology[field.key]}
-                        onChange={e => setTerminology(prev => ({ ...prev, [field.key]: e.target.value }))}
-                      />
+              ))}
+            </div>
+            <div className="ob-mono" style={{ marginTop: 18, fontSize: 12, color: GREEN }}>● redirecting to {createdCompany?.companyId || "your platform"}…</div>
+          </div>
+        )}
+
+        {/* ── FORM STEPS ── */}
+        {phase === "form" && (
+          <div className="ob-step">
+            {/* 1 — Welcome */}
+            {step === 1 && (
+              <div style={{ textAlign: "center" }}>
+                <div className="ob-eyebrow">Step 01 — Welcome</div>
+                <h1 className="ob-h" style={{ fontSize: "clamp(30px,4.4vw,42px)" }}>Let's build your platform.</h1>
+                <p className="ob-sub" style={{ maxWidth: 460, margin: "12px auto 0" }}>
+                  No spreadsheets to import, no template to wrestle. Tell Viro how your operation runs and it builds the platform around you — about five minutes.
+                </p>
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 12, margin: "30px 0" }}>
+                  {[["🏭", "Any industry"], ["✦", "AI built-in"], ["⚡", "5-min setup"]].map((it, i) => (
+                    <div key={i} className="ob-card" style={{ padding: "18px 12px", textAlign: "center", animation: `ob-rise .5s cubic-bezier(.16,1,.3,1) ${i * 70}ms both` }}>
+                      <div style={{ fontSize: 22, marginBottom: 7 }}>{it[0]}</div>
+                      <div style={{ fontSize: 12.5, color: "rgba(255,255,255,0.55)" }}>{it[1]}</div>
                     </div>
                   ))}
                 </div>
+                <button className="ob-btn ob-btn-primary" style={{ width: "100%" }} onClick={() => setStep(2)}>Get started →</button>
               </div>
+            )}
 
-              {/* Stages */}
-              <div style={{
-                background: COLORS.card, border: `1px solid ${COLORS.border}`,
-                borderRadius: 12, padding: 16, marginBottom: 20,
-              }}>
-                <div style={{ fontSize: 12, fontWeight: 700, color: COLORS.muted, marginBottom: 12, letterSpacing: "0.06em" }}>
-                  WORKFLOW STAGES
+            {/* 2 — Company */}
+            {step === 2 && (
+              <div>
+                <div className="ob-eyebrow">Step 02 — Company</div>
+                <h1 className="ob-h">Your company.</h1>
+                <p className="ob-sub">A couple of basics to anchor everything Viro builds.</p>
+                <div style={{ marginTop: 24, marginBottom: 16 }}>
+                  <div className="ob-lbl">Company name *</div>
+                  <input className="ob-input" value={company.name} placeholder="e.g. Meridian Vans, Tidewater Marine"
+                    onChange={e => setCompany(p => ({ ...p, name: e.target.value }))} />
                 </div>
-                {stages.map((stage, i) => (
-                  <div key={i} style={{
-                    display: "flex", alignItems: "center", gap: 10,
-                    marginBottom: 8,
-                  }}>
-                    <div style={{
-                      width: 32, height: 32, borderRadius: 8,
-                      background: COLORS.accentGlow,
-                      border: `1px solid ${COLORS.accent}44`,
-                      display: "flex", alignItems: "center",
-                      justifyContent: "center", fontSize: 11,
-                      fontWeight: 700, color: COLORS.accentLight,
-                      flexShrink: 0,
-                    }}>
-                      {i + 1}
+                <div>
+                  <div className="ob-lbl">What do you call your main tracked item?</div>
+                  <input className="ob-input" value={company.universal_id_field} placeholder="e.g. Vehicle, RFQ, Batch, Shipment, Order"
+                    onChange={e => setCompany(p => ({ ...p, universal_id_field: e.target.value }))} />
+                  <div style={{ fontSize: 11.5, color: "rgba(255,255,255,0.35)", marginTop: 7 }}>This is what moves through your workflow — we'll use this word throughout your platform.</div>
+                </div>
+                <BackNext onBack={() => setStep(1)} nextWide onNext={() => { if (!company.name) return setError("Company name is required"); setError(null); setStep(3); }} />
+              </div>
+            )}
+
+            {/* 3 — Industry */}
+            {step === 3 && (
+              <div>
+                <div className="ob-eyebrow">Step 03 — Industry</div>
+                <h1 className="ob-h">Pick a starting point.</h1>
+                <p className="ob-sub">Choose the closest fit — Viro pre-fills your workflow and you can customize everything next.</p>
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginTop: 22 }}>
+                  {Object.entries(INDUSTRY_TEMPLATES).map(([key, t]) => (
+                    <div key={key} className={"ob-tmpl" + (selectedTemplate === key ? " sel" : "")} onClick={() => selectTemplate(key)}>
+                      <div style={{ fontSize: 22, marginBottom: 8 }}>{t.icon}</div>
+                      <div style={{ fontSize: 13.5, fontWeight: 600, color: selectedTemplate === key ? "#fff" : "rgba(255,255,255,0.85)" }}>{t.label}</div>
+                      {key !== "custom" && <div className="ob-mono" style={{ fontSize: 10.5, color: "rgba(255,255,255,0.38)", marginTop: 5 }}>{t.stages.length} stages · {t.defect_types.length} issue types</div>}
                     </div>
-                    <input
-                      style={{ ...inputStyle, padding: "8px 12px", fontSize: 13 }}
-                      value={stage.stage_name}
-                      onChange={e => {
-                        const updated = [...stages];
-                        updated[i] = { ...updated[i], stage_name: e.target.value };
-                        setStages(updated);
-                      }}
-                    />
-                    <button
-                      onClick={() => setStages(stages.filter((_, si) => si !== i))}
-                      style={{
-                        background: COLORS.critical + "20",
-                        border: `1px solid ${COLORS.critical}40`,
-                        borderRadius: 6, padding: "6px 10px",
-                        color: COLORS.critical, fontSize: 12,
-                        cursor: "pointer", flexShrink: 0,
-                      }}
-                    >
-                      ✕
-                    </button>
+                  ))}
+                </div>
+                <BackNext onBack={() => setStep(2)} nextWide onNext={() => { if (!selectedTemplate) return setError("Pick an industry to continue"); setError(null); setStep(4); }} />
+              </div>
+            )}
+
+            {/* 4 — Modules */}
+            {step === 4 && (
+              <div>
+                <div className="ob-eyebrow">Step 04 — Modules</div>
+                <h1 className="ob-h">What does your team need?</h1>
+                <p className="ob-sub">Turn features on or off — you can change this anytime in Settings.</p>
+                <div style={{ display: "flex", flexDirection: "column", gap: 8, marginTop: 22 }}>
+                  {ALL_MODULES.map(m => {
+                    const on = enabledModules.includes(m.id);
+                    return (
+                      <div key={m.id} onClick={() => { if (m.required) return; setEnabledModules(p => on ? p.filter(x => x !== m.id) : [...p, m.id]); }}
+                        className="ob-card" style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "13px 16px",
+                          cursor: m.required ? "default" : "pointer", borderColor: on ? "rgba(255,255,255,0.16)" : "rgba(255,255,255,0.08)", background: on ? "rgba(255,255,255,0.05)" : "rgba(255,255,255,0.025)" }}>
+                        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                          <span style={{ fontSize: 18 }}>{m.icon}</span>
+                          <div>
+                            <div style={{ fontSize: 14, fontWeight: 600 }}>{m.label}</div>
+                            {m.required && <div className="ob-mono" style={{ fontSize: 9.5, letterSpacing: "0.1em", color: "rgba(255,255,255,0.35)" }}>REQUIRED</div>}
+                          </div>
+                        </div>
+                        <div className="ob-toggle" style={{ background: on ? "#fff" : "rgba(255,255,255,0.14)", opacity: m.required ? 0.55 : 1 }}>
+                          <div className="knob" style={{ left: on ? 23 : 3, background: on ? "#08090a" : "rgba(255,255,255,0.6)" }} />
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+                <BackNext onBack={() => setStep(3)} nextWide onNext={() => setStep(5)} />
+              </div>
+            )}
+
+            {/* 5 — Workflow */}
+            {step === 5 && (
+              <div>
+                <div className="ob-eyebrow">Step 05 — Workflow</div>
+                <h1 className="ob-h">Your workflow & words.</h1>
+                <p className="ob-sub">Tune the language and the stages your {terminology.term_product.toLowerCase()} moves through.</p>
+                <div className="ob-card" style={{ padding: 18, marginTop: 22, marginBottom: 14 }}>
+                  <div className="ob-eyebrow" style={{ marginBottom: 12 }}>Terminology</div>
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+                    {[["term_product", "Item name"], ["term_defect", "Issue name"], ["term_stage", "Stage name"], ["term_issue", "Problem name"]].map(([k, l]) => (
+                      <div key={k}>
+                        <div className="ob-lbl">{l}</div>
+                        <input className="ob-input" style={{ padding: "9px 12px", fontSize: 13 }} value={terminology[k]} onChange={e => setTerminology(p => ({ ...p, [k]: e.target.value }))} />
+                      </div>
+                    ))}
                   </div>
-                ))}
-                <button
-                  onClick={() => setStages([...stages, {
-                    stage_number: (stages.length + 1) * 100,
-                    stage_name: "",
-                    expected_duration_mins: 30
-                  }])}
-                  style={{
-                    background: "transparent",
-                    border: `1px dashed ${COLORS.border}`,
-                    borderRadius: 8, padding: "8px 16px",
-                    color: COLORS.muted, fontSize: 12,
-                    cursor: "pointer", width: "100%", marginTop: 4,
-                  }}
-                >
-                  + Add Stage
-                </button>
-              </div>
-
-              <div style={{ display: "flex", gap: 12 }}>
-                <button
-                  onClick={() => setStep(4)}
-                  style={{
-                    flex: 1, background: COLORS.card,
-                    border: `1px solid ${COLORS.border}`,
-                    borderRadius: 12, padding: "12px",
-                    color: COLORS.muted, fontSize: 14, cursor: "pointer",
-                  }}
-                >
-                  ← Back
-                </button>
-                <button
-                  onClick={() => setStep(6)}
-                  style={{
-                    flex: 2,
-                    background: `linear-gradient(135deg, ${COLORS.accent}, #ffffff)`,
-                    border: "none", borderRadius: 12,
-                    padding: "12px", color: "#08090a",
-                    fontSize: 14, fontWeight: 700, cursor: "pointer",
-                  }}
-                >
-                  Continue →
-                </button>
-              </div>
-            </div>
-          )}
-
-          {/* STEP 6 — Admin user */}
-          {step === 6 && (
-            <div>
-              <div style={{ fontSize: 20, fontWeight: 800, marginBottom: 6 }}>Your account</div>
-              <div style={{ color: COLORS.muted, fontSize: 13, marginBottom: 24 }}>
-                Create your manager account — you can add more team members after setup
-              </div>
-
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 12 }}>
-                <div>
-                  <label style={labelStyle}>FIRST NAME *</label>
-                  <input
-                    style={inputStyle}
-                    value={adminUser.first_name}
-                    onChange={e => setAdminUser(prev => ({ ...prev, first_name: e.target.value }))}
-                    placeholder="First name"
-                  />
                 </div>
-                <div>
-                  <label style={labelStyle}>LAST NAME *</label>
-                  <input
-                    style={inputStyle}
-                    value={adminUser.last_name}
-                    onChange={e => setAdminUser(prev => ({ ...prev, last_name: e.target.value }))}
-                    placeholder="Last name"
-                  />
+                <div className="ob-card" style={{ padding: 18, marginBottom: 4 }}>
+                  <div className="ob-eyebrow" style={{ marginBottom: 12 }}>Workflow stages</div>
+                  {stages.map((stage, i) => (
+                    <div key={i} style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 8 }}>
+                      <div className="ob-mono" style={{ width: 30, height: 30, borderRadius: 8, background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.1)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 11, color: "rgba(255,255,255,0.6)", flexShrink: 0 }}>{i + 1}</div>
+                      <input className="ob-input" style={{ padding: "9px 12px", fontSize: 13 }} value={stage.stage_name} onChange={e => { const u = [...stages]; u[i] = { ...u[i], stage_name: e.target.value }; setStages(u); }} />
+                      <button onClick={() => setStages(stages.filter((_, si) => si !== i))} style={{ background: "rgba(255,90,90,0.12)", border: "1px solid rgba(255,90,90,0.3)", borderRadius: 8, padding: "7px 11px", color: "#ff5a5a", fontSize: 12, cursor: "pointer", flexShrink: 0 }}>✕</button>
+                    </div>
+                  ))}
+                  <button onClick={() => setStages([...stages, { stage_number: (stages.length + 1) * 100, stage_name: "", expected_duration_mins: 30 }])}
+                    style={{ background: "transparent", border: "1px dashed rgba(255,255,255,0.16)", borderRadius: 9, padding: "9px 16px", color: "rgba(255,255,255,0.5)", fontSize: 12.5, cursor: "pointer", width: "100%", marginTop: 4, fontFamily: "inherit" }}>+ Add stage</button>
                 </div>
+                <BackNext onBack={() => setStep(4)} nextWide onNext={() => setStep(6)} />
               </div>
+            )}
 
-              <div style={{ marginBottom: 12 }}>
-                <label style={labelStyle}>WORK EMAIL *</label>
-                <input
-                  type="email"
-                  style={inputStyle}
-                  value={adminUser.email}
-                  onChange={e => setAdminUser(prev => ({ ...prev, email: e.target.value }))}
-                  placeholder="you@company.com"
-                />
-              </div>
-
-              <div style={{ marginBottom: 24 }}>
-                <label style={labelStyle}>PASSWORD *</label>
-                <input
-                  type="password"
-                  style={inputStyle}
-                  value={adminUser.password}
-                  onChange={e => setAdminUser(prev => ({ ...prev, password: e.target.value }))}
-                  placeholder="Choose a strong password"
-                />
-              </div>
-
-              <div style={{ display: "flex", gap: 12 }}>
-                <button
-                  onClick={() => setStep(5)}
-                  style={{
-                    flex: 1, background: COLORS.card,
-                    border: `1px solid ${COLORS.border}`,
-                    borderRadius: 12, padding: "12px",
-                    color: COLORS.muted, fontSize: 14, cursor: "pointer",
-                  }}
-                >
-                  ← Back
-                </button>
-                <button
-                  onClick={() => {
-                    if (!adminUser.first_name || !adminUser.last_name || !adminUser.email || !adminUser.password) {
-                      return setError("All fields are required");
-                    }
-                    setError(null);
-                    handleComplete();
-                  }}
-                  disabled={loading}
-                  style={{
-                    flex: 2,
-                    background: loading ? COLORS.border : `linear-gradient(135deg, ${COLORS.accent}, #ffffff)`,
-                    border: "none", borderRadius: 12,
-                    padding: "12px", color: "#08090a",
-                    fontSize: 14, fontWeight: 700,
-                    cursor: loading ? "not-allowed" : "pointer",
-                  }}
-                >
-                  {loading ? "Setting up your platform..." : "Complete Setup →"}
-                </button>
-              </div>
-            </div>
-          )}
-
-          {/* STEP 7 — Done */}
-          {step === 7 && (
-            <div style={{ textAlign: "center" }}>
-              <div style={{ fontSize: 60, marginBottom: 16 }}>🎉</div>
-              <div style={{ fontSize: 22, fontWeight: 800, marginBottom: 12 }}>
-                {company.name} is live on Viro!
-              </div>
-              <div style={{ color: COLORS.muted, fontSize: 14, lineHeight: 1.7, marginBottom: 24 }}>
-                Your platform is ready. You'll be redirected to your dashboard in a moment.
-              </div>
-
-              <div style={{
-                background: COLORS.card, border: `1px solid ${COLORS.border}`,
-                borderRadius: 12, padding: 20, marginBottom: 24,
-                textAlign: "left",
-              }}>
-                <div style={{ fontSize: 12, fontWeight: 700, color: COLORS.muted, marginBottom: 12, letterSpacing: "0.06em" }}>
-                  YOUR SETUP
+            {/* 6 — Team */}
+            {step === 6 && (
+              <div>
+                <div className="ob-eyebrow">Step 06 — Your account</div>
+                <h1 className="ob-h">Create your account.</h1>
+                <p className="ob-sub">You'll be the manager — add the rest of your team after setup.</p>
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginTop: 22, marginBottom: 12 }}>
+                  <div><div className="ob-lbl">First name *</div><input className="ob-input" value={adminUser.first_name} onChange={e => setAdminUser(p => ({ ...p, first_name: e.target.value }))} placeholder="First" /></div>
+                  <div><div className="ob-lbl">Last name *</div><input className="ob-input" value={adminUser.last_name} onChange={e => setAdminUser(p => ({ ...p, last_name: e.target.value }))} placeholder="Last" /></div>
                 </div>
-                {[
-                  { label: "Company", value: company.name },
-                  { label: "Industry", value: company.industry },
-                  { label: "Stages", value: `${stages.length} configured` },
-                  { label: "Issue types", value: `${defectTypes.length} configured` },
-                  { label: "Terminology", value: `${terminology.term_product}, ${terminology.term_defect}` },
-                ].map((item, i) => (
-                  <div key={i} style={{
-                    display: "flex", justifyContent: "space-between",
-                    padding: "8px 0",
-                    borderBottom: i < 4 ? `1px solid ${COLORS.border}` : "none",
-                  }}>
-                    <span style={{ fontSize: 13, color: COLORS.muted }}>{item.label}</span>
-                    <span style={{ fontSize: 13, fontWeight: 600, color: COLORS.text }}>{item.value}</span>
-                  </div>
-                ))}
+                <div style={{ marginBottom: 12 }}><div className="ob-lbl">Work email *</div><input className="ob-input" type="email" value={adminUser.email} onChange={e => setAdminUser(p => ({ ...p, email: e.target.value }))} placeholder="you@company.com" /></div>
+                <div><div className="ob-lbl">Password *</div><input className="ob-input" type="password" value={adminUser.password} onChange={e => setAdminUser(p => ({ ...p, password: e.target.value }))} placeholder="Choose a strong password" /></div>
+                <BackNext onBack={() => setStep(5)} nextLabel="Generate my platform →" nextWide
+                  onNext={() => { if (!adminUser.first_name || !adminUser.last_name || !adminUser.email || !adminUser.password) return setError("All fields are required"); setError(null); runSetup(); }} />
               </div>
-
-              <div style={{
-                background: COLORS.accentGlow,
-                border: `1px solid ${COLORS.accent}33`,
-                borderRadius: 10, padding: "12px 16px",
-                fontSize: 13, color: COLORS.accentLight,
-              }}>
-                ⚡ Redirecting to your dashboard...
-              </div>
-            </div>
-          )}
-        </div>
+            )}
+          </div>
+        )}
       </div>
     </div>
   );
