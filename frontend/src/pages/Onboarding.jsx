@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 
 const API = "https://web-production-0457e.up.railway.app";
 const GREEN = "#34d399";
@@ -104,8 +104,6 @@ const ALL_MODULES = [
   { id: "repair", label: "Repair Queue", icon: "🔨", required: false },
   { id: "settings", label: "Settings", icon: "⚙️", required: false },
 ];
-const STEPS = ["Welcome", "Company", "Industry", "Modules", "Workflow", "Team"];
-
 const STYLE_ID = "viro-onboarding-styles";
 function useOnboardingStyles() {
   useEffect(() => {
@@ -125,6 +123,7 @@ function useOnboardingStyles() {
       @keyframes ob-in{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:none}}
       @keyframes ob-spin{to{transform:rotate(405deg)}}
       @keyframes ob-rise{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+      @keyframes ob-pulse{0%,100%{opacity:0.3;transform:scale(0.8)}50%{opacity:1;transform:scale(1.2)}}
       .ob-eyebrow{font-family:'JetBrains Mono',monospace;font-size:11px;letter-spacing:0.14em;
         text-transform:uppercase;color:rgba(255,255,255,0.4)}
       .ob-h{font-size:clamp(26px,3.6vw,34px);font-weight:800;letter-spacing:-0.03em;line-height:1.08;margin:12px 0 0}
@@ -149,6 +148,11 @@ function useOnboardingStyles() {
       .ob-tmpl.sel{border-color:rgba(255,255,255,0.4);background:rgba(255,255,255,0.07)}
       .ob-toggle{width:44px;height:24px;border-radius:12px;position:relative;flex-shrink:0;transition:background .2s ease}
       .ob-toggle .knob{width:18px;height:18px;border-radius:50%;background:#08090a;position:absolute;top:3px;transition:left .2s cubic-bezier(.16,1,.3,1)}
+      .ob-conv{display:grid;grid-template-columns:1.22fr 0.92fr;gap:18px;margin-top:26px}
+      .ob-bubble{max-width:84%;padding:11px 15px;font-size:13.5px;line-height:1.5;animation:ob-rise .35s ease both}
+      .ob-send{background:#fff;color:#08090a;border:none;border-radius:11px;padding:0 18px;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit;transition:opacity .15s ease}
+      .ob-send:disabled{opacity:0.4;cursor:not-allowed}
+      @media(max-width:860px){.ob-conv{grid-template-columns:1fr}}
     `;
     document.head.appendChild(el);
   }, []);
@@ -156,20 +160,30 @@ function useOnboardingStyles() {
 
 export default function Onboarding({ onComplete }) {
   useOnboardingStyles();
-  const [step, setStep] = useState(1);
   const [phase, setPhase] = useState("form"); // form | generating | done
   const [genActive, setGenActive] = useState(0);
   const [error, setError] = useState(null);
 
   const [company, setCompany] = useState({ name: "", industry: "", universal_id_field: "" });
-  const [selectedTemplate, setSelectedTemplate] = useState(null);
   const [stages, setStages] = useState([]);
   const [defectTypes, setDefectTypes] = useState([]);
   const [terminology, setTerminology] = useState({ term_product: "Product", term_defect: "Defect", term_stage: "Stage", term_issue: "Issue" });
   const [adminUser, setAdminUser] = useState({ first_name: "", last_name: "", email: "", password: "" });
-  const [createdCompany, setCreatedCompany] = useState(null);
-
   const [enabledModules, setEnabledModules] = useState([]);
+  const [createdCompany, setCreatedCompany] = useState(null);
+  const [decisions, setDecisions] = useState("");
+  const [automate, setAutomate] = useState("");
+
+  // conversation
+  const [messages, setMessages] = useState([]);
+  const [qIndex, setQIndex] = useState(0);
+  const [input, setInput] = useState("");
+  const [typing, setTyping] = useState(false);
+  const [ready, setReady] = useState(false);
+  const answers = useRef({});
+  const mounted = useRef(true);
+  const convStarted = useRef(false);
+  const scrollRef = useRef();
 
   const genSteps = [
     `Creating ${company.name || "your company"}`,
@@ -189,14 +203,107 @@ export default function Onboarding({ onComplete }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [phase]);
 
-  const selectTemplate = (key) => {
-    const t = INDUSTRY_TEMPLATES[key];
-    setSelectedTemplate(key);
-    setStages([...t.stages]);
-    setDefectTypes([...t.defect_types]);
-    setTerminology({ term_product: t.term_product, term_defect: t.term_defect, term_stage: t.term_stage, term_issue: t.term_issue });
-    setCompany(prev => ({ ...prev, industry: t.label }));
-    setEnabledModules(t.modules);
+  const matchTemplate = (text) => {
+    const t = text.toLowerCase();
+    if (/(vehicle|van|car|auto|truck|wav|motor)/.test(t)) return "automotive";
+    if (/(marine|ship|vessel|boat|rfq|procure|maritime|port)/.test(t)) return "marine";
+    if (/(food|beverage|produce|kitchen|meal|drink|brew)/.test(t)) return "food";
+    if (/(medical|device|pharma|health|surgical|implant|clinic)/.test(t)) return "medical";
+    if (/(logistic|warehouse|freight|shipping|delivery|fulfil|courier)/.test(t)) return "logistics";
+    return "custom";
+  };
+
+  const QMETA = [
+    { ph: "e.g. Meridian Vans", req: true },
+    { ph: "e.g. We build custom commercial vans", req: true },
+    { ph: "e.g. Vehicle, VIN", req: false },
+    { ph: "e.g. Entry, Assembly, QC, Ship", req: false },
+    { ph: "e.g. what's blocking shipping today", req: false },
+    { ph: "e.g. invoices, weekly reports, supplier emails", req: false },
+    { ph: "Your full name", req: true },
+    { ph: "you@company.com", req: true },
+    { ph: "Choose a password", req: true, type: "password" },
+  ];
+
+  const getPrompt = (i) => {
+    const a = answers.current;
+    switch (i) {
+      case 0: return "Hey — I'm Viro. Let's build your platform. First: what's your company called?";
+      case 1: return `Nice to meet you${a.name ? `, ${a.name.split(" ")[0]}` : ""}. In a sentence — what does ${a.name || "your company"} do?`;
+      case 2: return "What do you track through your process, and what do you call each one? (e.g. Vehicle, RFQ, Batch)";
+      case 3: return a.templateStages && a.templateStages.length
+        ? `Based on that, I've drafted a workflow: ${a.workflow}. Type your own stages to change it, or say "looks good".`
+        : `What stages does each ${(a.term || "item").toLowerCase()} move through, in order? Separate them with commas.`;
+      case 4: return "What do you need to know every morning?";
+      case 5: return "Last operational question — what paperwork should Viro draft for you?";
+      case 6: return "Almost there. What's your name?";
+      case 7: return "Your work email?";
+      case 8: return "And a password to secure your account.";
+      default: return "";
+    }
+  };
+
+  const apply = (i, v) => {
+    const a = answers.current;
+    if (i === 0) { a.name = v; setCompany(c => ({ ...c, name: v })); }
+    else if (i === 1) {
+      a.industry = v; setCompany(c => ({ ...c, industry: v }));
+      const t = INDUSTRY_TEMPLATES[matchTemplate(v)];
+      a.term = t.term_product; a.templateStages = t.stages.map(s => s.stage_name); a.workflow = a.templateStages.join(" → ");
+      setStages([...t.stages]); setDefectTypes([...t.defect_types]); setEnabledModules(t.modules);
+      setTerminology({ term_product: t.term_product, term_defect: t.term_defect, term_stage: t.term_stage, term_issue: t.term_issue });
+    }
+    else if (i === 2) { if (v) { a.term = v; setTerminology(tm => ({ ...tm, term_product: v })); setCompany(c => ({ ...c, universal_id_field: v })); } }
+    else if (i === 3) {
+      if (v && !/^(looks good|use those|keep|skip|no|that works|good|fine|yes)/i.test(v)) {
+        const parsed = v.split(/[,/]|→|->/).map(x => x.trim()).filter(Boolean);
+        if (parsed.length) { a.workflow = parsed.join(" → "); setStages(parsed.map((nm, idx) => ({ stage_number: (idx + 1) * 100, stage_name: nm, expected_duration_mins: 30 }))); }
+      }
+    }
+    else if (i === 4) { setDecisions(v); }
+    else if (i === 5) { setAutomate(v); }
+    else if (i === 6) { const parts = v.split(/\s+/); setAdminUser(u => ({ ...u, first_name: parts[0] || v, last_name: parts.slice(1).join(" ") })); }
+    else if (i === 7) { setAdminUser(u => ({ ...u, email: v })); }
+    else if (i === 8) { setAdminUser(u => ({ ...u, password: v })); }
+  };
+
+  const pushViro = (text, delay = 800) => {
+    setTyping(true);
+    setTimeout(() => { if (!mounted.current) return; setTyping(false); setMessages(m => [...m, { role: "viro", text }]); }, delay);
+  };
+
+  const startConversation = () => {
+    answers.current = {};
+    setMessages([]); setQIndex(0); setInput(""); setReady(false); setError(null);
+    setCompany({ name: "", industry: "", universal_id_field: "" });
+    setStages([]); setDefectTypes([]); setEnabledModules([]); setDecisions(""); setAutomate("");
+    setTerminology({ term_product: "Product", term_defect: "Defect", term_stage: "Stage", term_issue: "Issue" });
+    setAdminUser({ first_name: "", last_name: "", email: "", password: "" });
+    pushViro(getPrompt(0), 500);
+  };
+
+  useEffect(() => {
+    mounted.current = true;
+    if (!convStarted.current) { convStarted.current = true; startConversation(); }
+    return () => { mounted.current = false; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  useEffect(() => { if (scrollRef.current) scrollRef.current.scrollTop = scrollRef.current.scrollHeight; }, [messages, typing]);
+
+  const handleSend = () => {
+    if (typing || qIndex >= QMETA.length) return;
+    const v = input.trim();
+    const meta = QMETA[qIndex];
+    if (meta.req && !v) { pushViro("I'll need that to keep going — mind sharing it?", 350); return; }
+    const display = meta.type === "password" ? "•".repeat(Math.max(v.length, 6)) : v;
+    setMessages(m => [...m, { role: "you", text: display }]);
+    setInput("");
+    apply(qIndex, v);
+    const next = qIndex + 1;
+    setQIndex(next);
+    if (next < QMETA.length) pushViro(getPrompt(next), 850);
+    else { pushViro("Perfect — I've got everything I need. Hit Generate my platform and watch it build. ✦", 850); setTimeout(() => mounted.current && setReady(true), 1000); }
   };
 
   const runSetup = async () => {
@@ -250,32 +357,28 @@ export default function Onboarding({ onComplete }) {
     }, Math.max(0, minMs - (Date.now() - started)));
   };
 
-  const BackNext = ({ onBack, onNext, nextLabel = "Continue →", nextWide }) => (
-    <div style={{ display: "flex", gap: 12, marginTop: 26 }}>
-      {onBack && <button className="ob-btn ob-btn-ghost" style={{ flex: 1 }} onClick={onBack}>← Back</button>}
-      <button className="ob-btn ob-btn-primary" style={{ flex: nextWide ? 2 : 1 }} onClick={onNext}>{nextLabel}</button>
-    </div>
-  );
+  const learn = [
+    { k: "INDUSTRY", v: company.industry, on: !!company.industry },
+    { k: "UNIVERSAL ID", v: terminology.term_product !== "Product" ? terminology.term_product : "", on: terminology.term_product !== "Product" },
+    { k: "WORKFLOW", v: stages.map(s => s.stage_name).join("  →  "), on: stages.length > 0 },
+    { k: "DECISIONS THAT MATTER", v: decisions, on: !!decisions },
+    { k: "MANUAL WORK TO AUTOMATE", v: automate, on: !!automate },
+  ];
+  const inputType = QMETA[qIndex]?.type || "text";
+  const asking = qIndex < QMETA.length;
 
   return (
-    <div className="ob-root" style={{ minHeight: "100vh", height: "100vh", overflowY: "auto", display: "flex", alignItems: "center", justifyContent: "center", padding: 24, position: "relative" }}>
+    <div className="ob-root" style={{ minHeight: "100vh", height: "100vh", overflowY: "auto", display: "flex", alignItems: phase === "form" ? "flex-start" : "center", justifyContent: "center", padding: 24, position: "relative" }}>
       <div className="ob-grid" />
       <div style={{ position: "fixed", width: 520, height: 420, top: "26%", left: "50%", transform: "translate(-50%,-50%)", background: "rgba(255,255,255,0.045)", borderRadius: "50%", filter: "blur(120px)", pointerEvents: "none" }} />
 
-      <div style={{ width: "100%", maxWidth: 660, position: "relative", zIndex: 1, padding: "40px 0" }}>
-        {/* logo + progress */}
-        <div style={{ display: "flex", alignItems: "center", gap: 11, justifyContent: "center", marginBottom: 22 }}>
+      <div style={{ width: "100%", maxWidth: phase === "form" ? 1080 : 660, position: "relative", zIndex: 1, padding: "36px 0 56px" }}>
+        {/* logo */}
+        <div style={{ display: "flex", alignItems: "center", gap: 11, justifyContent: "center", marginBottom: 30 }}>
           <div style={{ width: 30, height: 30, borderRadius: 8, background: "#fff", display: "flex", alignItems: "center", justifyContent: "center" }}>
             <svg width="15" height="15" viewBox="0 0 100 100"><polygon points="50,23 73.4,36.5 73.4,63.5 50,77 26.6,63.5 26.6,36.5" fill="#08090a" /></svg>
           </div>
           <span style={{ fontSize: 16, fontWeight: 800, letterSpacing: "-0.02em" }}>Viro</span>
-        </div>
-        <div style={{ display: "flex", gap: 6, marginBottom: 36, maxWidth: 420, margin: "0 auto 36px" }}>
-          {STEPS.map((_, i) => {
-            const idx = i + 1;
-            const active = phase === "done" ? true : phase === "generating" ? idx <= 6 : idx <= step;
-            return <div key={i} style={{ flex: 1, height: 3, borderRadius: 2, background: active ? "#fff" : "rgba(255,255,255,0.12)", transition: "background .35s ease" }} />;
-          })}
         </div>
 
         {error && (
@@ -335,149 +438,77 @@ export default function Onboarding({ onComplete }) {
           </div>
         )}
 
-        {/* ── FORM STEPS ── */}
+        {/* ── CONVERSATION ── */}
         {phase === "form" && (
           <div className="ob-step">
-            {/* 1 — Welcome */}
-            {step === 1 && (
-              <div style={{ textAlign: "center" }}>
-                <div className="ob-eyebrow">Step 01 — Welcome</div>
-                <h1 className="ob-h" style={{ fontSize: "clamp(30px,4.4vw,42px)" }}>Let's build your platform.</h1>
-                <p className="ob-sub" style={{ maxWidth: 460, margin: "12px auto 0" }}>
-                  No spreadsheets to import, no template to wrestle. Tell Viro how your operation runs and it builds the platform around you — about five minutes.
-                </p>
-                <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 12, margin: "30px 0" }}>
-                  {[["🏭", "Any industry"], ["✦", "AI built-in"], ["⚡", "5-min setup"]].map((it, i) => (
-                    <div key={i} className="ob-card" style={{ padding: "18px 12px", textAlign: "center", animation: `ob-rise .5s cubic-bezier(.16,1,.3,1) ${i * 70}ms both` }}>
-                      <div style={{ fontSize: 22, marginBottom: 7 }}>{it[0]}</div>
-                      <div style={{ fontSize: 12.5, color: "rgba(255,255,255,0.55)" }}>{it[1]}</div>
-                    </div>
-                  ))}
-                </div>
-                <button className="ob-btn ob-btn-primary" style={{ width: "100%" }} onClick={() => setStep(2)}>Get started →</button>
-              </div>
-            )}
+            <div className="ob-eyebrow">Step 01 — Onboarding</div>
+            <h1 className="ob-h" style={{ fontSize: "clamp(32px,4.6vw,52px)" }}>Tell Viro about your operation.</h1>
+            <p className="ob-sub">No setup wizard. No configuration forms. A short conversation — and Viro builds the platform around your answers.</p>
 
-            {/* 2 — Company */}
-            {step === 2 && (
-              <div>
-                <div className="ob-eyebrow">Step 02 — Company</div>
-                <h1 className="ob-h">Your company.</h1>
-                <p className="ob-sub">A couple of basics to anchor everything Viro builds.</p>
-                <div style={{ marginTop: 24, marginBottom: 16 }}>
-                  <div className="ob-lbl">Company name *</div>
-                  <input className="ob-input" value={company.name} placeholder="e.g. Meridian Vans, Tidewater Marine"
-                    onChange={e => setCompany(p => ({ ...p, name: e.target.value }))} />
-                </div>
-                <div>
-                  <div className="ob-lbl">What do you call your main tracked item?</div>
-                  <input className="ob-input" value={company.universal_id_field} placeholder="e.g. Vehicle, RFQ, Batch, Shipment, Order"
-                    onChange={e => setCompany(p => ({ ...p, universal_id_field: e.target.value }))} />
-                  <div style={{ fontSize: 11.5, color: "rgba(255,255,255,0.35)", marginTop: 7 }}>This is what moves through your workflow — we'll use this word throughout your platform.</div>
-                </div>
-                <BackNext onBack={() => setStep(1)} nextWide onNext={() => { if (!company.name) return setError("Company name is required"); setError(null); setStep(3); }} />
-              </div>
-            )}
-
-            {/* 3 — Industry */}
-            {step === 3 && (
-              <div>
-                <div className="ob-eyebrow">Step 03 — Industry</div>
-                <h1 className="ob-h">Pick a starting point.</h1>
-                <p className="ob-sub">Choose the closest fit — Viro pre-fills your workflow and you can customize everything next.</p>
-                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginTop: 22 }}>
-                  {Object.entries(INDUSTRY_TEMPLATES).map(([key, t]) => (
-                    <div key={key} className={"ob-tmpl" + (selectedTemplate === key ? " sel" : "")} onClick={() => selectTemplate(key)}>
-                      <div style={{ fontSize: 22, marginBottom: 8 }}>{t.icon}</div>
-                      <div style={{ fontSize: 13.5, fontWeight: 600, color: selectedTemplate === key ? "#fff" : "rgba(255,255,255,0.85)" }}>{t.label}</div>
-                      {key !== "custom" && <div className="ob-mono" style={{ fontSize: 10.5, color: "rgba(255,255,255,0.38)", marginTop: 5 }}>{t.stages.length} stages · {t.defect_types.length} issue types</div>}
-                    </div>
-                  ))}
-                </div>
-                <BackNext onBack={() => setStep(2)} nextWide onNext={() => { if (!selectedTemplate) return setError("Pick an industry to continue"); setError(null); setStep(4); }} />
-              </div>
-            )}
-
-            {/* 4 — Modules */}
-            {step === 4 && (
-              <div>
-                <div className="ob-eyebrow">Step 04 — Modules</div>
-                <h1 className="ob-h">What does your team need?</h1>
-                <p className="ob-sub">Turn features on or off — you can change this anytime in Settings.</p>
-                <div style={{ display: "flex", flexDirection: "column", gap: 8, marginTop: 22 }}>
-                  {ALL_MODULES.map(m => {
-                    const on = enabledModules.includes(m.id);
-                    return (
-                      <div key={m.id} onClick={() => { if (m.required) return; setEnabledModules(p => on ? p.filter(x => x !== m.id) : [...p, m.id]); }}
-                        className="ob-card" style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "13px 16px",
-                          cursor: m.required ? "default" : "pointer", borderColor: on ? "rgba(255,255,255,0.16)" : "rgba(255,255,255,0.08)", background: on ? "rgba(255,255,255,0.05)" : "rgba(255,255,255,0.025)" }}>
-                        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-                          <span style={{ fontSize: 18 }}>{m.icon}</span>
-                          <div>
-                            <div style={{ fontSize: 14, fontWeight: 600 }}>{m.label}</div>
-                            {m.required && <div className="ob-mono" style={{ fontSize: 9.5, letterSpacing: "0.1em", color: "rgba(255,255,255,0.35)" }}>REQUIRED</div>}
-                          </div>
-                        </div>
-                        <div className="ob-toggle" style={{ background: on ? "#fff" : "rgba(255,255,255,0.14)", opacity: m.required ? 0.55 : 1 }}>
-                          <div className="knob" style={{ left: on ? 23 : 3, background: on ? "#08090a" : "rgba(255,255,255,0.6)" }} />
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-                <BackNext onBack={() => setStep(3)} nextWide onNext={() => setStep(5)} />
-              </div>
-            )}
-
-            {/* 5 — Workflow */}
-            {step === 5 && (
-              <div>
-                <div className="ob-eyebrow">Step 05 — Workflow</div>
-                <h1 className="ob-h">Your workflow & words.</h1>
-                <p className="ob-sub">Tune the language and the stages your {terminology.term_product.toLowerCase()} moves through.</p>
-                <div className="ob-card" style={{ padding: 18, marginTop: 22, marginBottom: 14 }}>
-                  <div className="ob-eyebrow" style={{ marginBottom: 12 }}>Terminology</div>
-                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
-                    {[["term_product", "Item name"], ["term_defect", "Issue name"], ["term_stage", "Stage name"], ["term_issue", "Problem name"]].map(([k, l]) => (
-                      <div key={k}>
-                        <div className="ob-lbl">{l}</div>
-                        <input className="ob-input" style={{ padding: "9px 12px", fontSize: 13 }} value={terminology[k]} onChange={e => setTerminology(p => ({ ...p, [k]: e.target.value }))} />
-                      </div>
-                    ))}
+            <div className="ob-conv">
+              {/* chat */}
+              <div className="ob-card" style={{ display: "flex", flexDirection: "column", height: 500 }}>
+                <div style={{ display: "flex", alignItems: "center", padding: "16px 18px", borderBottom: "1px solid rgba(255,255,255,0.06)" }}>
+                  <span style={{ width: 8, height: 8, borderRadius: "50%", background: GREEN, marginRight: 10, boxShadow: `0 0 8px ${GREEN}` }} />
+                  <div>
+                    <div style={{ fontSize: 14, fontWeight: 700 }}>Viro Onboarding</div>
+                    <div style={{ fontSize: 11.5, color: "rgba(255,255,255,0.4)" }}>Learning your operation</div>
                   </div>
+                  <button className="ob-btn ob-btn-ghost" style={{ marginLeft: "auto", padding: "6px 12px", fontSize: 12 }} onClick={startConversation}>↻ Restart</button>
                 </div>
-                <div className="ob-card" style={{ padding: 18, marginBottom: 4 }}>
-                  <div className="ob-eyebrow" style={{ marginBottom: 12 }}>Workflow stages</div>
-                  {stages.map((stage, i) => (
-                    <div key={i} style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 8 }}>
-                      <div className="ob-mono" style={{ width: 30, height: 30, borderRadius: 8, background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.1)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 11, color: "rgba(255,255,255,0.6)", flexShrink: 0 }}>{i + 1}</div>
-                      <input className="ob-input" style={{ padding: "9px 12px", fontSize: 13 }} value={stage.stage_name} onChange={e => { const u = [...stages]; u[i] = { ...u[i], stage_name: e.target.value }; setStages(u); }} />
-                      <button onClick={() => setStages(stages.filter((_, si) => si !== i))} style={{ background: "rgba(255,90,90,0.12)", border: "1px solid rgba(255,90,90,0.3)", borderRadius: 8, padding: "7px 11px", color: "#ff5a5a", fontSize: 12, cursor: "pointer", flexShrink: 0 }}>✕</button>
+                <div ref={scrollRef} style={{ flex: 1, overflowY: "auto", padding: 18, display: "flex", flexDirection: "column", gap: 10 }}>
+                  {messages.map((m, i) => (
+                    <div key={i} style={{ display: "flex", justifyContent: m.role === "you" ? "flex-end" : "flex-start" }}>
+                      <div className="ob-bubble" style={{
+                        borderRadius: m.role === "you" ? "13px 13px 3px 13px" : "13px 13px 13px 3px",
+                        background: m.role === "you" ? "rgba(255,255,255,0.12)" : "rgba(255,255,255,0.04)",
+                        border: `1px solid rgba(255,255,255,${m.role === "you" ? 0.14 : 0.07})`,
+                        color: m.role === "you" ? "#fff" : "rgba(255,255,255,0.85)" }}>
+                        {m.role === "viro" && <div style={{ fontSize: 9, fontWeight: 700, letterSpacing: "0.08em", color: "rgba(255,255,255,0.4)", marginBottom: 4 }}>VIRO</div>}
+                        {m.text}
+                      </div>
                     </div>
                   ))}
-                  <button onClick={() => setStages([...stages, { stage_number: (stages.length + 1) * 100, stage_name: "", expected_duration_mins: 30 }])}
-                    style={{ background: "transparent", border: "1px dashed rgba(255,255,255,0.16)", borderRadius: 9, padding: "9px 16px", color: "rgba(255,255,255,0.5)", fontSize: 12.5, cursor: "pointer", width: "100%", marginTop: 4, fontFamily: "inherit" }}>+ Add stage</button>
+                  {typing && (
+                    <div style={{ display: "flex", gap: 4, padding: "6px 2px" }}>
+                      {[0, 1, 2].map(i => <span key={i} style={{ width: 6, height: 6, borderRadius: "50%", background: "rgba(255,255,255,0.5)", animation: `ob-pulse 1.1s ease-in-out ${i * 0.18}s infinite` }} />)}
+                    </div>
+                  )}
                 </div>
-                <BackNext onBack={() => setStep(4)} nextWide onNext={() => setStep(6)} />
+                <div style={{ display: "flex", gap: 10, padding: 14, borderTop: "1px solid rgba(255,255,255,0.06)" }}>
+                  <input className="ob-input" type={inputType} value={input} disabled={!asking || typing}
+                    placeholder={asking ? (QMETA[qIndex]?.ph || "Type your answer…") : "All set — generate your platform →"}
+                    onChange={e => setInput(e.target.value)} onKeyDown={e => e.key === "Enter" && handleSend()}
+                    style={{ flex: 1, opacity: asking ? 1 : 0.5 }} />
+                  <button className="ob-send" disabled={!asking || typing} onClick={handleSend}>Send</button>
+                </div>
               </div>
-            )}
 
-            {/* 6 — Team */}
-            {step === 6 && (
-              <div>
-                <div className="ob-eyebrow">Step 06 — Your account</div>
-                <h1 className="ob-h">Create your account.</h1>
-                <p className="ob-sub">You'll be the manager — add the rest of your team after setup.</p>
-                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginTop: 22, marginBottom: 12 }}>
-                  <div><div className="ob-lbl">First name *</div><input className="ob-input" value={adminUser.first_name} onChange={e => setAdminUser(p => ({ ...p, first_name: e.target.value }))} placeholder="First" /></div>
-                  <div><div className="ob-lbl">Last name *</div><input className="ob-input" value={adminUser.last_name} onChange={e => setAdminUser(p => ({ ...p, last_name: e.target.value }))} placeholder="Last" /></div>
+              {/* what viro is learning */}
+              <div className="ob-card" style={{ padding: 20, display: "flex", flexDirection: "column" }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 18 }}>
+                  <span style={{ width: 8, height: 8, borderRadius: "50%", background: GREEN, boxShadow: `0 0 8px ${GREEN}` }} />
+                  <span style={{ fontSize: 11, fontWeight: 700, letterSpacing: "0.12em", color: "rgba(255,255,255,0.5)" }}>WHAT VIRO IS LEARNING</span>
                 </div>
-                <div style={{ marginBottom: 12 }}><div className="ob-lbl">Work email *</div><input className="ob-input" type="email" value={adminUser.email} onChange={e => setAdminUser(p => ({ ...p, email: e.target.value }))} placeholder="you@company.com" /></div>
-                <div><div className="ob-lbl">Password *</div><input className="ob-input" type="password" value={adminUser.password} onChange={e => setAdminUser(p => ({ ...p, password: e.target.value }))} placeholder="Choose a strong password" /></div>
-                <BackNext onBack={() => setStep(5)} nextLabel="Generate my platform →" nextWide
-                  onNext={() => { if (!adminUser.first_name || !adminUser.last_name || !adminUser.email || !adminUser.password) return setError("All fields are required"); setError(null); runSetup(); }} />
+                <div style={{ display: "flex", flexDirection: "column", gap: 15, flex: 1 }}>
+                  {learn.map((f, i) => (
+                    <div key={i} style={{ display: "flex", gap: 12, opacity: f.on ? 1 : 0.32, transition: "opacity .4s ease" }}>
+                      <div style={{ width: 18, height: 18, borderRadius: 6, flexShrink: 0, marginTop: 1, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 11,
+                        background: f.on ? GREEN : "transparent", color: "#08090a", border: f.on ? "none" : "1px solid rgba(255,255,255,0.2)", transition: "all .4s ease" }}>{f.on ? "✓" : ""}</div>
+                      <div>
+                        <div className="ob-mono" style={{ fontSize: 9.5, letterSpacing: "0.1em", color: "rgba(255,255,255,0.4)", marginBottom: 3 }}>{f.k}</div>
+                        <div style={{ fontSize: 13, color: "rgba(255,255,255,0.85)", lineHeight: 1.45 }}>{f.on ? f.v : "—"}</div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+                <button className="ob-btn ob-btn-primary" disabled={!ready} onClick={runSetup}
+                  style={{ marginTop: 20, padding: "13px", width: "100%", opacity: ready ? 1 : 0.5, cursor: ready ? "pointer" : "not-allowed",
+                    boxShadow: ready ? "0 12px 30px rgba(255,255,255,0.14)" : "none" }}>
+                  Generate my platform →
+                </button>
               </div>
-            )}
+            </div>
           </div>
         )}
       </div>
