@@ -118,6 +118,149 @@ function InsightLine({ text }) {
   );
 }
 
+/* ── Generic query block: AI writes SQL + picks any chart ──────── */
+const PALETTE = ["#ffffff", "#ff8800", "#eab308", "#22c55e", "#ff4444",
+  "rgba(255,255,255,0.55)", "rgba(255,255,255,0.4)", "rgba(255,255,255,0.28)"];
+const num = (v) => { const n = Number(v); return isNaN(n) ? 0 : n; };
+
+function ChartTable(rows, cols) {
+  return (
+    <table className="vdyn-row" style={{ width: "100%", borderCollapse: "collapse", fontSize: 12.5, marginTop: 6 }}>
+      <thead><tr>{cols.map(c => (
+        <th key={c} style={{ textAlign: "left", padding: "0 12px 10px", fontSize: 9.5,
+          letterSpacing: "0.1em", textTransform: "uppercase", color: "rgba(255,255,255,0.3)", fontWeight: 600 }}>{c}</th>
+      ))}</tr></thead>
+      <tbody>{rows.map((r, ri) => (
+        <tr key={ri}>{cols.map(c => (
+          <td key={c} style={{ padding: "11px 12px", borderTop: "1px solid rgba(255,255,255,0.05)",
+            color: "rgba(255,255,255,0.82)" }}>{String(r[c] ?? "")}</td>
+        ))}</tr>
+      ))}</tbody>
+    </table>
+  );
+}
+function ChartBar(rows, x, y) {
+  const max = Math.max(...rows.map(r => num(r[y])), 1);
+  return (
+    <div style={{ display: "flex", alignItems: "flex-end", gap: 6, height: 170, marginTop: 8 }}>
+      {rows.map((r, i) => (
+        <div key={i} style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", minWidth: 0 }}>
+          <div style={{ fontSize: 10, color: "rgba(255,255,255,0.5)", marginBottom: 4 }}>{r[y]}</div>
+          <div style={{ width: "100%", height: `${(num(r[y]) / max) * 120}px`, minHeight: 2,
+            borderRadius: "4px 4px 0 0", background: "linear-gradient(180deg,rgba(255,255,255,0.9),rgba(255,255,255,0.4))" }} />
+          <div style={{ fontSize: 9, color: "rgba(255,255,255,0.4)", marginTop: 5, maxWidth: "100%",
+            overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{String(r[x])}</div>
+        </div>
+      ))}
+    </div>
+  );
+}
+function ChartLine(rows, x, y) {
+  const w = 520, h = 160, pad = 12;
+  const ys = rows.map(r => num(r[y]));
+  const max = Math.max(...ys, 1), min = Math.min(...ys, 0), span = (max - min) || 1;
+  const pts = rows.map((r, i) => {
+    const px = pad + (i * (w - 2 * pad)) / Math.max(rows.length - 1, 1);
+    const py = h - pad - ((num(r[y]) - min) / span) * (h - 2 * pad);
+    return [px, py];
+  });
+  const d = pts.map((p, i) => `${i ? "L" : "M"}${p[0].toFixed(1)},${p[1].toFixed(1)}`).join(" ");
+  const area = `${d} L${pts[pts.length - 1][0].toFixed(1)},${h - pad} L${pts[0][0].toFixed(1)},${h - pad} Z`;
+  return (
+    <div style={{ marginTop: 8 }}>
+      <svg viewBox={`0 0 ${w} ${h}`} style={{ width: "100%", height: 170 }} preserveAspectRatio="none">
+        <path d={area} fill="rgba(255,255,255,0.06)" />
+        <path d={d} fill="none" stroke="#fff" strokeWidth="2" vectorEffect="non-scaling-stroke" />
+      </svg>
+      <div style={{ display: "flex", justifyContent: "space-between", fontSize: 9, color: "rgba(255,255,255,0.4)" }}>
+        <span>{String(rows[0]?.[x] ?? "")}</span><span>{String(rows[rows.length - 1]?.[x] ?? "")}</span>
+      </div>
+    </div>
+  );
+}
+function ChartPie(rows, x, y) {
+  const total = rows.reduce((s, r) => s + num(r[y]), 0) || 1;
+  let acc = 0;
+  const segs = rows.map((r, i) => {
+    const start = (acc / total) * 360; acc += num(r[y]); const end = (acc / total) * 360;
+    return { color: PALETTE[i % PALETTE.length], start, end, label: String(r[x]), val: num(r[y]) };
+  });
+  const grad = segs.map(s => `${s.color} ${s.start}deg ${s.end}deg`).join(",");
+  return (
+    <div style={{ display: "flex", gap: 18, alignItems: "center", marginTop: 10, flexWrap: "wrap" }}>
+      <div style={{ width: 130, height: 130, borderRadius: "50%", flexShrink: 0,
+        background: `conic-gradient(${grad})`, position: "relative" }}>
+        <div style={{ position: "absolute", inset: "24%", borderRadius: "50%", background: "#0c0d0e" }} />
+      </div>
+      <div style={{ display: "flex", flexDirection: "column", gap: 7, minWidth: 130, flex: 1 }}>
+        {segs.map((s, i) => (
+          <div key={i} style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 11.5, color: "rgba(255,255,255,0.75)" }}>
+            <span style={{ width: 10, height: 10, borderRadius: 3, background: s.color, flexShrink: 0 }} />
+            <span style={{ flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{s.label}</span>
+            <span style={{ fontWeight: 700, color: "#fff", fontVariantNumeric: "tabular-nums" }}>{s.val}</span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+function ChartKpi(rows, y, block) {
+  const v = rows.length ? rows[0][y] : "—";
+  return (
+    <div style={{ fontSize: 34, fontWeight: 800, letterSpacing: "-0.03em", marginTop: 10,
+      fontVariantNumeric: "tabular-nums" }}>{fmt(v, block.suffix || "")}</div>
+  );
+}
+
+function QueryBlock({ block, company }) {
+  const [rows, setRows] = useState(null);
+  const [cols, setCols] = useState([]);
+  const [err, setErr] = useState(false);
+
+  useEffect(() => {
+    let alive = true;
+    setRows(null); setErr(false);
+    fetch(`${API}/analytics/run`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ sql: block.sql, company_id: company.company_id }),
+    })
+      .then(r => r.json())
+      .then(res => { if (!alive) return; if (res.error) setErr(true); setRows(res.data || []); setCols(res.columns || []); })
+      .catch(() => { if (alive) setErr(true); });
+    return () => { alive = false; };
+  }, [block.sql, company.company_id]);
+
+  let body;
+  if (err) {
+    body = <div style={{ height: 120, display: "flex", alignItems: "center", justifyContent: "center",
+      color: "rgba(255,255,255,0.3)", fontSize: 13 }}>Couldn't run this query</div>;
+  } else if (rows === null) {
+    body = <div style={{ height: 120, display: "flex", alignItems: "center", justifyContent: "center",
+      color: "rgba(255,255,255,0.3)", fontSize: 13 }}>Loading…</div>;
+  } else if (!rows.length) {
+    body = <Empty />;
+  } else {
+    const x = block.x && cols.includes(block.x) ? block.x : cols[0];
+    const y = block.y && cols.includes(block.y)
+      ? block.y
+      : (cols.find(c => c !== x && rows.some(r => !isNaN(Number(r[c])))) || cols[1] || cols[0]);
+    const chart = block.chart || "table";
+    body = chart === "bar" ? ChartBar(rows, x, y)
+      : chart === "line" ? ChartLine(rows, x, y)
+      : chart === "pie" ? ChartPie(rows, x, y)
+      : chart === "kpi" ? ChartKpi(rows, y, block)
+      : ChartTable(rows, cols);
+  }
+
+  return (
+    <div className="vdyn-card">
+      <div style={lbl}>{block.label}</div>
+      {body}
+    </div>
+  );
+}
+
 const BLOCKS = {
   kpi(block, data, insight) {
     const raw = block.field ? pick(data, block.field) : data;
@@ -375,9 +518,27 @@ export default function DynamicDashboard({ company, config }) {
         <div key={si} style={{ display: "grid", gridTemplateColumns: section.cols || "1fr",
           gap: section.gap || 14, marginBottom: 14 }}>
           {section.blocks.map((block, bi) => {
+            const key = `${si}-${bi}`;
+            if (block.type === "query") {
+              return (
+                <div key={bi} className="vdyn-block">
+                  <QueryBlock block={block} company={company} />
+                  <button
+                    className="vdyn-ask"
+                    title="Ask about this"
+                    onClick={() => setAsk({
+                      key,
+                      label: block.label || "Chart",
+                      summary: { label: block.label, sql: block.sql, chart: block.chart },
+                      loading: false,
+                      answer: null,
+                    })}
+                  >✦</button>
+                </div>
+              );
+            }
             const renderer = BLOCKS[block.type];
             const sourceData = block.source ? data[block.source] : null;
-            const key = `${si}-${bi}`;
             return (
               <div key={bi} className="vdyn-block">
                 {renderer

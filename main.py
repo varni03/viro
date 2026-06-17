@@ -773,11 +773,19 @@ RESHAPE_SOURCES_DOC = """AVAILABLE DATA SOURCES — use these exact endpoint pat
 - "/analytics/stage-performance/{cid}" -> list: stage_number, stage_name, total_defects, critical, high, open_defects, avg_resolution_hours
 - "/analytics/resolution-trend/{cid}" -> list: date, logged, resolved"""
 
-RESHAPE_BLOCKS_DOC = """BLOCK TYPES (only these four exist):
+RESHAPE_BLOCKS_DOC = """BLOCK TYPES:
 - kpi: {"type":"kpi","source":<key>,"field":<a field on a summary-style object source>,"label":str,"suffix":""|"%"|"h","sub":str,"accent":bool,"danger":bool}
 - pipeline: {"type":"pipeline","source":<key to a list source>,"label":str,"stage_field":"current_stage","unit":"vehicles","stages":[{"number":int,"name":str}]}
 - ranked_bars: {"type":"ranked_bars","source":<key to a list source>,"label":str,"name":<field used as the row label>,"value":<numeric field>,"limit":int}
-- table: {"type":"table","source":<key to a list source>,"label":str,"limit":int,"columns":[{"field":<field>,"label":str,"type":"severity"(optional),"mono":true(optional)}]}"""
+- table: {"type":"table","source":<key to a list source>,"label":str,"limit":int,"columns":[{"field":<field>,"label":str,"type":"severity"(optional),"mono":true(optional)}]}
+- query: {"type":"query","label":str,"chart":"bar"|"line"|"pie"|"table"|"kpi","sql":<a PostgreSQL SELECT>,"x":<column for category/x-axis/label>,"y":<numeric column for value>,"suffix":""|"%"|"h"(optional)}
+  USE "query" FOR ANY QUESTION THE FIXED SOURCES ABOVE CANNOT ANSWER (e.g. "defects by day of week", "pie of defect types", "criticals over time"). It carries its own SQL — no "source" needed. The result columns must suit the chart: pie/bar need a label column (x) + a numeric column (y); line needs an ordered x (usually a date) + a numeric y; kpi needs one numeric y; table shows every column."""
+
+RESHAPE_SCHEMA_DOC = """DATABASE SCHEMA (for "query" blocks; dialect = PostgreSQL):
+- products(product_id, company_id, entry_date, current_stage, status)
+- defects(defect_id, company_id, product_id, stage_number, defect_type, severity, notes, logged_at, resolved)   -- severity in (low, medium, high, critical); resolved in (0, 1)
+- stages(stage_id, company_id, stage_number, stage_name, expected_duration_mins)
+SQL RULES for "query" blocks: SELECT only; ALWAYS include WHERE company_id = '{cid}'; give every column a clear alias; LIMIT 20; for dates use DATE(logged_at::timestamp) and ranges like NOW() - INTERVAL '30 days'."""
 
 class ReshapeRequest(BaseModel):
     company_id: str
@@ -800,23 +808,27 @@ CURRENT CONFIG:
 
 {RESHAPE_BLOCKS_DOC}
 
+{RESHAPE_SCHEMA_DOC.replace("{cid}", req.company_id)}
+
 RULES:
-- "sources" is an object mapping short keys (e.g. "summary","line") to endpoint paths from the list above. Every block's "source" MUST be a key you defined in "sources".
+- "sources" is an object mapping short keys (e.g. "summary","line") to endpoint paths from the list above. Every kpi/pipeline/ranked_bars/table block's "source" MUST be a key you defined in "sources". "query" blocks do NOT use "source".
+- For anything the fixed sources can't express (specific groupings, time series, pie breakdowns, ad-hoc filters), use a "query" block with its own SQL — prefer this over forcing a fixed source.
 - Keep the existing "title" and "subtitle_template".
 - "sections" is a list of objects like {{"cols":"repeat(4, 1fr)" or "1.5fr 1fr","blocks":[...]}}.
-- Only reference fields that exist on the chosen source. Make it genuinely answer the manager's intent and look great.
+- Make it genuinely answer the manager's intent and look great.
 
 Return ONLY this JSON, nothing else:
 {{"is_reshape": true|false, "config": <the FULL new config object, or null if just a question>, "message": "<one sentence describing what changed>"}}"""
 
         response = client.messages.create(
             model=AI_MODEL,
-            max_tokens=1800,
+            max_tokens=2200,
             messages=[{"role": "user", "content": prompt}],
         )
         result = json.loads(_strip_json_fences(response.content[0].text))
         cfg = result.get("config")
-        if result.get("is_reshape") and isinstance(cfg, dict) and isinstance(cfg.get("sections"), list) and isinstance(cfg.get("sources"), dict):
+        if result.get("is_reshape") and isinstance(cfg, dict) and isinstance(cfg.get("sections"), list):
+            cfg.setdefault("sources", {})
             return {"is_reshape": True, "config": cfg, "message": result.get("message", "Dashboard updated.")}
         return {"is_reshape": False, "config": None, "message": ""}
     except Exception as e:

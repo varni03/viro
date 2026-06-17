@@ -6,8 +6,8 @@ const API = "https://web-production-0457e.up.railway.app";
 
 const SUGGESTIONS = [
   "Focus the dashboard on critical defects",
-  "Show me resolution time trends",
-  "Add a table of at-risk vehicles",
+  "Pie chart of defects by type",
+  "Defects logged per day as a line chart",
   "Which stage has the most defects?",
   "What's blocking shipping today?",
   "Best practices for reducing defects?",
