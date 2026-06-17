@@ -12,6 +12,7 @@ import Login from "./pages/Login";
 import ProductionLine from "./pages/ProductionLine";
 import Settings from "./pages/Settings";
 import Onboarding from "./pages/Onboarding";
+import Landing from "./pages/Landing";
 import { useBreakpoint } from "./hooks/useBreakpoint";
 import DynamicDashboard from "./pages/DynamicDashboard";
 import { MERIDIAN_CONFIG } from "./pages/meridianConfig";
@@ -104,6 +105,7 @@ export default function App() {
   const [token, setToken] = useState(null);
   const [authChecked, setAuthChecked] = useState(false);
   const [showOnboarding, setShowOnboarding] = useState(false);
+  const [showLogin, setShowLogin] = useState(false);
   const [companies, setCompanies] = useState([]);
   const [company, setCompany] = useState(null);
   const [activePage, setActivePage] = useState("Dashboard");
@@ -317,12 +319,21 @@ export default function App() {
   );
   
 
-  if (!user) return (
-    <Login 
-      onLogin={handleLogin} 
-      onSignup={() => setShowOnboarding(true)}
-    />
-  );
+  if (!user) {
+    if (showLogin) return (
+      <Login
+        onLogin={handleLogin}
+        onSignup={() => setShowOnboarding(true)}
+        onBack={() => setShowLogin(false)}
+      />
+    );
+    return (
+      <Landing
+        onSignIn={() => setShowLogin(true)}
+        onGetStarted={() => setShowOnboarding(true)}
+      />
+    );
+  }
   
 
 

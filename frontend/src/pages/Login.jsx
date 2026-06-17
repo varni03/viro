@@ -2,7 +2,7 @@ import { useState } from "react";
 import { login } from "../api/client";
 import { COLORS } from "../components/Layout";
 
-export default function Login({ onLogin, onSignup }) {
+export default function Login({ onLogin, onSignup, onBack }) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
@@ -54,6 +54,17 @@ export default function Login({ onLogin, onSignup }) {
         padding: 40,
         position: "relative",
       }}>
+        {onBack && (
+          <div
+            onClick={onBack}
+            style={{
+              position: "absolute", top: 16, left: 16,
+              fontSize: 13, color: COLORS.muted, cursor: "pointer",
+            }}
+          >
+            ← Back
+          </div>
+        )}
         {/* Logo */}
         <div style={{ textAlign: "center", marginBottom: 32 }}>
           <div style={{
