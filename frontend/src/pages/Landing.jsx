@@ -94,6 +94,19 @@ function useLandingStyles() {
       @keyframes vl-spin{to{transform:rotate(405deg)}}
       @keyframes vl-bar{from{width:0}}
       @keyframes vl-float{0%,100%{transform:translate(-50%,-50%) scale(1)}50%{transform:translate(-50%,-50%) scale(1.1)}}
+      @keyframes vl-progress{from{width:0}to{width:100%}}
+      .vl-stage{transition:transform .2s cubic-bezier(.16,1,.3,1),border-color .2s ease,background .2s ease}
+      .vl-stage:hover{transform:translateY(-2px);border-color:rgba(255,255,255,0.18)}
+      .vl-stage.hot:hover{border-color:rgba(255,90,90,0.6)}
+      .vl-hover{transition:transform .2s cubic-bezier(.16,1,.3,1),border-color .2s ease,background .2s ease}
+      .vl-hover:hover{transform:translateY(-3px);border-color:rgba(255,255,255,0.16);background:rgba(255,255,255,0.06)}
+      .vl-rfqrow{transition:background .15s ease}
+      .vl-rfqrow:hover{background:rgba(255,255,255,0.035)}
+      .vl-scrollbar{position:fixed;top:0;left:0;height:2px;background:#fff;z-index:70;transition:width .08s linear}
+      .vl-playbtn{display:inline-flex;align-items:center;gap:6px;padding:5px 12px;border-radius:8px;font-size:12px;
+        cursor:pointer;font-family:inherit;color:rgba(255,255,255,0.72);background:rgba(255,255,255,0.06);
+        border:1px solid rgba(255,255,255,0.1);transition:all .15s ease;white-space:nowrap}
+      .vl-playbtn:hover{color:#fff;background:rgba(255,255,255,0.1)}
       @media(max-width:900px){
         .vl-hero{grid-template-columns:1fr;gap:30px}.vl-steps{grid-template-columns:1fr}
         .vl-proof{grid-template-columns:1fr}.vl-conv{grid-template-columns:1fr}
@@ -117,6 +130,31 @@ function Reveal({ children, delay = 0, style }) {
   }, []);
   return <div ref={ref} style={{ ...style, opacity: seen ? 1 : 0, transform: seen ? "none" : "translateY(18px)",
     transition: `opacity .7s cubic-bezier(.16,1,.3,1) ${delay}ms, transform .7s cubic-bezier(.16,1,.3,1) ${delay}ms` }}>{children}</div>;
+}
+
+function CountUp({ end, decimals = 0, suffix = "", dur = 1200 }) {
+  const ref = useRef();
+  const [val, setVal] = useState(0);
+  const started = useRef(false);
+  useEffect(() => {
+    const el = ref.current;
+    if (!el || typeof IntersectionObserver === "undefined") { setVal(end); return; }
+    const io = new IntersectionObserver(([e]) => {
+      if (e.isIntersecting && !started.current) {
+        started.current = true;
+        const t0 = performance.now();
+        const tick = (t) => {
+          const p = Math.min(1, (t - t0) / dur);
+          setVal(end * (1 - Math.pow(1 - p, 3)));
+          if (p < 1) requestAnimationFrame(tick);
+        };
+        requestAnimationFrame(tick);
+      }
+    }, { threshold: 0.5 });
+    io.observe(el);
+    return () => io.disconnect();
+  }, [end, dur]);
+  return <span ref={ref} className="vl-mono">{val.toFixed(decimals)}{suffix}</span>;
 }
 
 /* ── Prototype data ───────────────────────────────────────── */
@@ -411,7 +449,7 @@ function MarineDash() {
                 <span>RFQ</span><span>VESSEL</span><span>ITEMS</span><span>DUE</span><span>STATUS</span>
               </div>
               {rfqs.map((r, i) => (
-                <div key={i} style={{ display: "grid", gridTemplateColumns: "auto 1.3fr 1.4fr auto auto", gap: "0 12px", alignItems: "center", padding: "8px 0", borderTop: "1px solid rgba(255,255,255,0.05)", fontSize: 11.5 }}>
+                <div key={i} className="vl-rfqrow" style={{ display: "grid", gridTemplateColumns: "auto 1.3fr 1.4fr auto auto", gap: "0 12px", alignItems: "center", padding: "8px 6px", borderTop: "1px solid rgba(255,255,255,0.05)", fontSize: 11.5, borderRadius: 6 }}>
                   <span className="vl-mono" style={{ fontSize: 10.5 }}>{r.id}</span>
                   <span style={{ color: "rgba(255,255,255,0.8)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{r.vessel}</span>
                   <span style={{ color: "rgba(255,255,255,0.55)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{r.items}</span>
@@ -486,21 +524,55 @@ function Automations() {
 
 /* ── Embedded interactive prototype ───────────────────────── */
 const TABS = ["Conversation", "Generation", "Meridian Vans", "Tidewater Marine", "Automations"];
+const DURATIONS = [11200, 5800, 6000, 6000, 7200]; // pitch-mode dwell per screen
 function Prototype() {
   const [screen, setScreen] = useState(0);
+  const [playing, setPlaying] = useState(false);
+  const frameRef = useRef();
+  const autostarted = useRef(false);
+
+  // Auto-start pitch mode the first time the frame scrolls into view.
+  useEffect(() => {
+    const el = frameRef.current;
+    if (!el || typeof IntersectionObserver === "undefined") return;
+    const io = new IntersectionObserver(([e]) => {
+      if (e.isIntersecting && !autostarted.current) { autostarted.current = true; setScreen(0); setPlaying(true); }
+    }, { threshold: 0.4 });
+    io.observe(el);
+    return () => io.disconnect();
+  }, []);
+
+  // While playing, dwell on each screen then advance (loops).
+  useEffect(() => {
+    if (!playing) return;
+    const t = setTimeout(() => setScreen(s => (s + 1) % TABS.length), DURATIONS[screen]);
+    return () => clearTimeout(t);
+  }, [playing, screen]);
+
+  const goManual = (i) => { setPlaying(false); setScreen(i); };
+
   return (
-    <div className="vl-frame">
+    <div className="vl-frame" ref={frameRef}>
       <div className="vl-frame-bar">
         <div style={{ display: "flex", gap: 7 }}>
           {[0, 1, 2].map(i => <span key={i} style={{ width: 10, height: 10, borderRadius: "50%", background: "rgba(255,255,255,0.14)" }} />)}
         </div>
         <div className="vl-tabs">
           {TABS.map((t, i) => (
-            <button key={i} className={"vl-tab" + (i === screen ? " active" : "")} onClick={() => setScreen(i)}>
+            <button key={i} className={"vl-tab" + (i === screen ? " active" : "")} onClick={() => goManual(i)}>
               <span className="num">{String(i + 1).padStart(2, "0")}</span>{t}
             </button>
           ))}
         </div>
+        <button className="vl-playbtn" style={{ marginLeft: "auto" }} onClick={() => setPlaying(p => !p)}>
+          {playing ? "❚❚ Pause" : "▶ Play tour"}
+        </button>
+      </div>
+      {/* progress sliver */}
+      <div style={{ height: 2, background: "rgba(255,255,255,0.06)", position: "relative" }}>
+        <div key={`${screen}-${playing}`} style={{ height: "100%", background: "rgba(255,255,255,0.55)",
+          width: playing ? "100%" : "0%",
+          animation: playing ? `vl-progress ${DURATIONS[screen]}ms linear` : "none" }} />
       </div>
       <div style={{ padding: "26px 26px 30px" }}>
         {screen === 0 && <Conversation onGenerate={() => setScreen(1)} />}
@@ -522,8 +594,15 @@ const STEPS = [
 
 export default function Landing({ onSignIn, onGetStarted }) {
   useLandingStyles();
+  const [scrollPct, setScrollPct] = useState(0);
+  const onScroll = (e) => {
+    const el = e.currentTarget;
+    const max = el.scrollHeight - el.clientHeight;
+    setScrollPct(max > 0 ? (el.scrollTop / max) * 100 : 0);
+  };
   return (
-    <div className="vl-root">
+    <div className="vl-root" onScroll={onScroll}>
+      <div className="vl-scrollbar" style={{ width: `${scrollPct}%` }} />
       {/* NAV */}
       <div className="vl-nav">
         <div className="vl-wrap" style={{ display: "flex", alignItems: "center", height: 62 }}>
@@ -633,7 +712,7 @@ export default function Landing({ onSignIn, onGetStarted }) {
         <div className="vl-steps">
           {STEPS.map((s, i) => (
             <Reveal key={i} delay={i * 90}>
-              <div className="vl-card" style={{ padding: 24, height: "100%" }}>
+              <div className="vl-card vl-hover" style={{ padding: 24, height: "100%" }}>
                 <div className="vl-mono" style={{ fontSize: 13, color: "rgba(255,255,255,0.35)", marginBottom: 14 }}>{s.n}</div>
                 <div style={{ fontSize: 19, fontWeight: 700, letterSpacing: "-0.02em", marginBottom: 8 }}>{s.t}</div>
                 <div style={{ fontSize: 14, lineHeight: 1.6, color: "rgba(255,255,255,0.55)" }}>{s.d}</div>
@@ -657,7 +736,7 @@ export default function Landing({ onSignIn, onGetStarted }) {
             { brand: "Tidewater Marine", c: TEAL, tag: "Marine procurement", lines: ["RFQ desk from enquiry to delivery", "Supplier-reliability scoring", "Quote chasers written automatically"] },
           ].map((p, i) => (
             <Reveal key={i} delay={i * 100}>
-              <div className="vl-card" style={{ padding: 24 }}>
+              <div className="vl-card vl-hover" style={{ padding: 24 }}>
                 <div style={{ display: "flex", alignItems: "center", gap: 11, marginBottom: 16 }}>
                   <div style={{ width: 30, height: 30, borderRadius: 8, background: p.c, color: "#08090a", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 800 }}>{p.brand[0]}</div>
                   <div><div style={{ fontSize: 16, fontWeight: 800, letterSpacing: "-0.02em" }}>{p.brand}</div><div style={{ fontSize: 11.5, color: "rgba(255,255,255,0.42)" }}>{p.tag}</div></div>
@@ -684,9 +763,9 @@ export default function Landing({ onSignIn, onGetStarted }) {
               You review and send. Last week at Meridian Vans:
             </p>
             <div style={{ display: "flex", gap: 40, justifyContent: "center", flexWrap: "wrap", marginBottom: 26 }}>
-              <div><div className="vl-mono" style={{ fontSize: 40, fontWeight: 700 }}>23</div><div style={{ fontSize: 12.5, color: "rgba(255,255,255,0.45)" }}>documents drafted</div></div>
-              <div><div className="vl-mono" style={{ fontSize: 40, fontWeight: 700 }}>11h</div><div style={{ fontSize: 12.5, color: "rgba(255,255,255,0.45)" }}>of manual work returned</div></div>
-              <div><div className="vl-mono" style={{ fontSize: 40, fontWeight: 700 }}>4</div><div style={{ fontSize: 12.5, color: "rgba(255,255,255,0.45)" }}>departments covered</div></div>
+              <div><div style={{ fontSize: 40, fontWeight: 700 }}><CountUp end={23} /></div><div style={{ fontSize: 12.5, color: "rgba(255,255,255,0.45)" }}>documents drafted</div></div>
+              <div><div style={{ fontSize: 40, fontWeight: 700 }}><CountUp end={11} suffix="h" /></div><div style={{ fontSize: 12.5, color: "rgba(255,255,255,0.45)" }}>of manual work returned</div></div>
+              <div><div style={{ fontSize: 40, fontWeight: 700 }}><CountUp end={4} /></div><div style={{ fontSize: 12.5, color: "rgba(255,255,255,0.45)" }}>departments covered</div></div>
             </div>
             <div style={{ display: "flex", gap: 8, justifyContent: "center", flexWrap: "wrap" }}>
               {["Invoices", "Weekly quality reports", "Supplier emails", "Shift handovers"].map((t, i) => <span key={i} className="vl-chip">{t}</span>)}
