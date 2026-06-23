@@ -457,7 +457,7 @@ export default function Analytics({ company }) {
           <button
             onClick={() => setShowGenerator(!showGenerator)}
             style={{
-              background: `linear-gradient(135deg, ${COLORS.accent}, #ffffff)`,
+              background: "#fff",
               border: "none", borderRadius: 10,
               padding: "10px 18px", color: "#08090a",
               fontSize: 13, fontWeight: 700, cursor: "pointer",
@@ -496,7 +496,7 @@ export default function Analytics({ company }) {
                 onClick={generateAnalysis}
                 disabled={generating || !analyticsQuestion}
                 style={{
-                  background: generating ? COLORS.border : `linear-gradient(135deg, ${COLORS.accent}, #ffffff)`,
+                  background: generating ? COLORS.border : "#fff",
                   border: "none", borderRadius: 10,
                   padding: "12px 20px", color: "#08090a",
                   fontSize: 13, fontWeight: 700,
@@ -576,7 +576,7 @@ export default function Analytics({ company }) {
                   <button
                     onClick={saveAnalysis}
                     style={{
-                      background: `linear-gradient(135deg, ${COLORS.low}, #16a34a)`,
+                      background: COLORS.low,
                       border: "none", borderRadius: 10,
                       padding: "10px 20px", color: "white",
                       fontSize: 13, fontWeight: 700, cursor: "pointer",

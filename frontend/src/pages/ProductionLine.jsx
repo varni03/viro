@@ -314,7 +314,7 @@ export default function ProductionLine({ company, user, defaultView }) {
                     style={{
                       background: resolving[defect.defect_id]
                         ? COLORS.border
-                        : `linear-gradient(135deg, ${COLORS.low}, #16a34a)`,
+                        : COLORS.low,
                       border: "none",
                       borderRadius: 10,
                       padding: "8px 16px",
@@ -449,7 +449,7 @@ export default function ProductionLine({ company, user, defaultView }) {
                       style={{
                         background: selectedVehicle.critical_open > 0
                           ? COLORS.border
-                          : `linear-gradient(135deg, ${COLORS.accent}, #ffffff)`,
+                          : "#fff",
                         border: "none", borderRadius: 10,
                         padding: "10px 18px", color: "#08090a",
                         fontWeight: 700, fontSize: 13,
@@ -464,7 +464,7 @@ export default function ProductionLine({ company, user, defaultView }) {
                     <button
                       onClick={() => handleStatusUpdate(selectedVehicle, "completed")}
                       style={{
-                        background: `linear-gradient(135deg, ${COLORS.low}, #16a34a)`,
+                        background: COLORS.low,
                         border: "none", borderRadius: 10,
                         padding: "10px 18px", color: "white",
                         fontWeight: 700, fontSize: 13, cursor: "pointer",

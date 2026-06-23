@@ -532,7 +532,7 @@ const load = async () => {
               }}
               disabled={syncing}
               style={{
-                background: syncing ? COLORS.border : `linear-gradient(135deg, ${COLORS.accent}, #ffffff)`,
+                background: syncing ? COLORS.border : "#fff",
                 border: "none", borderRadius: 10,
                 padding: "12px 24px", color: "#08090a",
                 fontSize: 13, fontWeight: 700,
@@ -638,7 +638,7 @@ const load = async () => {
           } catch { showError("Failed to add connector"); }
         }}
         style={{
-          background: `linear-gradient(135deg, ${COLORS.accent}, #ffffff)`,
+          background: "#fff",
           border: "none", borderRadius: 10,
           padding: "10px 20px", color: "#08090a",
           fontSize: 13, fontWeight: 700, cursor: "pointer",
@@ -729,7 +729,7 @@ const load = async () => {
       }}
       disabled={saving}
       style={{
-        background: saving ? COLORS.border : `linear-gradient(135deg, ${COLORS.accent}, #ffffff)`,
+        background: saving ? COLORS.border : "#fff",
         border: "none", borderRadius: 10,
         padding: "12px 24px", color: "#08090a",
         fontSize: 13, fontWeight: 700,
@@ -829,7 +829,7 @@ const load = async () => {
             <button
               onClick={addStage}
               style={{
-                background: `linear-gradient(135deg, ${COLORS.accent}, #ffffff)`,
+                background: "#fff",
                 border: "none", borderRadius: 10,
                 padding: "10px 20px", color: "#08090a",
                 fontSize: 13, fontWeight: 700, cursor: "pointer",
@@ -923,7 +923,7 @@ const load = async () => {
             <button
               onClick={addDefectType}
               style={{
-                background: `linear-gradient(135deg, ${COLORS.accent}, #ffffff)`,
+                background: "#fff",
                 border: "none", borderRadius: 10,
                 padding: "10px 20px", color: "#08090a",
                 fontSize: 13, fontWeight: 700, cursor: "pointer",
@@ -1090,7 +1090,7 @@ const load = async () => {
             <button
               onClick={addUser}
               style={{
-                background: `linear-gradient(135deg, ${COLORS.accent}, #ffffff)`,
+                background: "#fff",
                 border: "none", borderRadius: 10,
                 padding: "10px 20px", color: "#08090a",
                 fontSize: 13, fontWeight: 700, cursor: "pointer",
@@ -1329,7 +1329,7 @@ const load = async () => {
           } catch { showError("Failed to add field"); }
         }}
         style={{
-          background: `linear-gradient(135deg, ${COLORS.accent}, #ffffff)`,
+          background: "#fff",
           border: "none", borderRadius: 10,
           padding: "10px 20px", color: "#08090a",
           fontSize: 13, fontWeight: 700, cursor: "pointer",
@@ -1380,7 +1380,7 @@ const load = async () => {
               onClick={saveProfile}
               disabled={saving}
               style={{
-                background: saving ? COLORS.border : `linear-gradient(135deg, ${COLORS.accent}, #ffffff)`,
+                background: saving ? COLORS.border : "#fff",
                 border: "none", borderRadius: 10,
                 padding: "12px 24px", color: "#08090a",
                 fontSize: 13, fontWeight: 700,

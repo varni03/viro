@@ -240,9 +240,10 @@ export function MetricCard({ label, value, sub, accent = false, icon }) {
         {icon && <span style={{ fontSize: 15, opacity: 0.3 }}>{icon}</span>}
       </div>
       <div style={{
-        fontSize: 30, fontWeight: 700,
+        fontFamily: "'JetBrains Mono', monospace",
+        fontSize: 29, fontWeight: 700,
         color: "#ffffff",
-        letterSpacing: "-0.03em",
+        letterSpacing: "-0.02em",
         lineHeight: 1, marginBottom: 8,
         fontVariantNumeric: "tabular-nums",
       }}>
@@ -265,11 +266,11 @@ export function PageHeader({ title, subtitle, action }) {
     }}>
       <div>
         <h1 style={{
-          fontSize: 22, fontWeight: 700,
-          letterSpacing: "-0.025em",
+          fontSize: 23, fontWeight: 800,
+          letterSpacing: "-0.03em",
           color: "#ffffff", margin: 0,
-          marginBottom: subtitle ? 4 : 0,
-          lineHeight: 1.2,
+          marginBottom: subtitle ? 5 : 0,
+          lineHeight: 1.15,
         }}>
           {title}
         </h1>
@@ -290,9 +291,10 @@ export function PageHeader({ title, subtitle, action }) {
 export function SectionLabel({ children }) {
   return (
     <div style={{
+      fontFamily: "'JetBrains Mono', monospace",
       fontSize: 10, fontWeight: 600,
-      color: "rgba(255,255,255,0.3)",
-      letterSpacing: "0.1em", textTransform: "uppercase",
+      color: "rgba(255,255,255,0.35)",
+      letterSpacing: "0.12em", textTransform: "uppercase",
       marginBottom: 12,
     }}>
       {children}
