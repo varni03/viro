@@ -1634,6 +1634,71 @@ class CompanyCreate(BaseModel):
     industry: str
     universal_id_field: str = "product"
 
+class OnboardingConverseRequest(BaseModel):
+    messages: List[dict] = []
+    state: dict = {}
+
+ONBOARDING_SYSTEM = """You are Viro's onboarding guide. Viro is an AI operations platform that builds a company a custom dashboard + role automations from a short, natural conversation.
+
+Have a warm, BRIEF conversation — ONE short question at a time — to learn how the user's operation runs, and continuously extract structured config. Understand messy input the way a sharp human would: typos, fragments, lowercase, shorthand, "idk", changing their mind. Never make them repeat themselves or fill a form. Keep it to ~5-6 exchanges, then finish.
+
+Learn (skip what you already know; infer when you reasonably can):
+1. What the company does / industry (and its name if mentioned)
+2. The ONE thing that moves through their workflow — their "universal id" (e.g. Vehicle/VIN, RFQ, Batch, Shipment, Order)
+3. The stages it passes through
+4. The decisions/metrics that matter most each day
+5. The manual paperwork that eats their time (to automate)
+
+After EACH user message, return ONLY this JSON (no prose, no code fence):
+{
+  "reply": "<your next message — warm, concise, ONE question; or a confirmation once you're done>",
+  "state": {
+    "company_name": string|null,
+    "industry": string|null,
+    "universal_id": string|null,
+    "terminology": {"term_product": string, "term_defect": string, "term_stage": string, "term_issue": string},
+    "stages": [{"stage_number": integer ascending (100,200,300...), "stage_name": string}],
+    "defect_types": [{"name": string, "default_severity": "low"|"medium"|"high"|"critical"}],
+    "decisions": [string],
+    "automations": [string],
+    "modules": [subset of "dashboard","search","log_issue","workflow","analytics","predictive","repair","settings"]
+  },
+  "options": [up to 4 short tappable quick-replies, or []],
+  "ready": boolean
+}
+
+Rules:
+- Carry forward EVERYTHING already in the provided state; only add or refine — never blank a field you already learned.
+- Always include "dashboard","search","log_issue","settings" in modules; add others when relevant.
+- Infer sensible stages, terminology, and 4-6 defect_types from context even when the user is brief.
+- "options" are tappable shortcuts (suggested industries, "Yes, those stages", "Add a QC step", etc.) — 1-4 words each.
+- Set "ready": true once you have at least an industry, a universal_id, and 2+ stages, and the user has nothing major to add. When ready, the reply should warmly confirm you have what you need.
+Return ONLY the JSON object."""
+
+@app.post("/onboarding/converse")
+def onboarding_converse(req: OnboardingConverseRequest):
+    """Claude-driven onboarding: understands free-form input, extracts config live."""
+    try:
+        msgs = [{"role": m["role"], "content": m["content"]}
+                for m in req.messages if m.get("role") in ("user", "assistant")]
+        while msgs and msgs[0]["role"] != "user":
+            msgs.pop(0)  # Anthropic API requires the first message to be from the user
+        if not msgs:
+            msgs = [{"role": "user", "content": "(let's begin)"}]
+
+        system = ONBOARDING_SYSTEM + f"\n\nCURRENT EXTRACTED STATE (carry forward, refine — do not blank fields):\n{json.dumps(req.state)}"
+        response = client.messages.create(
+            model=AI_MODEL,
+            max_tokens=1000,
+            system=system,
+            messages=msgs,
+        )
+        data = json.loads(_strip_json_fences(response.content[0].text))
+        return data
+    except Exception as e:
+        return {"reply": "Sorry — I glitched for a second. Could you say that another way?",
+                "state": req.state, "options": [], "ready": False, "error": str(e)}
+
 @app.post("/onboarding/company")
 def create_company(company: CompanyCreate):
     import uuid
