@@ -404,11 +404,11 @@ export default function App() {
                 background: COLORS.card,
                 border: `1px solid ${COLORS.border}`,
                 borderRadius: 8, padding: "8px 12px",
-                color: COLORS.text, fontSize: 18,
-                cursor: "pointer",
+                color: COLORS.text, fontSize: 16,
+                cursor: "pointer", lineHeight: 1,
               }}
             >
-              ---
+              ☰
             </button>
 
             <div style={{ fontSize: 16, fontWeight: 800, color: COLORS.text }}>
