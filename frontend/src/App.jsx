@@ -14,6 +14,7 @@ import Settings from "./pages/Settings";
 import Onboarding from "./pages/Onboarding";
 import Landing from "./pages/Landing";
 import Automations from "./pages/Automations";
+import WorkerHome from "./pages/WorkerHome";
 import { useBreakpoint } from "./hooks/useBreakpoint";
 import DynamicDashboard from "./pages/DynamicDashboard";
 import { buildDefaultConfig } from "./pages/defaultConfig";
@@ -141,7 +142,7 @@ export default function App() {
 
   
 
-  const staticPages = ["Dashboard", "Vehicle Search", "Log Defect", "Analytics", "Predictive", "Automations"];
+  const staticPages = ["Home", "Dashboard", "Vehicle Search", "Log Defect", "Analytics", "Predictive", "Automations"];
 
   useEffect(() => {
     const savedToken = localStorage.getItem("viro_token");
@@ -158,6 +159,11 @@ export default function App() {
     setToken(userToken);
     localStorage.setItem("viro_company_id", userData.company_id);
   };
+
+  // Per-role landing: floor workers open straight into their glove-friendly home.
+  useEffect(() => {
+    if (user?.role === "worker") setActivePage("Home");
+  }, [user]);
   
   
   const handleLogout = () => {
@@ -313,6 +319,7 @@ export default function App() {
       />;
       case "Production Line": return <ProductionLine company={company} user={user} />;
       case "Predictive": return <Predictive company={company} />;
+      case "Home": return <WorkerHome user={user} company={company} stats={stats} onNavigate={setActivePage} />;
       case "Analytics": return <Analytics company={company} />;
       case "Automations": return <Automations company={company} />;
       case "Vehicle Search": return <VehicleSearch company={company} />;

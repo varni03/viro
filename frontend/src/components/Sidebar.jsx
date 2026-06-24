@@ -64,7 +64,10 @@ export default function Sidebar({
 
   const getNavItems = () => {
     if (user?.role === "worker") {
-      return ALL_MODULES.filter(m => WORKER_MODULES.includes(m.id));
+      return [
+        { id: "home", label: "Home", icon: "⬡", page: "Home" },
+        ...ALL_MODULES.filter(m => WORKER_MODULES.includes(m.id)),
+      ];
     }
     if (user?.role === "repair") {
       return ALL_MODULES.filter(m => REPAIR_MODULES.includes(m.id));
