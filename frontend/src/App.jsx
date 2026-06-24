@@ -13,6 +13,7 @@ import ProductionLine from "./pages/ProductionLine";
 import Settings from "./pages/Settings";
 import Onboarding from "./pages/Onboarding";
 import Landing from "./pages/Landing";
+import Automations from "./pages/Automations";
 import { useBreakpoint } from "./hooks/useBreakpoint";
 import DynamicDashboard from "./pages/DynamicDashboard";
 import { buildDefaultConfig } from "./pages/defaultConfig";
@@ -140,7 +141,7 @@ export default function App() {
 
   
 
-  const staticPages = ["Dashboard", "Vehicle Search", "Log Defect", "Analytics", "Predictive"];
+  const staticPages = ["Dashboard", "Vehicle Search", "Log Defect", "Analytics", "Predictive", "Automations"];
 
   useEffect(() => {
     const savedToken = localStorage.getItem("viro_token");
@@ -313,6 +314,7 @@ export default function App() {
       case "Production Line": return <ProductionLine company={company} user={user} />;
       case "Predictive": return <Predictive company={company} />;
       case "Analytics": return <Analytics company={company} />;
+      case "Automations": return <Automations company={company} />;
       case "Vehicle Search": return <VehicleSearch company={company} />;
       case "Log Defect": return <LogDefect company={company} stages={stages} />;
       case "Repair Queue": return <ProductionLine company={company} user={user} defaultView="queue" />;

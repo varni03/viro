@@ -69,7 +69,7 @@ export default function Sidebar({
     if (user?.role === "repair") {
       return ALL_MODULES.filter(m => REPAIR_MODULES.includes(m.id));
     }
-    return modules.map(m => {
+    const items = modules.map(m => {
       const base = ALL_MODULES.find(am => am.id === m.module_id);
       return base ? {
         ...base,
@@ -77,6 +77,11 @@ export default function Sidebar({
         icon: m.custom_icon || base.icon,
       } : null;
     }).filter(Boolean);
+    // Automations is a built-in manager/admin surface (one assistant per role).
+    if (!items.some(i => i.page === "Automations")) {
+      items.push({ id: "automations", label: "Automations", icon: "📄", page: "Automations" });
+    }
+    return items;
   };
 
   const navItems = getNavItems();

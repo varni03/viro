@@ -788,6 +788,58 @@ Write ONE sentence (max ~22 words) that answers the single most important questi
         return {"insight": "", "error": str(e)}
 
 
+# ── Role automations (draft the documents teams write by hand) ──
+DOC_SPECS = {
+    "weekly_quality_report": ("Weekly Quality Report",
+        "Write this week's quality report: a one-line headline on overall health, then 4-5 scannable bullet findings (first-pass-yield trend, top issue types with counts, the worst station, critical/open counts), then 2 concrete recommended actions. Professional and concise — ready to send to leadership."),
+    "supplier_email": ("Supplier Escalation Email",
+        "Draft a professional email to the supplier responsible for the most frequent or most critical recurring issue type in the data. Include a subject line. Reference the specific issue type and its counts, state the impact, and request corrective action by a reasonable date. Firm but courteous."),
+    "shift_handover": ("Shift Handover Note",
+        "Write an end-of-shift handover note for the incoming shift: what's blocked or critical right now, which stations/stages need attention, and the top 2-3 things the next shift should prioritize. Crisp and scannable."),
+    "exec_summary": ("Executive Summary",
+        "Write a 4-sentence executive summary of operations health this week for leadership — the single most important thing, the trend, the biggest risk, and the recommended focus. No preamble."),
+}
+
+class AutomationRequest(BaseModel):
+    company_id: str
+    type: str
+
+@app.post("/automations/generate")
+def generate_automation(req: AutomationRequest):
+    """Draft a real operational document from the company's live data."""
+    try:
+        name, industry = _company_identity(req.company_id)
+        spec = DOC_SPECS.get(req.type)
+        if not spec:
+            return {"error": "Unknown automation type"}
+        title, instruction = spec
+
+        context = {
+            "summary": get_analytics_summary(req.company_id),
+            "top_issues": get_top_defects(req.company_id),
+            "stage_performance": get_stage_performance(req.company_id),
+        }
+        prompt = f"""You are an operations assistant at {name}, a {industry} company. Draft the following document using ONLY the live data provided — invent no numbers.
+
+DOCUMENT: {title}
+{instruction}
+
+LIVE DATA (JSON):
+{json.dumps(context, default=str)}
+
+Return only the finished document text (include a subject line if it's an email). No commentary, no markdown code fences."""
+
+        response = client.messages.create(
+            model=AI_MODEL,
+            max_tokens=900,
+            messages=[{"role": "user", "content": prompt}],
+        )
+        body = "".join(b.text for b in response.content if hasattr(b, "text")).strip()
+        return {"title": title, "body": body}
+    except Exception as e:
+        return {"error": str(e)}
+
+
 # ── Live dashboard reshape (AI panel as control plane) ──────────
 RESHAPE_SOURCES_DOC = """AVAILABLE DATA SOURCES — use these exact endpoint paths as the values in "sources" ({cid} is a literal placeholder):
 - "/analytics/summary/{cid}" -> object: total_defects, resolved, unresolved, critical, avg_resolution_hours, first_pass_yield, total_products
