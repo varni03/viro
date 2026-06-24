@@ -1832,11 +1832,21 @@ def onboarding_converse(req: OnboardingConverseRequest):
         system = ONBOARDING_SYSTEM + f"\n\nCURRENT EXTRACTED STATE (carry forward, refine — do not blank fields):\n{json.dumps(req.state)}"
         response = client.messages.create(
             model=AI_MODEL,
-            max_tokens=1000,
+            max_tokens=3500,  # the state JSON (with entities + fields) is large; avoid truncation
             system=system,
             messages=msgs,
         )
-        data = json.loads(_strip_json_fences(response.content[0].text))
+        text = _strip_json_fences(response.content[0].text)
+        # tolerate any stray prose around the JSON object
+        if not text.startswith("{"):
+            s, e = text.find("{"), text.rfind("}")
+            if s != -1 and e != -1:
+                text = text[s:e + 1]
+        data = json.loads(text)
+        # never let a parse hiccup wipe what we've already learned
+        if isinstance(data.get("state"), dict):
+            merged = {**(req.state or {}), **{k: v for k, v in data["state"].items() if v}}
+            data["state"] = merged
         return data
     except Exception as e:
         return {"reply": "Sorry — I glitched for a second. Could you say that another way?",
