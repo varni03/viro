@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { COLORS, PageHeader, InsightBanner } from "../components/Layout";
 
 const API = "https://web-production-0457e.up.railway.app";
@@ -19,8 +19,30 @@ const GROUPS = [
   ]},
 ];
 
+const ENTITY_GROUPS = [
+  { icon: "📈", dept: "Operations", meta: "Drafted from your live data", items: [
+    { type: "weekly_quality_report", title: "Weekly Operations Report", desc: "Where things stand, what's low, what to do — for the owner" },
+    { type: "exec_summary", title: "Operations Summary", desc: "Four sentences on the health of your operation" },
+  ]},
+  { icon: "📦", dept: "Suppliers", meta: "Drafted from low-stock items", items: [
+    { type: "supplier_email", title: "Reorder Email", desc: "Restock everything below its reorder level, in one email" },
+  ]},
+  { icon: "📝", dept: "Daily", meta: "Written from today's records", items: [
+    { type: "shift_handover", title: "Daily Handover Note", desc: "What's low, what's pending, what to prioritize next" },
+  ]},
+];
+
 export default function Automations({ company }) {
   const [draft, setDraft] = useState(null); // { title, loading, body, error }
+  const [hasEntities, setHasEntities] = useState(false);
+
+  useEffect(() => {
+    if (!company) return;
+    fetch(`${API}/entities/${company.company_id}`).then(r => r.json())
+      .then(d => setHasEntities(Array.isArray(d) && d.length > 0)).catch(() => {});
+  }, [company]);
+
+  const groups = hasEntities ? ENTITY_GROUPS : GROUPS;
 
   const generate = async (item) => {
     setDraft({ title: item.title, loading: true, body: "", error: null });
@@ -46,7 +68,7 @@ export default function Automations({ company }) {
         summary={{ note: "what paperwork should be prioritized this week" }} />
 
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
-        {GROUPS.map((g, gi) => (
+        {groups.map((g, gi) => (
           <div key={gi} style={{ ...card, padding: 20 }}>
             <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 14 }}>
               <div style={{ width: 34, height: 34, borderRadius: 9, background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.08)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 17 }}>{g.icon}</div>

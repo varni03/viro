@@ -800,6 +800,23 @@ DOC_SPECS = {
         "Write a 4-sentence executive summary of operations health this week for leadership — the single most important thing, the trend, the biggest risk, and the recommended focus. No preamble."),
 }
 
+ENTITY_DOC_SPECS = {
+    "weekly_quality_report": ("Weekly Operations Report",
+        "Write this week's operations summary from the entity data: where things stand (counts), what's low or needs attention, anything notable, and 2 concrete recommended actions. Concise — for the owner."),
+    "supplier_email": ("Reorder Email",
+        "Draft an email to reorder the items that are LOW (at or below their reorder level), using the low_stock data. Include a subject line, list each item with the quantity to order, and a courteous request. If nothing is low, write a brief 'all stocked' note instead."),
+    "shift_handover": ("Daily Handover Note",
+        "Write an end-of-day handover from the entity data: what's low or needs attention, what's pending, and what tomorrow should prioritize. Crisp and scannable."),
+    "exec_summary": ("Operations Summary",
+        "Write a 4-sentence summary of the operation's health from the entity data — the single most important thing, a trend, the biggest risk, and the recommended focus. No preamble."),
+}
+
+def _to_num(v):
+    try:
+        return float(v)
+    except (TypeError, ValueError):
+        return 0.0
+
 class AutomationRequest(BaseModel):
     company_id: str
     type: str
@@ -809,16 +826,30 @@ def generate_automation(req: AutomationRequest):
     """Draft a real operational document from the company's live data."""
     try:
         name, industry = _company_identity(req.company_id)
-        spec = DOC_SPECS.get(req.type)
+        ents = db.query("SELECT * FROM entities WHERE company_id = ? ORDER BY sort_order", (req.company_id,))
+        has_entities = not ents.empty
+
+        spec = (ENTITY_DOC_SPECS if has_entities else DOC_SPECS).get(req.type)
         if not spec:
             return {"error": "Unknown automation type"}
         title, instruction = spec
 
-        context = {
-            "summary": get_analytics_summary(req.company_id),
-            "top_issues": get_top_defects(req.company_id),
-            "stage_performance": get_stage_performance(req.company_id),
-        }
+        if has_entities:
+            context = {"entities": {}}
+            for _, e in ents.iterrows():
+                fields = json.loads(e["fields"]) if e["fields"] else []
+                recs = db.query("SELECT data FROM records WHERE company_id = ? AND entity_id = ?", (req.company_id, e["entity_id"]))
+                rows = [json.loads(r["data"]) for _, r in recs.iterrows() if r["data"]]
+                qf = next((f["key"] for f in fields if f.get("type") == "number" and any(w in f["key"].lower() for w in ["on_hand", "stock", "qty", "quantity", "inventory", "count"])), None)
+                rf = next((f["key"] for f in fields if f.get("type") == "number" and any(w in f["key"].lower() for w in ["reorder", "min", "threshold", "par"])), None)
+                low = [r for r in rows if qf and rf and _to_num(r.get(qf)) <= _to_num(r.get(rf))] if (qf and rf) else []
+                context["entities"][e["name_plural"] or e["name"]] = {"count": len(rows), "low_stock": low[:10], "recent": rows[:8]}
+        else:
+            context = {
+                "summary": get_analytics_summary(req.company_id),
+                "top_issues": get_top_defects(req.company_id),
+                "stage_performance": get_stage_performance(req.company_id),
+            }
         prompt = f"""You are an operations assistant at {name}, a {industry} company. Draft the following document using ONLY the live data provided — invent no numbers.
 
 DOCUMENT: {title}
