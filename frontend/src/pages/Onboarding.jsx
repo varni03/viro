@@ -82,6 +82,7 @@ export default function Onboarding({ onComplete }) {
   const [genActive, setGenActive] = useState(0);
   const [account, setAccount] = useState({ company_name: "", first_name: "", last_name: "", email: "", password: "" });
   const [createdId, setCreatedId] = useState(null);
+  const [auth, setAuth] = useState(null);
   const chatRef = useRef();
 
   useEffect(() => { if (chatRef.current) chatRef.current.scrollTop = chatRef.current.scrollHeight; }, [messages, sending]);
@@ -161,21 +162,38 @@ export default function Onboarding({ onComplete }) {
       const moduleData = ALL_MODULES.map(m => ({ id: m.id, enabled: modules.includes(m.id), custom_label: m.label, custom_icon: m.icon }));
       await fetch(`${API}/modules/${companyId}`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ modules: moduleData }) });
       setCreatedId(companyId);
+
+      // If registration didn't return a token (e.g. email already in use), fall back to logging in.
+      if (!userRes || !userRes.token) {
+        const loginRes = await fetch(`${API}/auth/login`, {
+          method: "POST", headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ email: account.email, password: account.password })
+        }).then(r => r.json()).catch(() => null);
+        if (loginRes && loginRes.token) userRes = loginRes;
+      }
     } catch {
       setError("Something went wrong creating your platform. Please try again.");
       setPhase("chat");
       return;
     }
+
+    const authData = (userRes && userRes.token)
+      ? { token: userRes.token, user: userRes.user, companyId: companyRes.company_id } : null;
+    setAuth(authData);
+
     const minMs = genSteps.length * 820 + 700;
     setTimeout(() => {
       setPhase("done");
-      if (userRes && userRes.token) setTimeout(() => {
-        localStorage.setItem("viro_token", userRes.token);
-        localStorage.setItem("viro_user", JSON.stringify(userRes.user));
-        localStorage.setItem("viro_company_id", companyRes.company_id);
-        if (onComplete) onComplete(userRes.user, userRes.token);
-      }, 2800);
+      if (authData) setTimeout(() => finish(authData), 1400);
     }, Math.max(0, minMs - (Date.now() - started)));
+  };
+
+  const finish = (a) => {
+    if (!a || !a.token) return;
+    localStorage.setItem("viro_token", a.token);
+    localStorage.setItem("viro_user", JSON.stringify(a.user));
+    localStorage.setItem("viro_company_id", a.companyId);
+    if (onComplete) onComplete(a.user, a.token);
   };
 
   const accountReady = account.company_name && account.first_name && account.last_name && account.email && account.password;
@@ -324,7 +342,18 @@ export default function Onboarding({ onComplete }) {
                 </div>
               ))}
             </div>
-            <div className="ob-mono" style={{ marginTop: 18, fontSize: 12, color: GREEN }}>● redirecting to {createdId || "your platform"}…</div>
+            {auth ? (
+              <>
+                <button className="ob-btn ob-btn-primary" style={{ marginTop: 22, padding: "13px 26px" }} onClick={() => finish(auth)}>
+                  Enter {account.company_name || "your platform"} →
+                </button>
+                <div className="ob-mono" style={{ marginTop: 14, fontSize: 12, color: GREEN }}>● redirecting…</div>
+              </>
+            ) : (
+              <div style={{ marginTop: 20, fontSize: 13.5, color: "rgba(255,255,255,0.6)", maxWidth: 420, margin: "20px auto 0", lineHeight: 1.6 }}>
+                Your platform <span className="ob-mono" style={{ color: "#fff" }}>{createdId}</span> is built — but that email is already in use, so I couldn't sign you in. Refresh and <b>sign in</b> with a different account, or use a new email next time.
+              </div>
+            )}
           </div>
         )}
       </div>
