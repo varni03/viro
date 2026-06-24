@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { getCompanies, getAtRisk, getDefects, getProducts } from "./api/client";
 import Sidebar from "./components/Sidebar";
 import AIPanel from "./components/AIPanel";
@@ -15,7 +15,7 @@ import Onboarding from "./pages/Onboarding";
 import Landing from "./pages/Landing";
 import { useBreakpoint } from "./hooks/useBreakpoint";
 import DynamicDashboard from "./pages/DynamicDashboard";
-import { MERIDIAN_CONFIG } from "./pages/meridianConfig";
+import { buildDefaultConfig } from "./pages/defaultConfig";
 
 const API = "https://web-production-0457e.up.railway.app";
 
@@ -112,7 +112,8 @@ export default function App() {
   const [stages, setStages] = useState([]);
   const [stats, setStats] = useState({});
   const [reportTabs, setReportTabs] = useState([]);
-  const [dashboardConfig, setDashboardConfig] = useState(MERIDIAN_CONFIG);
+  const [dashboardConfig, setDashboardConfig] = useState(null); // null = use the generated base
+  const [terminology, setTerminology] = useState(null);
   const [views, setViews] = useState([]);
   const [activeViewId, setActiveViewId] = useState("base");
 
@@ -204,7 +205,16 @@ export default function App() {
       .then(r => r.json())
       .then(setStages)
       .catch(() => {});
+
+    fetch(`${API}/config/${company.company_id}`)
+      .then(r => r.json())
+      .then(setTerminology)
+      .catch(() => {});
   }, [company]);
+
+  // Each company's base dashboard is derived from ITS OWN stages + terminology.
+  const baseConfig = useMemo(() => buildDefaultConfig({ company, stages, terminology }), [company, stages, terminology]);
+  const effectiveConfig = dashboardConfig || baseConfig;
 
   // Load saved dashboard views; open the default if one exists.
   useEffect(() => {
@@ -216,7 +226,7 @@ export default function App() {
         setViews(list);
         const def = list.find(v => v.is_default);
         if (def) { setDashboardConfig(def.config); setActiveViewId(def.view_id); }
-        else { setDashboardConfig(MERIDIAN_CONFIG); setActiveViewId("base"); }
+        else { setDashboardConfig(null); setActiveViewId("base"); }
       })
       .catch(() => {});
   }, [company]);
@@ -228,14 +238,14 @@ export default function App() {
     return list;
   };
   const switchView = (v) => {
-    if (v === "base") { setDashboardConfig(MERIDIAN_CONFIG); setActiveViewId("base"); }
+    if (v === "base") { setDashboardConfig(null); setActiveViewId("base"); }
     else { setDashboardConfig(v.config); setActiveViewId(v.view_id); }
   };
   const saveCurrentView = async (name) => {
     await fetch(`${API}/dashboard-views/${company.company_id}`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name, config: dashboardConfig, make_default: views.length === 0 }),
+      body: JSON.stringify({ name, config: effectiveConfig, make_default: views.length === 0 }),
     });
     const list = await refreshViews();
     const saved = list.find(v => v.name === name);
@@ -288,7 +298,7 @@ export default function App() {
     switch (activePage) {
       case "Dashboard": return <DynamicDashboard
         company={company}
-        config={dashboardConfig}
+        config={effectiveConfig}
         views={views}
         activeViewId={activeViewId}
         onSwitchView={switchView}
@@ -493,7 +503,7 @@ export default function App() {
         prefs={prefs}
         onPrefsChange={setPrefs}
         onReshape={setDashboardConfig}
-        currentConfig={dashboardConfig}
+        currentConfig={effectiveConfig}
       />
 
       ) : (
@@ -531,7 +541,7 @@ export default function App() {
                 prefs={prefs}
                 onPrefsChange={setPrefs}
                 onReshape={setDashboardConfig}
-                currentConfig={dashboardConfig}
+                currentConfig={effectiveConfig}
               />
             </div>
           </div>

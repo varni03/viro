@@ -3,9 +3,9 @@ import { COLORS } from './Layout';
 
 const ALL_MODULES = [
   { id: "dashboard", label: "Dashboard", icon: "⬡", page: "Dashboard" },
-  { id: "search", label: "Vehicle Search", icon: "🔍", page: "Vehicle Search" },
-  { id: "log_issue", label: "Log Defect", icon: "📸", page: "Log Defect" },
-  { id: "workflow", label: "Production Line", icon: "🔧", page: "Production Line" },
+  { id: "search", label: "Search", icon: "🔍", page: "Vehicle Search" },
+  { id: "log_issue", label: "Log Issue", icon: "📸", page: "Log Defect" },
+  { id: "workflow", label: "Workflow", icon: "🔧", page: "Production Line" },
   { id: "analytics", label: "Analytics", icon: "📊", page: "Analytics" },
   { id: "predictive", label: "Predictive Risk", icon: "⚠️", page: "Predictive" },
   { id: "repair", label: "Repair Queue", icon: "🔨", page: "Repair Queue" },

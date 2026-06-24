@@ -58,6 +58,9 @@ export default function ProductionLine({ company, user, defaultView }) {
 
   if (loading) return <div style={{ display: "flex", alignItems: "center", justifyContent: "center", height: "60vh", color: COLORS.muted }}>Loading…</div>;
 
+  const TERM = (company?.universal_id_field || "vehicle").toLowerCase();
+  const TERMS = TERM.replace(/y$/, "ie") + "s";
+  const cap = (w) => w.charAt(0).toUpperCase() + w.slice(1);
   const idLabel = (id) => (id.includes("_") ? id.split("_").pop() : id);
   const filteredDefects = filter === "all" ? allDefects : allDefects.filter(d => d.severity === filter);
   const order = { critical: 0, high: 1, medium: 2, low: 3 };
@@ -82,7 +85,7 @@ export default function ProductionLine({ company, user, defaultView }) {
 
   return (
     <div>
-      <PageHeader title="Production Line" subtitle={`${company.name} · ${vehicles.length} active vehicles · ${allDefects.length} open defects`} />
+      <PageHeader title="Production Line" subtitle={`${company.name} · ${vehicles.length} active ${TERMS} · ${allDefects.length} open defects`} />
 
       <InsightBanner companyId={company.company_id} page="Production Line"
         summary={{ active: vehicles.length, open_defects: allDefects.length, critical: criticalCount, high: highCount,
@@ -91,7 +94,7 @@ export default function ProductionLine({ company, user, defaultView }) {
       {/* summary */}
       <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 14, marginBottom: 22 }}>
         {[
-          { label: "Active Vehicles", value: vehicles.length, color: "#fff" },
+          { label: `Active ${cap(TERMS)}`, value: vehicles.length, color: "#fff" },
           { label: "Open Defects", value: allDefects.length, color: allDefects.length ? COLORS.high : COLORS.low },
           { label: "Critical", value: criticalCount, color: criticalCount ? COLORS.critical : COLORS.low, hot: criticalCount > 0 },
           { label: "High Priority", value: highCount, color: highCount ? COLORS.high : COLORS.low },
@@ -175,7 +178,7 @@ export default function ProductionLine({ company, user, defaultView }) {
                     <div style={eyebrow}>STAGE {stage}</div>
                     <div style={{ fontSize: 13.5, fontWeight: 700, margin: "4px 0 3px" }}>{stageMap[stage]}</div>
                     <div style={{ fontSize: 11, color: hot ? COLORS.critical : COLORS.muted, fontWeight: hot ? 600 : 400 }}>
-                      {list.length} {list.length === 1 ? "vehicle" : "vehicles"}{hot ? " · blocked" : ""}
+                      {list.length} {list.length === 1 ? TERM : TERMS}{hot ? " · blocked" : ""}
                     </div>
                   </div>
                   <div style={{ background: "rgba(255,255,255,0.015)", border: "1px solid rgba(255,255,255,0.08)", borderTop: "none", borderRadius: "0 0 12px 12px", padding: 8, minHeight: 200 }}>
