@@ -63,6 +63,7 @@ function useOnboardingStyles() {
 const LEARN_FIELDS = [
   { k: "INDUSTRY", get: s => s.industry },
   { k: "UNIVERSAL ID", get: s => s.universal_id },
+  { k: "WHAT YOU TRACK", get: s => (s.entities && s.entities.length ? s.entities.map(e => e.name_plural || e.name).join(" · ") : "") },
   { k: "WORKFLOW", get: s => (s.stages && s.stages.length ? s.stages.map(x => x.stage_name).join("  →  ") : "") },
   { k: "DECISIONS THAT MATTER", get: s => (s.decisions && s.decisions.length ? s.decisions.join(" · ") : "") },
   { k: "MANUAL WORK TO AUTOMATE", get: s => (s.automations && s.automations.length ? s.automations.join(" · ") : "") },
@@ -150,6 +151,9 @@ export default function Onboarding({ onComplete }) {
       for (const s of stages) await fetch(`${API}/settings/stages`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ...s, company_id: companyId }) });
       for (const dt of defectTypes) await fetch(`${API}/settings/defect-types`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ...dt, company_id: companyId }) });
       await fetch(`${API}/config/${companyId}`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(term) });
+      if (Array.isArray(learn.entities) && learn.entities.length) {
+        await fetch(`${API}/entities/${companyId}/bulk`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ entities: learn.entities }) });
+      }
       userRes = await fetch(`${API}/auth/register`, {
         method: "POST", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ first_name: account.first_name, last_name: account.last_name, email: account.email, password: account.password, role: "manager", company_id: companyId })

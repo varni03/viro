@@ -15,6 +15,7 @@ import Onboarding from "./pages/Onboarding";
 import Landing from "./pages/Landing";
 import Automations from "./pages/Automations";
 import WorkerHome from "./pages/WorkerHome";
+import EntityPage from "./pages/EntityPage";
 import { useBreakpoint } from "./hooks/useBreakpoint";
 import DynamicDashboard from "./pages/DynamicDashboard";
 import { buildDefaultConfig } from "./pages/defaultConfig";
@@ -118,6 +119,7 @@ export default function App() {
   const [terminology, setTerminology] = useState(null);
   const [views, setViews] = useState([]);
   const [activeViewId, setActiveViewId] = useState("base");
+  const [entities, setEntities] = useState([]);
 
   const [filters, setFilters] = useState({
     dateRange: null,
@@ -221,6 +223,11 @@ export default function App() {
       .then(r => r.json())
       .then(setTerminology)
       .catch(() => {});
+
+    fetch(`${API}/entities/${company.company_id}`)
+      .then(r => r.json())
+      .then(d => setEntities(Array.isArray(d) ? d : []))
+      .catch(() => {});
   }, [company]);
 
   // Each company's base dashboard is derived from ITS OWN stages + terminology.
@@ -304,6 +311,12 @@ export default function App() {
       const id = parseInt(activePage.replace("report_", ""));
       const report = reportTabs.find(r => r.id === id);
       return report ? <ReportTab report={report} /> : <Dashboard company={company} />;
+    }
+
+    if (activePage.startsWith("entity:")) {
+      const eid = activePage.slice("entity:".length);
+      const entity = entities.find(e => e.entity_id === eid);
+      return entity ? <EntityPage company={company} entity={entity} /> : <DynamicDashboard company={company} config={effectiveConfig} />;
     }
 
     switch (activePage) {
@@ -403,6 +416,7 @@ export default function App() {
           setCompany={setCompany}
           stats={stats}
           user={user}
+          entities={entities}
           onLogout={handleLogout}
         />
       </div>

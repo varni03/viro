@@ -17,7 +17,7 @@ const REPAIR_MODULES = ["workflow", "search"];
 
 export default function Sidebar({
   activePage, setActivePage, company, companies,
-  setCompany, stats, user, onLogout
+  setCompany, stats, user, onLogout, entities = []
 }) {
   const [modules, setModules] = useState([]);
   const [notifications, setNotifications] = useState([]);
@@ -72,6 +72,16 @@ export default function Sidebar({
     if (user?.role === "repair") {
       return ALL_MODULES.filter(m => REPAIR_MODULES.includes(m.id));
     }
+    // Generative company: nav is built from the company's own entities.
+    if (entities && entities.length) {
+      return [
+        { id: "dashboard", label: "Dashboard", icon: "⬡", page: "Dashboard" },
+        ...entities.map(e => ({ id: "entity:" + e.entity_id, label: e.name_plural || e.name, icon: e.icon || "▦", page: "entity:" + e.entity_id })),
+        { id: "automations", label: "Automations", icon: "📄", page: "Automations" },
+        { id: "settings", label: "Settings", icon: "⚙️", page: "Settings" },
+      ];
+    }
+
     const items = modules.map(m => {
       const base = ALL_MODULES.find(am => am.id === m.module_id);
       return base ? {
