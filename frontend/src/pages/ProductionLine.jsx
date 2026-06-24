@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { getProductionLine, getDefects, resolveDefect, updateStage, updateStatus } from "../api/client";
-import { COLORS, PageHeader, severityColor } from "../components/Layout";
+import { COLORS, PageHeader, severityColor, InsightBanner } from "../components/Layout";
 
 const API = "https://web-production-0457e.up.railway.app";
 const MONO = "'JetBrains Mono', monospace";
@@ -83,6 +83,10 @@ export default function ProductionLine({ company, user, defaultView }) {
   return (
     <div>
       <PageHeader title="Production Line" subtitle={`${company.name} · ${vehicles.length} active vehicles · ${allDefects.length} open defects`} />
+
+      <InsightBanner companyId={company.company_id} page="Production Line"
+        summary={{ active: vehicles.length, open_defects: allDefects.length, critical: criticalCount, high: highCount,
+          pipeline: stages.map(s => ({ stage: s, name: stageMap[s], count: (vehiclesByStage[s] || []).length, blocked: (vehiclesByStage[s] || []).filter(v => v.critical_open > 0).length })) }} />
 
       {/* summary */}
       <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 14, marginBottom: 22 }}>

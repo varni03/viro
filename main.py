@@ -763,6 +763,30 @@ Answer in 2-3 punchy sentences using the actual numbers. Be specific and actiona
     except Exception as e:
         return {"answer": f"Error: {str(e)}"}
 
+class PageInsightRequest(BaseModel):
+    company_id: str
+    page: str
+    summary: Any = None
+
+@app.post("/ai/page-insight")
+def page_insight(req: PageInsightRequest):
+    """One sentence answering the single most important question a page should answer."""
+    try:
+        name, industry = _company_identity(req.company_id)
+        prompt = f"""You are the intelligence layer of Viro for {name} ({industry}).
+A manager just opened the "{req.page}" screen. Its live data (JSON):
+{json.dumps(req.summary, default=str)}
+
+Write ONE sentence (max ~22 words) that answers the single most important question this screen should answer right now — the decision, risk, or action it points to — using the actual numbers. If the data looks healthy, say so confidently. No preamble, no "based on the data". Just the answer."""
+        response = client.messages.create(
+            model=AI_MODEL, max_tokens=160,
+            messages=[{"role": "user", "content": prompt}],
+        )
+        answer = "".join(b.text for b in response.content if hasattr(b, "text")).strip()
+        return {"insight": answer}
+    except Exception as e:
+        return {"insight": "", "error": str(e)}
+
 
 # ── Live dashboard reshape (AI panel as control plane) ──────────
 RESHAPE_SOURCES_DOC = """AVAILABLE DATA SOURCES — use these exact endpoint paths as the values in "sources" ({cid} is a literal placeholder):

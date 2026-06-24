@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { getAtRisk, getStageHealth, askAI } from "../api/client";
-import { COLORS, PageHeader, SectionLabel } from "../components/Layout";
+import { COLORS, PageHeader, SectionLabel, InsightBanner } from "../components/Layout";
 
 const MONO = "'JetBrains Mono', monospace";
 const card = { background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 16 };
@@ -44,6 +44,9 @@ export default function Predictive({ company }) {
   return (
     <div>
       <PageHeader title="Predictive Risk" subtitle="What's likely to go wrong — before it does." />
+
+      <InsightBanner companyId={company.company_id} page="Predictive Risk"
+        summary={{ at_risk_count: atRisk.length, critical_stages: criticalStages, highest_risk: highestRisk, top_at_risk: atRisk.slice(0, 4).map(p => ({ id: p.product_id, risk: p.risk_score, unresolved: p.unresolved_defects, types: p.defect_types })) }} />
 
       <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 14, marginBottom: 26 }}>
         {[

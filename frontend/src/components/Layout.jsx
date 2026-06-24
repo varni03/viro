@@ -1,3 +1,7 @@
+import { useState, useEffect } from "react";
+
+const VIRO_API = "https://web-production-0457e.up.railway.app";
+
 export const COLORS = {
   bg: "#08090a",
   surface: "rgba(255,255,255,0.02)",
@@ -400,6 +404,51 @@ export function GlowCard({ children, color = "#ffffff", style = {} }) {
   return (
     <div className="glass-card" style={{ padding: 20, ...style }}>
       {children}
+    </div>
+  );
+}
+
+// Page-level AI answer — "every screen answers a question" (CLAUDE.md thesis).
+export function InsightBanner({ companyId, page, summary }) {
+  const [text, setText] = useState("");
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (!companyId || summary == null) return;
+    let alive = true;
+    setLoading(true); setText("");
+    fetch(`${VIRO_API}/ai/page-insight`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ company_id: companyId, page, summary }),
+    })
+      .then(r => r.json())
+      .then(d => { if (alive) { setText(d.insight || ""); setLoading(false); } })
+      .catch(() => { if (alive) setLoading(false); });
+    return () => { alive = false; };
+  }, [companyId, page, JSON.stringify(summary)]); // eslint-disable-line
+
+  if (!loading && !text) return null;
+  return (
+    <div style={{
+      display: "flex", alignItems: "center", gap: 13, marginBottom: 20,
+      padding: "15px 18px", borderRadius: 14,
+      background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)",
+    }}>
+      <div style={{
+        width: 30, height: 30, borderRadius: 9, flexShrink: 0,
+        background: "rgba(255,255,255,0.07)", border: "1px solid rgba(255,255,255,0.1)",
+        display: "flex", alignItems: "center", justifyContent: "center",
+        color: "rgba(255,255,255,0.7)", fontSize: 14,
+      }}>✦</div>
+      {loading ? (
+        <span style={{ display: "flex", alignItems: "center", gap: 9, color: "rgba(255,255,255,0.4)", fontSize: 14 }}>
+          <span style={{ display: "inline-block", animation: "spin 1s linear infinite" }}>◴</span>
+          Reading your operation…
+        </span>
+      ) : (
+        <span style={{ fontSize: 14.5, lineHeight: 1.5, color: "rgba(255,255,255,0.9)", fontWeight: 500, letterSpacing: "-0.01em" }}>{text}</span>
+      )}
     </div>
   );
 }

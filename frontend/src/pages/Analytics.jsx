@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { COLORS, PageHeader, SectionLabel } from "../components/Layout";
+import { COLORS, PageHeader, SectionLabel, InsightBanner } from "../components/Layout";
 
 const API = "https://web-production-0457e.up.railway.app";
 const MONO = "'JetBrains Mono', monospace";
@@ -142,6 +142,8 @@ export default function Analytics({ company }) {
         <PageHeader title="Analytics" subtitle={`${company.name} · Last 30 days`} />
         <button onClick={exportCSV} style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 10, padding: "10px 16px", color: COLORS.muted, fontSize: 13, cursor: "pointer", marginTop: 4, fontFamily: "inherit" }}>↓ Export CSV</button>
       </div>
+
+      <InsightBanner companyId={company.company_id} page="Analytics" summary={summary ? { ...summary, top_issue: topDefects[0] } : null} />
 
       {/* KPI grid */}
       <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 12, marginBottom: 16 }}>
