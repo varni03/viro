@@ -1190,6 +1190,31 @@ db.execute("""
     )
 """)
 
+# ── Generative data model: each company defines its OWN entities + records ──
+db.execute("""
+    CREATE TABLE IF NOT EXISTS entities (
+        entity_id TEXT PRIMARY KEY,
+        company_id TEXT NOT NULL,
+        name TEXT NOT NULL,
+        name_plural TEXT,
+        icon TEXT,
+        fields TEXT NOT NULL,
+        sort_order INTEGER DEFAULT 0,
+        created_at TEXT DEFAULT CURRENT_TIMESTAMP
+    )
+""")
+
+db.execute("""
+    CREATE TABLE IF NOT EXISTS records (
+        record_id TEXT PRIMARY KEY,
+        company_id TEXT NOT NULL,
+        entity_id TEXT NOT NULL,
+        data TEXT NOT NULL,
+        created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+        updated_at TEXT DEFAULT CURRENT_TIMESTAMP
+    )
+""")
+
 @app.get("/dashboard-config/{company_id}")
 def get_dashboard_config(company_id: str):
     result = db.query(
@@ -1737,7 +1762,17 @@ After EACH user message, return ONLY this JSON (no prose, no code fence):
     "defect_types": [{"name": string, "default_severity": "low"|"medium"|"high"|"critical"}],
     "decisions": [string],
     "automations": [string],
-    "modules": [subset of "dashboard","search","log_issue","workflow","analytics","predictive","repair","settings"]
+    "modules": [subset of "dashboard","search","log_issue","workflow","analytics","predictive","repair","settings"],
+    "entities": [
+      {
+        "name": "singular noun (e.g. Order)",
+        "name_plural": "plural (e.g. Orders)",
+        "icon": "one emoji",
+        "fields": [
+          {"key": "snake_case", "label": "Human Label", "type": "text|textarea|number|currency|date|select|boolean", "options": ["only for select"]}
+        ]
+      }
+    ]
   },
   "options": [up to 4 short tappable quick-replies, or []],
   "ready": boolean
@@ -1745,6 +1780,7 @@ After EACH user message, return ONLY this JSON (no prose, no code fence):
 
 Rules:
 - Carry forward EVERYTHING already in the provided state; only add or refine — never blank a field you already learned.
+- **`entities` is the most important field.** Model the 2-6 things this business ACTUALLY tracks, each with 3-7 fields. Build the data model their operation truly needs — not a generic template. Examples: a café → Orders {item, qty, customer, status:select, total:currency}, Ingredients {name, on_hand:number, reorder_at:number, unit, supplier}, Suppliers {name, contact, lead_time_days:number}. A clinic → Patients, Appointments, Prescriptions. Use a `select` field with options for any status/stage; use `number` + a reorder `number` for anything inventory/supply-like; use `currency` for money. Pick a fitting emoji icon per entity.
 - Always include "dashboard","search","log_issue","settings" in modules; add others when relevant.
 - Infer sensible stages, terminology, and 4-6 defect_types from context even when the user is brief.
 - "options" are tappable shortcuts (suggested industries, "Yes, those stages", "Add a QC step", etc.) — 1-4 words each.
@@ -1774,6 +1810,110 @@ def onboarding_converse(req: OnboardingConverseRequest):
     except Exception as e:
         return {"reply": "Sorry — I glitched for a second. Could you say that another way?",
                 "state": req.state, "options": [], "ready": False, "error": str(e)}
+
+# ── Entities + Records (generative data model) ─────────────────
+class EntityCreate(BaseModel):
+    name: str
+    name_plural: Optional[str] = None
+    icon: Optional[str] = "▦"
+    fields: list = []
+    sort_order: Optional[int] = 0
+
+class EntityBulk(BaseModel):
+    entities: list
+
+class RecordCreate(BaseModel):
+    data: dict
+
+def _entity_row(r):
+    return {
+        "entity_id": r["entity_id"], "name": r["name"],
+        "name_plural": r["name_plural"] or (r["name"] + "s"),
+        "icon": r["icon"] or "▦",
+        "fields": json.loads(r["fields"]) if r["fields"] else [],
+        "sort_order": int(r["sort_order"] or 0),
+    }
+
+@app.get("/entities/{company_id}")
+def list_entities(company_id: str):
+    rows = db.query("SELECT * FROM entities WHERE company_id = ? ORDER BY sort_order, created_at", (company_id,))
+    return [_entity_row(r) for _, r in rows.iterrows()]
+
+@app.post("/entities/{company_id}")
+def create_entity(company_id: str, e: EntityCreate):
+    import uuid
+    entity_id = str(uuid.uuid4())[:12]
+    db.execute(
+        "INSERT INTO entities (entity_id, company_id, name, name_plural, icon, fields, sort_order) VALUES (?, ?, ?, ?, ?, ?, ?)",
+        (entity_id, company_id, e.name, e.name_plural or (e.name + "s"), e.icon or "▦", json.dumps(e.fields), e.sort_order or 0)
+    )
+    return {"entity_id": entity_id, "message": "Entity created"}
+
+@app.post("/entities/{company_id}/bulk")
+def create_entities_bulk(company_id: str, body: EntityBulk):
+    import uuid
+    # replace existing set for this company (idempotent onboarding)
+    db.execute("DELETE FROM entities WHERE company_id = ?", (company_id,))
+    created = []
+    for i, e in enumerate(body.entities):
+        entity_id = str(uuid.uuid4())[:12]
+        db.execute(
+            "INSERT INTO entities (entity_id, company_id, name, name_plural, icon, fields, sort_order) VALUES (?, ?, ?, ?, ?, ?, ?)",
+            (entity_id, company_id, e.get("name", "Item"), e.get("name_plural") or (e.get("name", "Item") + "s"),
+             e.get("icon", "▦"), json.dumps(e.get("fields", [])), e.get("sort_order", i))
+        )
+        created.append(entity_id)
+    return {"created": created}
+
+@app.put("/entities/{entity_id}")
+def update_entity(entity_id: str, e: EntityCreate):
+    db.execute(
+        "UPDATE entities SET name = ?, name_plural = ?, icon = ?, fields = ?, sort_order = ? WHERE entity_id = ?",
+        (e.name, e.name_plural or (e.name + "s"), e.icon or "▦", json.dumps(e.fields), e.sort_order or 0, entity_id)
+    )
+    return {"message": "Entity updated"}
+
+@app.delete("/entities/{entity_id}")
+def delete_entity(entity_id: str):
+    db.execute("DELETE FROM records WHERE entity_id = ?", (entity_id,))
+    db.execute("DELETE FROM entities WHERE entity_id = ?", (entity_id,))
+    return {"message": "Entity deleted"}
+
+@app.get("/records/{company_id}/{entity_id}")
+def list_records(company_id: str, entity_id: str):
+    rows = db.query(
+        "SELECT * FROM records WHERE company_id = ? AND entity_id = ? ORDER BY created_at DESC",
+        (company_id, entity_id)
+    )
+    out = []
+    for _, r in rows.iterrows():
+        out.append({"record_id": r["record_id"], "created_at": r["created_at"],
+                    "updated_at": r["updated_at"], **(json.loads(r["data"]) if r["data"] else {})})
+    return out
+
+@app.post("/records/{company_id}/{entity_id}")
+def create_record(company_id: str, entity_id: str, body: RecordCreate):
+    import uuid
+    record_id = str(uuid.uuid4())[:12]
+    db.execute(
+        "INSERT INTO records (record_id, company_id, entity_id, data) VALUES (?, ?, ?, ?)",
+        (record_id, company_id, entity_id, json.dumps(body.data))
+    )
+    return {"record_id": record_id, "message": "Record created"}
+
+@app.put("/records/{record_id}")
+def update_record(record_id: str, body: RecordCreate):
+    db.execute(
+        "UPDATE records SET data = ?, updated_at = ? WHERE record_id = ?",
+        (json.dumps(body.data), datetime.now().isoformat(), record_id)
+    )
+    return {"message": "Record updated"}
+
+@app.delete("/records/{record_id}")
+def delete_record(record_id: str):
+    db.execute("DELETE FROM records WHERE record_id = ?", (record_id,))
+    return {"message": "Record deleted"}
+
 
 @app.post("/onboarding/company")
 def create_company(company: CompanyCreate):
