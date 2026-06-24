@@ -16,6 +16,7 @@ import Landing from "./pages/Landing";
 import Automations from "./pages/Automations";
 import WorkerHome from "./pages/WorkerHome";
 import EntityPage from "./pages/EntityPage";
+import EntitiesDashboard from "./pages/EntitiesDashboard";
 import { useBreakpoint } from "./hooks/useBreakpoint";
 import DynamicDashboard from "./pages/DynamicDashboard";
 import { buildDefaultConfig } from "./pages/defaultConfig";
@@ -320,16 +321,18 @@ export default function App() {
     }
 
     switch (activePage) {
-      case "Dashboard": return <DynamicDashboard
-        company={company}
-        config={effectiveConfig}
-        views={views}
-        activeViewId={activeViewId}
-        onSwitchView={switchView}
-        onSaveView={saveCurrentView}
-        onDeleteView={deleteView}
-        onSetDefault={setDefaultView}
-      />;
+      case "Dashboard": return entities.length > 0
+        ? <EntitiesDashboard company={company} entities={entities} onNavigate={setActivePage} />
+        : <DynamicDashboard
+            company={company}
+            config={effectiveConfig}
+            views={views}
+            activeViewId={activeViewId}
+            onSwitchView={switchView}
+            onSaveView={saveCurrentView}
+            onDeleteView={deleteView}
+            onSetDefault={setDefaultView}
+          />;
       case "Production Line": return <ProductionLine company={company} user={user} />;
       case "Predictive": return <Predictive company={company} />;
       case "Home": return <WorkerHome user={user} company={company} stats={stats} onNavigate={setActivePage} />;
