@@ -162,8 +162,12 @@ export default function App() {
   const handleLogout = () => {
     localStorage.removeItem("viro_token");
     localStorage.removeItem("viro_user");
+    localStorage.removeItem("viro_company_id");
     setUser(null);
     setToken(null);
+    setShowLogin(false);      // return to the landing, not the login screen
+    setShowOnboarding(false);
+    setActivePage("Dashboard");
   };
   
 
