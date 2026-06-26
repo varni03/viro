@@ -31,6 +31,9 @@ client = anthropic.Anthropic()
 # Single source of truth for the Claude model. Bump to "claude-opus-4-8" for
 # richer output at higher cost. (claude-sonnet-4-20250514 retired 2026-06-15.)
 AI_MODEL = "claude-sonnet-4-6"
+# Higher-quality model for rare, high-value "design" calls (dashboard generation,
+# reshape, headline insights) — worth the cost where the output is the wow moment.
+DESIGN_MODEL = "claude-opus-4-8"
 
 # ── Companies ──────────────────────────────────────────────────
 @app.get("/companies")
@@ -779,7 +782,7 @@ A manager just opened the "{req.page}" screen. Its live data (JSON):
 
 Write ONE sentence (max ~22 words) that answers the single most important question this screen should answer right now — the decision, risk, or action it points to — using the actual numbers. If the data looks healthy, say so confidently. No preamble, no "based on the data". Just the answer."""
         response = client.messages.create(
-            model=AI_MODEL, max_tokens=160,
+            model=DESIGN_MODEL, max_tokens=220,
             messages=[{"role": "user", "content": prompt}],
         )
         answer = "".join(b.text for b in response.content if hasattr(b, "text")).strip()
@@ -928,7 +931,7 @@ Return ONLY this JSON, nothing else:
 {{"is_reshape": true|false, "config": <the FULL new config object, or null if just a question>, "message": "<one sentence describing what changed>"}}"""
 
         response = client.messages.create(
-            model=AI_MODEL,
+            model=DESIGN_MODEL,
             max_tokens=2200,
             messages=[{"role": "user", "content": prompt}],
         )
@@ -1242,6 +1245,14 @@ db.execute("""
         entity_id TEXT NOT NULL,
         data TEXT NOT NULL,
         created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+        updated_at TEXT DEFAULT CURRENT_TIMESTAMP
+    )
+""")
+
+db.execute("""
+    CREATE TABLE IF NOT EXISTS entity_dashboards (
+        company_id TEXT PRIMARY KEY,
+        config TEXT NOT NULL,
         updated_at TEXT DEFAULT CURRENT_TIMESTAMP
     )
 """)
@@ -1954,6 +1965,79 @@ def update_record(record_id: str, body: RecordCreate):
 def delete_record(record_id: str):
     db.execute("DELETE FROM records WHERE record_id = ?", (record_id,))
     return {"message": "Record deleted"}
+
+# ── AI-designed dashboard over a company's own entities ─────────
+ENTITY_DASH_DOC = """You design a custom operations dashboard for a company, from the entities it tracks. The dashboard is JSON the app renders. Make it genuinely TAILORED to this business — a smoothie shop, a clinic, and a law firm should get visibly different dashboards. Lead with what the owner needs to know.
+
+BLOCK TYPES (compute client-side over the entity's records — reference real entity ids + field keys):
+- metric: {"type":"metric","entity":"<entity_id>","agg":"count"|"sum"|"avg","field":"<numeric field key, omit for count>","filter":{"field":"<key>","equals":"<value>"} (optional),"label":"...","suffix":""|"%"|"" ,"accent":bool (hero metric),"danger":bool (red when >0)}
+- breakdown: {"type":"breakdown","entity":"<id>","group_by":"<select-or-text field key>","chart":"bar"|"donut","label":"..."}
+- trend: {"type":"trend","entity":"<id>","date_field":"<date field key>","label":"..."}   // counts per day
+- lowstock: {"type":"lowstock","entity":"<id>","qty_field":"<number key>","reorder_field":"<number key>","label":"..."}   // only if the entity has both
+- recent: {"type":"recent","entity":"<id>","label":"...","fields":["<up to 4 field keys>"],"limit":6}
+
+LAYOUT: "sections" is a list of {"cols": one of "repeat(4, 1fr)" | "repeat(3, 1fr)" | "1.5fr 1fr" | "1fr 1fr" | "1fr", "blocks":[...]}. Open with a row of 3-4 KPI metrics (the numbers that matter for THIS business — e.g. orders today, revenue, low-stock count), then a row mixing a breakdown/trend chart with a low-stock or recent list, then more as useful. 2-4 sections, ~8-12 blocks total.
+
+Return ONLY: {"title":"<short dashboard title>","sections":[...]}. No prose, no code fence."""
+
+def _entity_dash_context(company_id):
+    ents = db.query("SELECT * FROM entities WHERE company_id = ? ORDER BY sort_order", (company_id,))
+    ctx = []
+    for _, e in ents.iterrows():
+        fields = json.loads(e["fields"]) if e["fields"] else []
+        recs = db.query("SELECT data FROM records WHERE company_id = ? AND entity_id = ?", (company_id, e["entity_id"]))
+        rows = [json.loads(r["data"]) for _, r in recs.iterrows() if r["data"]]
+        ctx.append({
+            "entity_id": e["entity_id"], "name": e["name"], "name_plural": e["name_plural"],
+            "fields": [{"key": f.get("key"), "label": f.get("label"), "type": f.get("type"),
+                        "options": f.get("options")} for f in fields],
+            "record_count": len(rows), "sample": rows[:3],
+        })
+    return ctx
+
+def _generate_entity_dashboard(company_id):
+    name, industry = _company_identity(company_id)
+    ctx = _entity_dash_context(company_id)
+    prompt = f"""{ENTITY_DASH_DOC}
+
+COMPANY: {name} ({industry})
+ENTITIES (with fields, record counts, samples):
+{json.dumps(ctx, default=str)}"""
+    response = client.messages.create(
+        model=DESIGN_MODEL, max_tokens=2500,
+        messages=[{"role": "user", "content": prompt}],
+    )
+    text = _strip_json_fences(response.content[0].text)
+    if not text.startswith("{"):
+        s, e = text.find("{"), text.rfind("}")
+        if s != -1 and e != -1:
+            text = text[s:e + 1]
+    cfg = json.loads(text)
+    existing = db.query("SELECT company_id FROM entity_dashboards WHERE company_id = ?", (company_id,))
+    if existing.empty:
+        db.execute("INSERT INTO entity_dashboards (company_id, config) VALUES (?, ?)", (company_id, json.dumps(cfg)))
+    else:
+        db.execute("UPDATE entity_dashboards SET config = ?, updated_at = ? WHERE company_id = ?",
+                   (json.dumps(cfg), datetime.now().isoformat(), company_id))
+    return cfg
+
+@app.get("/entities/dashboard/{company_id}")
+def get_entity_dashboard(company_id: str):
+    try:
+        row = db.query("SELECT config FROM entity_dashboards WHERE company_id = ?", (company_id,))
+        if not row.empty:
+            return {"config": json.loads(row.iloc[0]["config"])}
+        cfg = _generate_entity_dashboard(company_id)
+        return {"config": cfg}
+    except Exception as e:
+        return {"config": None, "error": str(e)}
+
+@app.post("/entities/dashboard/{company_id}/regenerate")
+def regenerate_entity_dashboard(company_id: str):
+    try:
+        return {"config": _generate_entity_dashboard(company_id)}
+    except Exception as e:
+        return {"config": None, "error": str(e)}
 
 
 @app.post("/onboarding/company")

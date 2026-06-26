@@ -16,7 +16,7 @@ import Landing from "./pages/Landing";
 import Automations from "./pages/Automations";
 import WorkerHome from "./pages/WorkerHome";
 import EntityPage from "./pages/EntityPage";
-import EntitiesDashboard from "./pages/EntitiesDashboard";
+import GenerativeDashboard from "./pages/GenerativeDashboard";
 import { useBreakpoint } from "./hooks/useBreakpoint";
 import DynamicDashboard from "./pages/DynamicDashboard";
 import { buildDefaultConfig } from "./pages/defaultConfig";
@@ -322,7 +322,7 @@ export default function App() {
 
     switch (activePage) {
       case "Dashboard": return entities.length > 0
-        ? <EntitiesDashboard company={company} entities={entities} onNavigate={setActivePage} />
+        ? <GenerativeDashboard company={company} entities={entities} onNavigate={setActivePage} />
         : <DynamicDashboard
             company={company}
             config={effectiveConfig}
