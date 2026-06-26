@@ -336,7 +336,7 @@ export default function App() {
           />;
       case "Production Line": return <ProductionLine company={company} user={user} />;
       case "Predictive": return <Predictive company={company} />;
-      case "Home": return <WorkerHome user={user} company={company} stats={stats} onNavigate={setActivePage} />;
+      case "Home": return <WorkerHome user={user} company={company} stats={stats} entities={entities} onNavigate={setActivePage} />;
       case "Analytics": return <Analytics company={company} />;
       case "Automations": return <Automations company={company} />;
       case "Vehicle Search": return <VehicleSearch company={company} />;

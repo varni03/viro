@@ -64,6 +64,12 @@ export default function Sidebar({
 
   const getNavItems = () => {
     if (user?.role === "worker") {
+      if (entities && entities.length) {
+        return [
+          { id: "home", label: "Home", icon: "⬡", page: "Home" },
+          ...entities.map(e => ({ id: "entity:" + e.entity_id, label: e.name_plural || e.name, icon: e.icon || "▦", page: "entity:" + e.entity_id })),
+        ];
+      }
       return [
         { id: "home", label: "Home", icon: "⬡", page: "Home" },
         ...ALL_MODULES.filter(m => WORKER_MODULES.includes(m.id)),

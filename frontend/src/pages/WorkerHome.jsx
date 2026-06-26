@@ -4,15 +4,18 @@ const MONO = "'JetBrains Mono', monospace";
 
 // Per-role generation: a floor worker on an iPad doesn't get the manager's
 // dashboard — they get a few giant, glove-friendly tap targets.
-export default function WorkerHome({ user, company, stats, onNavigate }) {
+export default function WorkerHome({ user, company, stats, onNavigate, entities = [] }) {
   const term = company?.universal_id_field || "item";
   const open = stats?.unresolved || 0;
+  const hasEntities = entities && entities.length > 0;
 
-  const tiles = [
-    { label: "Log a Defect", hint: "Snap a photo — Viro fills the rest", icon: "📸", page: "Log Defect", primary: true },
-    { label: "My Queue", hint: `${open} open on the floor`, icon: "🔧", page: "Repair Queue" },
-    { label: `Find a ${term}`, hint: "Look up status & history", icon: "🔍", page: "Vehicle Search" },
-  ];
+  const tiles = hasEntities
+    ? entities.map((e, i) => ({ label: e.name_plural || e.name, hint: "Tap to add or view", icon: e.icon || "▦", page: `entity:${e.entity_id}`, primary: i === 0 }))
+    : [
+      { label: "Log a Defect", hint: "Snap a photo — Viro fills the rest", icon: "📸", page: "Log Defect", primary: true },
+      { label: "My Queue", hint: `${open} open on the floor`, icon: "🔧", page: "Repair Queue" },
+      { label: `Find a ${term}`, hint: "Look up status & history", icon: "🔍", page: "Vehicle Search" },
+    ];
 
   return (
     <div style={{ maxWidth: 920, margin: "0 auto", padding: "8px 4px 40px" }}>
@@ -24,9 +27,11 @@ export default function WorkerHome({ user, company, stats, onNavigate }) {
           Hi{user?.first_name ? `, ${user.first_name}` : ""}.
         </h1>
         <p style={{ fontSize: 16, color: "rgba(255,255,255,0.5)", margin: "10px 0 0" }}>
-          {open > 0
-            ? <>There {open === 1 ? "is" : "are"} <span style={{ color: open > 0 ? COLORS.high : COLORS.low, fontWeight: 600 }}>{open} open {open === 1 ? "issue" : "issues"}</span> on the floor. What are you working on?</>
-            : "The floor is clear. Log anything you spot."}
+          {hasEntities
+            ? "What do you want to work on? Tap to add or check anything."
+            : open > 0
+              ? <>There {open === 1 ? "is" : "are"} <span style={{ color: COLORS.high, fontWeight: 600 }}>{open} open {open === 1 ? "issue" : "issues"}</span> on the floor. What are you working on?</>
+              : "The floor is clear. Log anything you spot."}
         </p>
       </div>
 
