@@ -121,6 +121,7 @@ export default function App() {
   const [views, setViews] = useState([]);
   const [activeViewId, setActiveViewId] = useState("base");
   const [entities, setEntities] = useState([]);
+  const [entityDashNonce, setEntityDashNonce] = useState(0);
 
   const [filters, setFilters] = useState({
     dateRange: null,
@@ -322,7 +323,7 @@ export default function App() {
 
     switch (activePage) {
       case "Dashboard": return entities.length > 0
-        ? <GenerativeDashboard company={company} entities={entities} onNavigate={setActivePage} />
+        ? <GenerativeDashboard company={company} entities={entities} onNavigate={setActivePage} nonce={entityDashNonce} />
         : <DynamicDashboard
             company={company}
             config={effectiveConfig}
@@ -534,6 +535,8 @@ export default function App() {
         onPrefsChange={setPrefs}
         onReshape={setDashboardConfig}
         currentConfig={effectiveConfig}
+        hasEntities={entities.length > 0}
+        onEntityReshaped={() => setEntityDashNonce(n => n + 1)}
       />
 
       ) : (

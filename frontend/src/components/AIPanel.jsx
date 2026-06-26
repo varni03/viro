@@ -13,7 +13,7 @@ const SUGGESTIONS = [
   "Best practices for reducing defects?",
 ];
 
-export default function AIPanel({ company, onNewReport, activePage, onFilterChange, currentFilters, prefs, onPrefsChange: setPrefs, onReshape, currentConfig }) {
+export default function AIPanel({ company, onNewReport, activePage, onFilterChange, currentFilters, prefs, onPrefsChange: setPrefs, onReshape, currentConfig, hasEntities, onEntityReshaped }) {
     const [messages, setMessages] = useState([
     {
       role: "assistant",
@@ -51,18 +51,24 @@ export default function AIPanel({ company, onNewReport, activePage, onFilterChan
   // Live dashboard reshape — rebuilds the Dashboard config from a request.
   // Returns true if it handled the message (a reshape), false to fall through.
   const tryReshape = async (question) => {
+    // Generative (entity) companies reshape their AI-designed entity dashboard;
+    // legacy companies reshape the SQL/config dashboard.
+    const url = hasEntities
+      ? `${API}/entities/dashboard/${company.company_id}/reshape`
+      : `${API}/ai/reshape-dashboard`;
     try {
-      const res = await fetch(`${API}/ai/reshape-dashboard`, {
+      const res = await fetch(url, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           company_id: company.company_id,
           instruction: question,
-          current_config: currentConfig,
+          current_config: hasEntities ? {} : currentConfig,
         }),
       }).then(r => r.json());
       if (res.is_reshape && res.config) {
-        onReshape(res.config);
+        if (hasEntities) { if (onEntityReshaped) onEntityReshaped(); }
+        else if (onReshape) onReshape(res.config);
         setMessages(prev => [...prev, {
           role: "assistant",
           content: `✅ ${res.message}\n\nThe dashboard has been rebuilt to match.`,

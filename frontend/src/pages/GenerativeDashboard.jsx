@@ -151,11 +151,45 @@ function Empty() {
   return <div style={{ height: 90, display: "flex", alignItems: "center", justifyContent: "center", color: "rgba(255,255,255,0.28)", fontSize: 13 }}>No data yet</div>;
 }
 
-export default function GenerativeDashboard({ company, entities, onNavigate }) {
+const VG_STYLE = "viro-vg-styles";
+function ensureVgStyles() {
+  if (typeof document === "undefined" || document.getElementById(VG_STYLE)) return;
+  const el = document.createElement("style");
+  el.id = VG_STYLE;
+  el.textContent = `
+    .vg-block{position:relative}
+    .vg-card{transition:border-color .2s ease,background .2s ease,transform .2s cubic-bezier(.16,1,.3,1)}
+    .vg-block:hover .vg-card{border-color:rgba(255,255,255,0.14)}
+    .vg-ask{position:absolute;top:11px;right:11px;z-index:3;width:24px;height:24px;border-radius:7px;cursor:pointer;
+      display:flex;align-items:center;justify-content:center;font-size:11px;background:rgba(255,255,255,0.08);
+      border:1px solid rgba(255,255,255,0.12);color:rgba(255,255,255,0.7);opacity:0;transition:opacity .18s ease}
+    .vg-block:hover .vg-ask{opacity:1}
+    .vg-ask:hover{background:rgba(255,255,255,0.16);color:#fff}
+    .vg-overlay{position:fixed;inset:0;z-index:100;background:rgba(0,0,0,0.55);backdrop-filter:blur(2px);display:flex;align-items:center;justify-content:center;padding:24px}
+    .vg-modal{width:460px;max-width:100%;background:rgba(20,21,23,0.97);border:1px solid rgba(255,255,255,0.12);border-radius:16px;padding:22px;box-shadow:0 30px 80px rgba(0,0,0,0.5)}
+  `;
+  document.head.appendChild(el);
+}
+
+export default function GenerativeDashboard({ company, entities, onNavigate, nonce }) {
   const [config, setConfig] = useState(null);
   const [recs, setRecs] = useState(null);
   const [regen, setRegen] = useState(false);
+  const [ask, setAsk] = useState(null); // { label, summary, loading, answer }
   const entById = Object.fromEntries(entities.map(e => [e.entity_id, e]));
+
+  useEffect(() => { ensureVgStyles(); }, []);
+
+  const runAsk = () => {
+    if (!ask) return;
+    setAsk(a => ({ ...a, loading: true, answer: null }));
+    fetch(`${API}/ai/card-action`, {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ company_id: company.company_id, action: "explain", label: ask.label, summary: ask.summary }),
+    }).then(r => r.json())
+      .then(res => setAsk(a => ({ ...a, loading: false, answer: res.answer || "No response." })))
+      .catch(() => setAsk(a => ({ ...a, loading: false, answer: "Couldn't reach the AI service." })));
+  };
 
   useEffect(() => {
     let alive = true;
@@ -172,7 +206,7 @@ export default function GenerativeDashboard({ company, entities, onNavigate }) {
       .then(d => { if (alive) setConfig(d.config || { title: "Overview", sections: [] }); })
       .catch(() => { if (alive) setConfig({ title: "Overview", sections: [] }); });
     return () => { alive = false; };
-  }, [company.company_id]);
+  }, [company.company_id, nonce]);
 
   const regenerate = async () => {
     setRegen(true);
@@ -202,7 +236,14 @@ export default function GenerativeDashboard({ company, entities, onNavigate }) {
       : b.type === "lowstock" ? <LowStock block={b} rows={rows} entity={entity} />
       : b.type === "recent" ? <Recent block={b} rows={rows} entity={entity} />
       : null;
-    return <div key={i} style={{ position: "relative", animation: "fadeIn .4s cubic-bezier(.16,1,.3,1) both", animationDelay: `${i * 40}ms` }}>{inner}</div>;
+    if (!inner) return null;
+    return (
+      <div key={i} className="vg-block" style={{ animation: "fadeIn .4s cubic-bezier(.16,1,.3,1) both", animationDelay: `${i * 40}ms` }}>
+        {inner}
+        <button className="vg-ask" title="Ask about this"
+          onClick={() => setAsk({ label: b.label || entity.name_plural, summary: { block: b, entity: entity.name, rows: rows.slice(0, 12) }, loading: false, answer: null })}>✦</button>
+      </div>
+    );
   };
 
   const summary = entities.map(e => ({ entity: e.name_plural, count: (recs[e.entity_id] || []).length, low_stock: 0 }));
@@ -226,6 +267,22 @@ export default function GenerativeDashboard({ company, entities, onNavigate }) {
 
       {(!config.sections || config.sections.length === 0) && (
         <div style={{ ...card, padding: 40, textAlign: "center", color: COLORS.muted }}>Add some records, then hit ✦ Redesign and Viro will build your dashboard.</div>
+      )}
+
+      {ask && (
+        <div className="vg-overlay" onClick={() => setAsk(null)}>
+          <div className="vg-modal" onClick={e => e.stopPropagation()}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
+              <div style={{ fontFamily: MONO, fontSize: 10, letterSpacing: "0.1em", textTransform: "uppercase", color: "rgba(255,255,255,0.4)" }}>{ask.label}</div>
+              <span onClick={() => setAsk(null)} style={{ cursor: "pointer", color: COLORS.muted, fontSize: 16 }}>✕</span>
+            </div>
+            {!ask.answer && !ask.loading && (
+              <button onClick={runAsk} style={{ width: "100%", background: "#fff", border: "none", borderRadius: 10, padding: "12px", color: "#08090a", fontSize: 13.5, fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}>Explain this</button>
+            )}
+            {ask.loading && <div style={{ display: "flex", alignItems: "center", gap: 9, color: COLORS.muted, fontSize: 13.5, padding: "8px 0" }}><span style={{ display: "inline-block", animation: "spin 1s linear infinite" }}>◴</span> Thinking…</div>}
+            {ask.answer && <div style={{ fontSize: 14, lineHeight: 1.65, color: "rgba(255,255,255,0.85)", whiteSpace: "pre-wrap" }}>{ask.answer}</div>}
+          </div>
+        </div>
       )}
     </div>
   );

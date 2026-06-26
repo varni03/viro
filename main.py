@@ -2039,6 +2039,56 @@ def regenerate_entity_dashboard(company_id: str):
     except Exception as e:
         return {"config": None, "error": str(e)}
 
+def _save_entity_dashboard(company_id, cfg):
+    existing = db.query("SELECT company_id FROM entity_dashboards WHERE company_id = ?", (company_id,))
+    if existing.empty:
+        db.execute("INSERT INTO entity_dashboards (company_id, config) VALUES (?, ?)", (company_id, json.dumps(cfg)))
+    else:
+        db.execute("UPDATE entity_dashboards SET config = ?, updated_at = ? WHERE company_id = ?",
+                   (json.dumps(cfg), datetime.now().isoformat(), company_id))
+
+class EntityReshapeRequest(BaseModel):
+    instruction: str
+    current_config: dict = {}
+
+@app.post("/entities/dashboard/{company_id}/reshape")
+def reshape_entity_dashboard(company_id: str, req: EntityReshapeRequest):
+    """Conversational control of the entity dashboard — rebuild it from an instruction."""
+    try:
+        name, industry = _company_identity(company_id)
+        current = req.current_config
+        if not current:
+            row = db.query("SELECT config FROM entity_dashboards WHERE company_id = ?", (company_id,))
+            current = json.loads(row.iloc[0]["config"]) if not row.empty else {}
+        ctx = _entity_dash_context(company_id)
+        prompt = f"""{ENTITY_DASH_DOC}
+
+A manager said: "{req.instruction}". Decide if this is a request to CHANGE THE DASHBOARD (add/remove/reorder/refocus blocks, change a metric, swap a chart) or just a question.
+
+CURRENT DASHBOARD:
+{json.dumps(current)}
+
+COMPANY: {name} ({industry})
+ENTITIES (fields, counts, samples):
+{json.dumps(ctx, default=str)}
+
+If it's a dashboard change, return the FULL new config. Return ONLY:
+{{"is_reshape": true|false, "config": <full {{"title","sections"}} or null>, "message": "<one sentence on what changed>"}}"""
+        response = client.messages.create(model=DESIGN_MODEL, max_tokens=2500, messages=[{"role": "user", "content": prompt}])
+        text = _strip_json_fences(response.content[0].text)
+        if not text.startswith("{"):
+            s, e = text.find("{"), text.rfind("}")
+            if s != -1 and e != -1:
+                text = text[s:e + 1]
+        result = json.loads(text)
+        cfg = result.get("config")
+        if result.get("is_reshape") and isinstance(cfg, dict) and isinstance(cfg.get("sections"), list):
+            _save_entity_dashboard(company_id, cfg)
+            return {"is_reshape": True, "config": cfg, "message": result.get("message", "Dashboard updated.")}
+        return {"is_reshape": False, "config": None, "message": ""}
+    except Exception as e:
+        return {"is_reshape": False, "config": None, "message": "", "error": str(e)}
+
 
 @app.post("/onboarding/company")
 def create_company(company: CompanyCreate):
