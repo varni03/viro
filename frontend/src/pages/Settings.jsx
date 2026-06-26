@@ -3,8 +3,9 @@ import { COLORS, Card, PageHeader, SectionLabel, Input, Button } from "../compon
 
 const API = "https://web-production-0457e.up.railway.app";
 
-export default function Settings({ company, user, onCompanyUpdate }) {
-  const [activeTab, setActiveTab] = useState("stages");
+export default function Settings({ company, user, onCompanyUpdate, entities = [] }) {
+  const hasEntities = entities && entities.length > 0;
+  const [activeTab, setActiveTab] = useState(hasEntities ? "entities" : "stages");
   const [stages, setStages] = useState([]);
   const [defectTypes, setDefectTypes] = useState([]);
   const [users, setUsers] = useState([]);
@@ -198,7 +199,18 @@ const load = async () => {
     setSaving(false);
   };
 
-  const tabs = [
+  const ENTITY_TABS = ["entities", "users", "connectors", "terminology", "company"];
+  useEffect(() => {
+    if (hasEntities && !ENTITY_TABS.includes(activeTab)) setActiveTab("entities");
+  }, [hasEntities]); // eslint-disable-line
+
+  const tabs = hasEntities ? [
+    { id: "entities", label: "▦ Data Model" },
+    { id: "users", label: "👥 Users" },
+    { id: "connectors", label: "🔌 Connectors" },
+    { id: "terminology", label: "🏷️ Terminology" },
+    { id: "company", label: "🏢 Company Profile" },
+  ] : [
     { id: "stages", label: "🏭 Stages" },
     { id: "defects", label: "⚠️ Defect Types" },
     { id: "users", label: "👥 Users" },
@@ -275,6 +287,32 @@ const load = async () => {
       </div>
 
       {/* CONNECTORS TAB */}
+{activeTab === "entities" && (
+  <div>
+    <SectionLabel>Your data model</SectionLabel>
+    <div style={{ fontSize: 13, color: COLORS.muted, marginBottom: 16, lineHeight: 1.6 }}>
+      These are the things {company.name} tracks — generated from your onboarding conversation. Your dashboard, pages, and automations are all built from them.
+    </div>
+    {entities.map(e => (
+      <Card key={e.entity_id} style={{ marginBottom: 12 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 11, marginBottom: 13 }}>
+          <span style={{ fontSize: 20 }}>{e.icon || "▦"}</span>
+          <div style={{ fontSize: 15, fontWeight: 700 }}>{e.name_plural || e.name}</div>
+          <span style={{ marginLeft: "auto", fontFamily: "'JetBrains Mono', monospace", fontSize: 11, color: COLORS.muted }}>{(e.fields || []).length} fields</span>
+        </div>
+        <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+          {(e.fields || []).map(f => (
+            <span key={f.key} style={{ fontSize: 12, color: "rgba(255,255,255,0.72)", background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 8, padding: "6px 11px" }}>
+              {f.label} <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 10, color: "rgba(255,255,255,0.4)", marginLeft: 2 }}>{f.type}</span>
+            </span>
+          ))}
+        </div>
+      </Card>
+    ))}
+    <div style={{ fontSize: 12, color: "rgba(255,255,255,0.35)", marginTop: 6 }}>To change your data model, tell Viro in the AI panel (e.g. "add a field to Ingredients").</div>
+  </div>
+)}
+
 {activeTab === "connectors" && (
   <div>
     <SectionLabel>Connected Data Sources</SectionLabel>

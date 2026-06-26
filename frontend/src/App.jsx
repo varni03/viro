@@ -342,9 +342,9 @@ export default function App() {
       case "Vehicle Search": return <VehicleSearch company={company} />;
       case "Log Defect": return <LogDefect company={company} stages={stages} />;
       case "Repair Queue": return <ProductionLine company={company} user={user} defaultView="queue" />;
-      case "Settings": return <Settings company={company} user={user} onCompanyUpdate={(updates) => {
+      case "Settings": return <Settings company={company} user={user} entities={entities} onCompanyUpdate={(updates) => {
         setCompany(prev => ({ ...prev, ...updates }));
-      }} />;     
+      }} />;
       default: return <Dashboard company={company} />;
     }
   };
