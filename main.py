@@ -1014,7 +1014,7 @@ def _compute_triggers(company_id):
                     "trigger_id": f"low_stock_{e['entity_id']}",
                     "kind": "low_stock",
                     "signature": "|".join(names),
-                    "reason": f"{len(low)} {(e['name_plural'] or 'items').lower()} at or below reorder level: {', '.join(names[:4])}{'…' if len(names) > 4 else ''}",
+                    "reason": f"{len(low)} {(e['name'] if len(low) == 1 else (e['name_plural'] or 'items')).lower()} at or below reorder level: {', '.join(names[:4])}{'…' if len(names) > 4 else ''}",
                 })
     else:
         try:
