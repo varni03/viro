@@ -1,4 +1,4 @@
-from fastapi import FastAPI, HTTPException, UploadFile, File
+from fastapi import FastAPI, HTTPException, UploadFile, File, Depends, Header
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from typing import Optional, List, Any
@@ -34,6 +34,19 @@ AI_MODEL = "claude-sonnet-4-6"
 # Higher-quality model for rare, high-value "design" calls (dashboard generation,
 # reshape, headline insights) — worth the cost where the output is the wow moment.
 DESIGN_MODEL = "claude-opus-4-8"
+
+SECRET_KEY = os.getenv("JWT_SECRET", "viro-secret-key-change-in-production")
+
+def require_auth(authorization: Optional[str] = Header(None)):
+    """Gate for AI/expensive endpoints — a valid login JWT is required.
+    The Railway URL ships in the public frontend bundle; without this,
+    anyone could burn the Anthropic credit balance."""
+    if not authorization or not authorization.startswith("Bearer "):
+        raise HTTPException(status_code=401, detail="Authentication required")
+    try:
+        return jwt.decode(authorization[7:], SECRET_KEY, algorithms=["HS256"])
+    except Exception:
+        raise HTTPException(status_code=401, detail="Invalid or expired token")
 
 # ── Companies ──────────────────────────────────────────────────
 @app.get("/companies")
@@ -110,7 +123,7 @@ def get_stages(company_id: str):
 
 
 # ── Image Analysis ─────────────────────────────────────────────
-@app.post("/defects/analyze-image")
+@app.post("/defects/analyze-image", dependencies=[Depends(require_auth)])
 async def analyze_image(file: UploadFile = File(...)):
     try:
         image_bytes = await file.read()
@@ -296,7 +309,7 @@ class SaveAnalytics(BaseModel):
     chart_type: str
     description: str
 
-@app.post("/analytics/generate")
+@app.post("/analytics/generate", dependencies=[Depends(require_auth)])
 def generate_analytics(request: AnalyticsRequest):
     try:
         schema = """
@@ -384,7 +397,7 @@ class AIRequest(BaseModel):
     company_id: str
     history: List[dict] = []
 
-@app.post("/ai/ask")
+@app.post("/ai/ask", dependencies=[Depends(require_auth)])
 def ask_ai(request: AIRequest):
     try:
         result_df, sql = db.natural_language_query(
@@ -519,7 +532,7 @@ class AIFilterRequest(BaseModel):
     company_id: str
     current_filters: dict = {}
 
-@app.post("/ai/interpret-filters")
+@app.post("/ai/interpret-filters", dependencies=[Depends(require_auth)])
 def interpret_filters(request: AIFilterRequest):
     """AI interprets natural language and returns filter changes"""
     try:
@@ -597,7 +610,7 @@ class PlatformCommandRequest(BaseModel):
     current_prefs: dict = {}
     current_modules: list = []
 
-@app.post("/ai/command")
+@app.post("/ai/command", dependencies=[Depends(require_auth)])
 def interpret_command(request: PlatformCommandRequest):
     try:
         prompt = f"""You are an AI that controls a business operations platform.
@@ -692,7 +705,7 @@ class CardInsightItem(BaseModel):
 class DashboardInsightsRequest(BaseModel):
     cards: List[CardInsightItem]
 
-@app.post("/dashboard/insights/{company_id}")
+@app.post("/dashboard/insights/{company_id}", dependencies=[Depends(require_auth)])
 def dashboard_insights(company_id: str, req: DashboardInsightsRequest):
     """One Claude call → a one-sentence insight per dashboard card."""
     try:
@@ -728,7 +741,7 @@ class CardActionRequest(BaseModel):
     summary: Any = None
     question: Optional[str] = None
 
-@app.post("/ai/card-action")
+@app.post("/ai/card-action", dependencies=[Depends(require_auth)])
 def card_action(req: CardActionRequest):
     """Click-any-card control plane: explain a card in context, or set an alert."""
     try:
@@ -771,7 +784,7 @@ class PageInsightRequest(BaseModel):
     page: str
     summary: Any = None
 
-@app.post("/ai/page-insight")
+@app.post("/ai/page-insight", dependencies=[Depends(require_auth)])
 def page_insight(req: PageInsightRequest):
     """One sentence answering the single most important question a page should answer."""
     try:
@@ -883,7 +896,7 @@ WHAT THEY TRACK (live data):
     _save_catalog(company_id, cfg)
     return cfg
 
-@app.get("/automations/catalog/{company_id}")
+@app.get("/automations/catalog/{company_id}", dependencies=[Depends(require_auth)])
 def get_automation_catalog(company_id: str):
     try:
         cfg = _load_catalog(company_id)
@@ -893,7 +906,7 @@ def get_automation_catalog(company_id: str):
     except Exception as e:
         return {"automations": [], "error": str(e)}
 
-@app.post("/automations/catalog/{company_id}/regenerate")
+@app.post("/automations/catalog/{company_id}/regenerate", dependencies=[Depends(require_auth)])
 def regenerate_automation_catalog(company_id: str):
     try:
         return _generate_catalog(company_id)
@@ -903,7 +916,7 @@ def regenerate_automation_catalog(company_id: str):
 class AutomationAdd(BaseModel):
     description: str
 
-@app.post("/automations/catalog/{company_id}/add")
+@app.post("/automations/catalog/{company_id}/add", dependencies=[Depends(require_auth)])
 def add_automation(company_id: str, req: AutomationAdd):
     """User describes a document they write by hand; Viro adds it as an automation."""
     try:
@@ -951,7 +964,7 @@ Return only the finished document text (subject line first if it's an email). No
                (doc_id, company_id, auto.get("id"), auto.get("title", "Document"), body))
     return {"doc_id": doc_id, "title": auto.get("title"), "body": body}
 
-@app.post("/automations/draft")
+@app.post("/automations/draft", dependencies=[Depends(require_auth)])
 def draft_automation(req: AutomationDraft):
     """Draft a catalog automation from live data; saves the document."""
     try:
@@ -1039,7 +1052,7 @@ def _match_automation(catalog, kind):
             return a
     return None
 
-@app.post("/pulse/{company_id}")
+@app.post("/pulse/{company_id}", dependencies=[Depends(require_auth)])
 def pulse(company_id: str):
     """Check live data for events; auto-draft the matching document and notify. Deduped by signature."""
     import uuid
@@ -1084,7 +1097,7 @@ class AutomationRequest(BaseModel):
     company_id: str
     type: str
 
-@app.post("/automations/generate")
+@app.post("/automations/generate", dependencies=[Depends(require_auth)])
 def generate_automation(req: AutomationRequest):
     """Draft a real operational document from the company's live data."""
     try:
@@ -1162,7 +1175,7 @@ class ReshapeRequest(BaseModel):
     instruction: str
     current_config: dict
 
-@app.post("/ai/reshape-dashboard")
+@app.post("/ai/reshape-dashboard", dependencies=[Depends(require_auth)])
 def reshape_dashboard(req: ReshapeRequest):
     """Turn a natural-language instruction into a new dashboard config, live."""
     try:
@@ -1206,8 +1219,6 @@ Return ONLY this JSON, nothing else:
 
 
 # ── Auth ───────────────────────────────────────────────────────
-SECRET_KEY = os.getenv("JWT_SECRET", "viro-secret-key-change-in-production")
-
 class LoginRequest(BaseModel):
     email: str
     password: str
@@ -1225,7 +1236,7 @@ def create_token(user_id: str, role: str, company_id: str):
         "user_id": user_id,
         "role": role,
         "company_id": company_id,
-        "exp": datetime.utcnow() + timedelta(hours=24)
+        "exp": datetime.utcnow() + timedelta(days=7)
     }
     return jwt.encode(payload, SECRET_KEY, algorithm="HS256")
 
@@ -1725,7 +1736,7 @@ class RunQuery(BaseModel):
     sql: str
     company_id: str
 
-@app.post("/analytics/run")
+@app.post("/analytics/run", dependencies=[Depends(require_auth)])
 def run_saved_query(data: RunQuery):
     try:
         # Safety check - only allow SELECT
@@ -2121,7 +2132,11 @@ Return ONLY the JSON object."""
 
 @app.post("/onboarding/converse")
 def onboarding_converse(req: OnboardingConverseRequest):
-    """Claude-driven onboarding: understands free-form input, extracts config live."""
+    """Claude-driven onboarding: understands free-form input, extracts config live.
+    Public by necessity (users aren't logged in yet) — so bound the abuse surface."""
+    if len(req.messages) > 40 or any(len(str(m.get("content", ""))) > 2000 for m in req.messages):
+        return {"reply": "Let's keep it brief — could you sum that up in a sentence or two?",
+                "state": req.state, "options": [], "ready": False}
     try:
         msgs = [{"role": m["role"], "content": m["content"]}
                 for m in req.messages if m.get("role") in ("user", "assistant")]
@@ -2311,7 +2326,7 @@ ENTITIES (with fields, record counts, samples):
                    (json.dumps(cfg), datetime.now().isoformat(), company_id))
     return cfg
 
-@app.get("/entities/dashboard/{company_id}")
+@app.get("/entities/dashboard/{company_id}", dependencies=[Depends(require_auth)])
 def get_entity_dashboard(company_id: str):
     try:
         row = db.query("SELECT config FROM entity_dashboards WHERE company_id = ?", (company_id,))
@@ -2322,7 +2337,7 @@ def get_entity_dashboard(company_id: str):
     except Exception as e:
         return {"config": None, "error": str(e)}
 
-@app.post("/entities/dashboard/{company_id}/regenerate")
+@app.post("/entities/dashboard/{company_id}/regenerate", dependencies=[Depends(require_auth)])
 def regenerate_entity_dashboard(company_id: str):
     try:
         return {"config": _generate_entity_dashboard(company_id)}
@@ -2341,7 +2356,7 @@ class EntityReshapeRequest(BaseModel):
     instruction: str
     current_config: dict = {}
 
-@app.post("/entities/dashboard/{company_id}/reshape")
+@app.post("/entities/dashboard/{company_id}/reshape", dependencies=[Depends(require_auth)])
 def reshape_entity_dashboard(company_id: str, req: EntityReshapeRequest):
     """Conversational control of the entity dashboard — rebuild it from an instruction."""
     try:
