@@ -232,6 +232,16 @@ export default function App() {
       .catch(() => {});
   }, [company]);
 
+  // Pulse: Viro checks the live data for events (low stock, criticals) and
+  // proactively drafts the matching paperwork; results surface as notifications.
+  useEffect(() => {
+    if (!company) return;
+    const beat = () => fetch(`${API}/pulse/${company.company_id}`, { method: "POST" }).catch(() => {});
+    beat();
+    const interval = setInterval(beat, 5 * 60 * 1000);
+    return () => clearInterval(interval);
+  }, [company]);
+
   // Each company's base dashboard is derived from ITS OWN stages + terminology.
   const baseConfig = useMemo(() => buildDefaultConfig({ company, stages, terminology }), [company, stages, terminology]);
   const effectiveConfig = dashboardConfig || baseConfig;

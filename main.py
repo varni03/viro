@@ -929,18 +929,12 @@ class AutomationDraft(BaseModel):
     company_id: str
     automation_id: str
 
-@app.post("/automations/draft")
-def draft_automation(req: AutomationDraft):
-    """Draft a catalog automation from live data; saves the document."""
-    try:
-        import uuid
-        name, industry = _company_identity(req.company_id)
-        cfg = _load_catalog(req.company_id) or {"automations": []}
-        auto = next((a for a in cfg.get("automations", []) if a.get("id") == req.automation_id), None)
-        if not auto:
-            return {"error": "Unknown automation"}
-        ctx = _automation_context(req.company_id)
-        prompt = f"""You are an operations assistant at {name}, a {industry} company. Draft this document using ONLY the live data provided — invent no numbers. Today is {datetime.now().strftime("%B %d, %Y")}.
+def _draft_from_automation(company_id, auto):
+    """Draft one catalog automation from live data; persist and return the document."""
+    import uuid
+    name, industry = _company_identity(company_id)
+    ctx = _automation_context(company_id)
+    prompt = f"""You are an operations assistant at {name}, a {industry} company. Draft this document using ONLY the live data provided — invent no numbers. Today is {datetime.now().strftime("%B %d, %Y")}.
 
 DOCUMENT: {auto.get("title")}
 {auto.get("instruction")}
@@ -949,13 +943,23 @@ LIVE DATA (JSON):
 {json.dumps(ctx, default=str)}
 
 Return only the finished document text (subject line first if it's an email). No commentary, no markdown fences."""
-        response = client.messages.create(model=AI_MODEL, max_tokens=1200,
-                                          messages=[{"role": "user", "content": prompt}])
-        body = "".join(b.text for b in response.content if hasattr(b, "text")).strip()
-        doc_id = str(uuid.uuid4())[:12]
-        db.execute("INSERT INTO documents (doc_id, company_id, automation_id, title, body) VALUES (?, ?, ?, ?, ?)",
-                   (doc_id, req.company_id, req.automation_id, auto.get("title", "Document"), body))
-        return {"doc_id": doc_id, "title": auto.get("title"), "body": body}
+    response = client.messages.create(model=AI_MODEL, max_tokens=1200,
+                                      messages=[{"role": "user", "content": prompt}])
+    body = "".join(b.text for b in response.content if hasattr(b, "text")).strip()
+    doc_id = str(uuid.uuid4())[:12]
+    db.execute("INSERT INTO documents (doc_id, company_id, automation_id, title, body) VALUES (?, ?, ?, ?, ?)",
+               (doc_id, company_id, auto.get("id"), auto.get("title", "Document"), body))
+    return {"doc_id": doc_id, "title": auto.get("title"), "body": body}
+
+@app.post("/automations/draft")
+def draft_automation(req: AutomationDraft):
+    """Draft a catalog automation from live data; saves the document."""
+    try:
+        cfg = _load_catalog(req.company_id) or {"automations": []}
+        auto = next((a for a in cfg.get("automations", []) if a.get("id") == req.automation_id), None)
+        if not auto:
+            return {"error": "Unknown automation"}
+        return _draft_from_automation(req.company_id, auto)
     except Exception as e:
         return {"error": str(e)}
 
@@ -978,6 +982,100 @@ class DocStatus(BaseModel):
 def set_document_status(doc_id: str, body: DocStatus):
     db.execute("UPDATE documents SET status = ? WHERE doc_id = ?", (body.status, doc_id))
     return {"message": "Updated"}
+
+
+# ── Pulse: Viro notices events and drafts the paperwork itself ──
+TRIGGER_KEYWORDS = {
+    "low_stock": ["reorder", "restock", "supplier", "stock", "purchas", "inventory", "order"],
+    "critical": ["quality", "critical", "escalat", "report", "handover"],
+}
+
+def _record_name(fields, row):
+    key = (fields or [{}])[0].get("key")
+    return str(row.get(key, "item")) if key else "item"
+
+def _compute_triggers(company_id):
+    """Deterministic, zero-AI-cost checks over live data."""
+    triggers = []
+    ents = db.query("SELECT * FROM entities WHERE company_id = ? ORDER BY sort_order", (company_id,))
+    if not ents.empty:
+        for _, e in ents.iterrows():
+            fields = json.loads(e["fields"]) if e["fields"] else []
+            qf = next((f["key"] for f in fields if f.get("type") == "number" and any(w in f["key"].lower() for w in ["on_hand", "stock", "qty", "quantity", "inventory", "count"])), None)
+            rf = next((f["key"] for f in fields if f.get("type") == "number" and any(w in f["key"].lower() for w in ["reorder", "min", "threshold", "par"])), None)
+            if not (qf and rf):
+                continue
+            recs = db.query("SELECT data FROM records WHERE company_id = ? AND entity_id = ?", (company_id, e["entity_id"]))
+            rows = [json.loads(r["data"]) for _, r in recs.iterrows() if r["data"]]
+            low = [r for r in rows if _to_num(r.get(qf)) <= _to_num(r.get(rf))]
+            if low:
+                names = sorted(_record_name(fields, r) for r in low)
+                triggers.append({
+                    "trigger_id": f"low_stock_{e['entity_id']}",
+                    "kind": "low_stock",
+                    "signature": "|".join(names),
+                    "reason": f"{len(low)} {(e['name_plural'] or 'items').lower()} at or below reorder level: {', '.join(names[:4])}{'…' if len(names) > 4 else ''}",
+                })
+    else:
+        try:
+            summary = get_analytics_summary(company_id)
+            crit = int(summary.get("critical", 0))
+            if crit > 0:
+                triggers.append({
+                    "trigger_id": "critical_defects",
+                    "kind": "critical",
+                    "signature": str(crit),
+                    "reason": f"{crit} critical defects open",
+                })
+        except Exception:
+            pass
+    return triggers
+
+def _match_automation(catalog, kind):
+    kws = TRIGGER_KEYWORDS.get(kind, [])
+    for a in (catalog or {}).get("automations", []):
+        hay = f"{a.get('id','')} {a.get('title','')} {a.get('description','')}".lower()
+        if any(k in hay for k in kws):
+            return a
+    return None
+
+@app.post("/pulse/{company_id}")
+def pulse(company_id: str):
+    """Check live data for events; auto-draft the matching document and notify. Deduped by signature."""
+    import uuid
+    events = []
+    try:
+        triggers = _compute_triggers(company_id)
+        for t in triggers:
+            prior = db.query("SELECT signature FROM pulse_state WHERE company_id = ? AND trigger_id = ?",
+                             (company_id, t["trigger_id"]))
+            if not prior.empty and prior.iloc[0]["signature"] == t["signature"]:
+                continue  # already handled this exact state
+            if prior.empty:
+                db.execute("INSERT INTO pulse_state (company_id, trigger_id, signature) VALUES (?, ?, ?)",
+                           (company_id, t["trigger_id"], t["signature"]))
+            else:
+                db.execute("UPDATE pulse_state SET signature = ?, fired_at = ? WHERE company_id = ? AND trigger_id = ?",
+                           (t["signature"], datetime.now().isoformat(), company_id, t["trigger_id"]))
+
+            doc = None
+            auto = _match_automation(_load_catalog(company_id), t["kind"])
+            if auto:
+                try:
+                    doc = _draft_from_automation(company_id, auto)
+                except Exception:
+                    doc = None
+
+            title = f"✦ Viro drafted: {doc['title']}" if doc else "✦ Viro noticed something"
+            message = t["reason"] + (" — draft ready in Automations." if doc else "")
+            db.execute("""
+                INSERT INTO notifications (notification_id, company_id, title, message, severity)
+                VALUES (?, ?, ?, ?, ?)
+            """, (str(uuid.uuid4()), company_id, title, message, "high" if t["kind"] == "critical" else "medium"))
+            events.append({"trigger": t["trigger_id"], "reason": t["reason"], "doc_id": doc.get("doc_id") if doc else None})
+        return {"events": events}
+    except Exception as e:
+        return {"events": events, "error": str(e)}
 
 
 class AutomationRequest(BaseModel):
@@ -1434,6 +1532,16 @@ db.execute("""
         body TEXT NOT NULL,
         status TEXT DEFAULT 'drafted',
         created_at TEXT DEFAULT CURRENT_TIMESTAMP
+    )
+""")
+
+db.execute("""
+    CREATE TABLE IF NOT EXISTS pulse_state (
+        company_id TEXT NOT NULL,
+        trigger_id TEXT NOT NULL,
+        signature TEXT,
+        fired_at TEXT DEFAULT CURRENT_TIMESTAMP,
+        PRIMARY KEY (company_id, trigger_id)
     )
 """)
 
