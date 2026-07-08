@@ -51,6 +51,10 @@ export function AuroraBackground() {
           50% { transform: translate(-50%, -50%) scale(1.08); }
         }
         @keyframes spin { to { transform: rotate(360deg); } }
+        @keyframes toast-in {
+          from { opacity: 0; transform: translateX(24px) scale(0.98); }
+          to { opacity: 1; transform: none; }
+        }
 
         .viro-page { animation: fadeIn 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
 

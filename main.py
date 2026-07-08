@@ -1072,7 +1072,9 @@ def pulse(company_id: str):
                 INSERT INTO notifications (notification_id, company_id, title, message, severity)
                 VALUES (?, ?, ?, ?, ?)
             """, (str(uuid.uuid4()), company_id, title, message, "high" if t["kind"] == "critical" else "medium"))
-            events.append({"trigger": t["trigger_id"], "reason": t["reason"], "doc_id": doc.get("doc_id") if doc else None})
+            events.append({"trigger": t["trigger_id"], "reason": t["reason"],
+                           "doc_id": doc.get("doc_id") if doc else None,
+                           "title": doc.get("title") if doc else None})
         return {"events": events}
     except Exception as e:
         return {"events": events, "error": str(e)}

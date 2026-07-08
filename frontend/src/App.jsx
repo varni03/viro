@@ -122,6 +122,14 @@ export default function App() {
   const [activeViewId, setActiveViewId] = useState("base");
   const [entities, setEntities] = useState([]);
   const [entityDashNonce, setEntityDashNonce] = useState(0);
+  const [toasts, setToasts] = useState([]);
+
+  const dismissToast = (id) => setToasts(ts => ts.filter(t => t.id !== id));
+  const pushToast = (t) => {
+    const id = `${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
+    setToasts(ts => [...ts, { ...t, id }]);
+    setTimeout(() => dismissToast(id), 9000);
+  };
 
   const [filters, setFilters] = useState({
     dateRange: null,
@@ -236,11 +244,19 @@ export default function App() {
   // proactively drafts the matching paperwork; results surface as notifications.
   useEffect(() => {
     if (!company) return;
-    const beat = () => fetch(`${API}/pulse/${company.company_id}`, { method: "POST" }).catch(() => {});
+    const beat = () =>
+      fetch(`${API}/pulse/${company.company_id}`, { method: "POST" })
+        .then(r => r.json())
+        .then(d => (d.events || []).forEach(ev => pushToast({
+          title: ev.title ? `Viro drafted: ${ev.title}` : "Viro noticed something",
+          reason: ev.reason,
+          docId: ev.doc_id,
+        })))
+        .catch(() => {});
     beat();
     const interval = setInterval(beat, 5 * 60 * 1000);
     return () => clearInterval(interval);
-  }, [company]);
+  }, [company]); // eslint-disable-line
 
   // Each company's base dashboard is derived from ITS OWN stages + terminology.
   const baseConfig = useMemo(() => buildDefaultConfig({ company, stages, terminology }), [company, stages, terminology]);
@@ -396,6 +412,31 @@ export default function App() {
       position: "relative",
     }}>
       <AuroraBackground />
+
+      {/* Pulse toasts — Viro acting on its own, sliding in like mission control */}
+      {toasts.length > 0 && (
+        <div style={{ position: "fixed", top: 18, right: 18, zIndex: 200, display: "flex", flexDirection: "column", gap: 10, width: 360, maxWidth: "calc(100vw - 36px)" }}>
+          {toasts.map(t => (
+            <div key={t.id}
+              onClick={() => { dismissToast(t.id); if (t.docId) setActivePage("Automations"); }}
+              style={{
+                display: "flex", gap: 12, padding: "14px 16px", cursor: t.docId ? "pointer" : "default",
+                background: "rgba(20,21,23,0.96)", backdropFilter: "blur(20px)", WebkitBackdropFilter: "blur(20px)",
+                border: "1px solid rgba(255,255,255,0.14)", borderRadius: 14,
+                boxShadow: "0 20px 60px rgba(0,0,0,0.5)",
+                animation: "toast-in .45s cubic-bezier(.16,1,.3,1) both",
+              }}>
+              <div style={{ width: 30, height: 30, borderRadius: 9, flexShrink: 0, background: "rgba(255,255,255,0.08)", border: "1px solid rgba(255,255,255,0.12)", display: "flex", alignItems: "center", justifyContent: "center", color: "rgba(255,255,255,0.85)", fontSize: 14 }}>✦</div>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontSize: 13.5, fontWeight: 700, marginBottom: 3, color: "#fff" }}>{t.title}</div>
+                <div style={{ fontSize: 12, color: "rgba(255,255,255,0.55)", lineHeight: 1.45 }}>{t.reason}{t.docId ? " · click to review" : ""}</div>
+              </div>
+              <span onClick={(e) => { e.stopPropagation(); dismissToast(t.id); }}
+                style={{ color: "rgba(255,255,255,0.35)", fontSize: 14, cursor: "pointer", lineHeight: 1 }}>✕</span>
+            </div>
+          ))}
+        </div>
+      )}
 
       {/* Mobile/Tablet overlay when sidebar open */}
       {(isMobile || isTablet) && sidebarOpen && (
