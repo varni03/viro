@@ -820,6 +820,166 @@ def _to_num(v):
     except (TypeError, ValueError):
         return 0.0
 
+AUTOMATION_CATALOG_DOC = """You design a company's automation catalog — the documents and communications its departments write by hand today, which Viro will draft automatically from live data.
+
+Given the company and the data it tracks, invent 6-10 automations across 3-5 departments, each SPECIFIC to this business (a smoothie shop: supplier reorder email, daily prep list, weekly sales recap; a clinic: appointment reminders, referral letters; a manufacturer: quality report, shift handover). Each automation:
+{"id":"snake_case_unique","department":"short department name","icon":"one emoji","title":"...","description":"one line on what it does, in this company's terms","instruction":"a precise instruction to the drafting AI: exactly what document to write, which parts of the data to use, the structure (sections/bullets/subject line if an email), and the tone"}
+
+Return ONLY: {"automations":[...]}. No prose, no code fence."""
+
+def _automation_context(company_id):
+    """Live-data context for drafting: entity records if generative, legacy analytics otherwise."""
+    ents = db.query("SELECT * FROM entities WHERE company_id = ? ORDER BY sort_order", (company_id,))
+    if not ents.empty:
+        ctx = {"entities": {}}
+        for _, e in ents.iterrows():
+            fields = json.loads(e["fields"]) if e["fields"] else []
+            recs = db.query("SELECT data FROM records WHERE company_id = ? AND entity_id = ?", (company_id, e["entity_id"]))
+            rows = [json.loads(r["data"]) for _, r in recs.iterrows() if r["data"]]
+            qf = next((f["key"] for f in fields if f.get("type") == "number" and any(w in f["key"].lower() for w in ["on_hand", "stock", "qty", "quantity", "inventory", "count"])), None)
+            rf = next((f["key"] for f in fields if f.get("type") == "number" and any(w in f["key"].lower() for w in ["reorder", "min", "threshold", "par"])), None)
+            low = [r for r in rows if qf and rf and _to_num(r.get(qf)) <= _to_num(r.get(rf))] if (qf and rf) else []
+            ctx["entities"][e["name_plural"] or e["name"]] = {"count": len(rows), "low_stock": low[:10], "recent": rows[:10]}
+        return ctx
+    return {
+        "summary": get_analytics_summary(company_id),
+        "top_issues": get_top_defects(company_id),
+        "stage_performance": get_stage_performance(company_id),
+    }
+
+def _load_catalog(company_id):
+    row = db.query("SELECT config FROM automation_catalogs WHERE company_id = ?", (company_id,))
+    return json.loads(row.iloc[0]["config"]) if not row.empty else None
+
+def _save_catalog(company_id, cfg):
+    existing = db.query("SELECT company_id FROM automation_catalogs WHERE company_id = ?", (company_id,))
+    if existing.empty:
+        db.execute("INSERT INTO automation_catalogs (company_id, config) VALUES (?, ?)", (company_id, json.dumps(cfg)))
+    else:
+        db.execute("UPDATE automation_catalogs SET config = ?, updated_at = ? WHERE company_id = ?",
+                   (json.dumps(cfg), datetime.now().isoformat(), company_id))
+
+def _parse_ai_json(text):
+    text = _strip_json_fences(text)
+    if not text.startswith("{"):
+        s, e = text.find("{"), text.rfind("}")
+        if s != -1 and e != -1:
+            text = text[s:e + 1]
+    return json.loads(text)
+
+def _generate_catalog(company_id):
+    name, industry = _company_identity(company_id)
+    ctx = _automation_context(company_id)
+    prompt = f"""{AUTOMATION_CATALOG_DOC}
+
+COMPANY: {name} ({industry})
+WHAT THEY TRACK (live data):
+{json.dumps(ctx, default=str)}"""
+    response = client.messages.create(model=DESIGN_MODEL, max_tokens=2500,
+                                      messages=[{"role": "user", "content": prompt}])
+    cfg = _parse_ai_json(response.content[0].text)
+    if not isinstance(cfg.get("automations"), list):
+        raise ValueError("bad catalog")
+    _save_catalog(company_id, cfg)
+    return cfg
+
+@app.get("/automations/catalog/{company_id}")
+def get_automation_catalog(company_id: str):
+    try:
+        cfg = _load_catalog(company_id)
+        if cfg is None:
+            cfg = _generate_catalog(company_id)
+        return cfg
+    except Exception as e:
+        return {"automations": [], "error": str(e)}
+
+@app.post("/automations/catalog/{company_id}/regenerate")
+def regenerate_automation_catalog(company_id: str):
+    try:
+        return _generate_catalog(company_id)
+    except Exception as e:
+        return {"automations": [], "error": str(e)}
+
+class AutomationAdd(BaseModel):
+    description: str
+
+@app.post("/automations/catalog/{company_id}/add")
+def add_automation(company_id: str, req: AutomationAdd):
+    """User describes a document they write by hand; Viro adds it as an automation."""
+    try:
+        name, industry = _company_identity(company_id)
+        cfg = _load_catalog(company_id) or {"automations": []}
+        prompt = f"""A manager at {name} ({industry}) wants Viro to automate a document they write by hand. They described it as: "{req.description}".
+
+Existing automation ids: {[a.get("id") for a in cfg.get("automations", [])]}
+
+Write ONE automation object with a new unique id:
+{{"id":"snake_case","department":"...","icon":"one emoji","title":"...","description":"one line","instruction":"precise drafting instruction: what to write, which data to use, structure, tone"}}
+Return ONLY the JSON object."""
+        response = client.messages.create(model=DESIGN_MODEL, max_tokens=600,
+                                          messages=[{"role": "user", "content": prompt}])
+        auto = _parse_ai_json(response.content[0].text)
+        cfg["automations"] = cfg.get("automations", []) + [auto]
+        _save_catalog(company_id, cfg)
+        return {"automation": auto, "catalog": cfg}
+    except Exception as e:
+        return {"automation": None, "error": str(e)}
+
+class AutomationDraft(BaseModel):
+    company_id: str
+    automation_id: str
+
+@app.post("/automations/draft")
+def draft_automation(req: AutomationDraft):
+    """Draft a catalog automation from live data; saves the document."""
+    try:
+        import uuid
+        name, industry = _company_identity(req.company_id)
+        cfg = _load_catalog(req.company_id) or {"automations": []}
+        auto = next((a for a in cfg.get("automations", []) if a.get("id") == req.automation_id), None)
+        if not auto:
+            return {"error": "Unknown automation"}
+        ctx = _automation_context(req.company_id)
+        prompt = f"""You are an operations assistant at {name}, a {industry} company. Draft this document using ONLY the live data provided — invent no numbers. Today is {datetime.now().strftime("%B %d, %Y")}.
+
+DOCUMENT: {auto.get("title")}
+{auto.get("instruction")}
+
+LIVE DATA (JSON):
+{json.dumps(ctx, default=str)}
+
+Return only the finished document text (subject line first if it's an email). No commentary, no markdown fences."""
+        response = client.messages.create(model=AI_MODEL, max_tokens=1200,
+                                          messages=[{"role": "user", "content": prompt}])
+        body = "".join(b.text for b in response.content if hasattr(b, "text")).strip()
+        doc_id = str(uuid.uuid4())[:12]
+        db.execute("INSERT INTO documents (doc_id, company_id, automation_id, title, body) VALUES (?, ?, ?, ?, ?)",
+                   (doc_id, req.company_id, req.automation_id, auto.get("title", "Document"), body))
+        return {"doc_id": doc_id, "title": auto.get("title"), "body": body}
+    except Exception as e:
+        return {"error": str(e)}
+
+@app.get("/documents/{company_id}")
+def list_documents(company_id: str):
+    rows = db.query("SELECT doc_id, automation_id, title, status, created_at FROM documents WHERE company_id = ? ORDER BY created_at DESC LIMIT 30", (company_id,))
+    return rows.to_dict(orient="records")
+
+@app.get("/documents/one/{doc_id}")
+def get_document(doc_id: str):
+    row = db.query("SELECT * FROM documents WHERE doc_id = ?", (doc_id,))
+    if row.empty:
+        return {"error": "Not found"}
+    return row.iloc[0].to_dict()
+
+class DocStatus(BaseModel):
+    status: str
+
+@app.put("/documents/{doc_id}/status")
+def set_document_status(doc_id: str, body: DocStatus):
+    db.execute("UPDATE documents SET status = ? WHERE doc_id = ?", (body.status, doc_id))
+    return {"message": "Updated"}
+
+
 class AutomationRequest(BaseModel):
     company_id: str
     type: str
@@ -1254,6 +1414,26 @@ db.execute("""
         company_id TEXT PRIMARY KEY,
         config TEXT NOT NULL,
         updated_at TEXT DEFAULT CURRENT_TIMESTAMP
+    )
+""")
+
+db.execute("""
+    CREATE TABLE IF NOT EXISTS automation_catalogs (
+        company_id TEXT PRIMARY KEY,
+        config TEXT NOT NULL,
+        updated_at TEXT DEFAULT CURRENT_TIMESTAMP
+    )
+""")
+
+db.execute("""
+    CREATE TABLE IF NOT EXISTS documents (
+        doc_id TEXT PRIMARY KEY,
+        company_id TEXT NOT NULL,
+        automation_id TEXT,
+        title TEXT NOT NULL,
+        body TEXT NOT NULL,
+        status TEXT DEFAULT 'drafted',
+        created_at TEXT DEFAULT CURRENT_TIMESTAMP
     )
 """)
 
