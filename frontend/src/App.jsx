@@ -138,6 +138,7 @@ export default function App() {
   const [activeViewId, setActiveViewId] = useState("base");
   const [entities, setEntities] = useState([]);
   const [entityDashNonce, setEntityDashNonce] = useState(0);
+  const [blueprint, setBlueprint] = useState(null);
   const [toasts, setToasts] = useState([]);
   const [paneB, setPaneB] = useState(null);          // split view: second surface
   const [focusedPane, setFocusedPane] = useState("a");
@@ -145,14 +146,21 @@ export default function App() {
   const [pendingAsk, setPendingAsk] = useState(null); // omnibar → copilot handoff
   const omnibarRef = useRef();
 
-  const dockItems = useMemo(() => [
-    ...(user?.role === "worker" ? [{ icon: "⬡", label: "Home", page: "Home" }] : [{ icon: "⬡", label: "Dashboard", page: "Dashboard" }]),
-    ...(entities.length > 0
-      ? entities.map(e => ({ icon: e.icon || "▦", label: e.name_plural || e.name, page: `entity:${e.entity_id}` }))
-      : [{ icon: "🔧", label: "Production Line", page: "Production Line" }, { icon: "📊", label: "Analytics", page: "Analytics" }, { icon: "⚠️", label: "Predictive", page: "Predictive" }, { icon: "📸", label: "Log Defect", page: "Log Defect" }, { icon: "🔍", label: "Search", page: "Vehicle Search" }]),
-    { icon: "📄", label: "Automations", page: "Automations" },
-    { icon: "⚙️", label: "Settings", page: "Settings" },
-  ], [user?.role, entities]);
+  const dockItems = useMemo(() => {
+    // Blueprint-designed surfaces, in the company's own language.
+    if (entities.length > 0 && blueprint?.surfaces?.length) {
+      const items = blueprint.surfaces.map(s => ({ icon: s.icon || "▦", label: s.label, page: s.page }));
+      return user?.role === "worker" ? [{ icon: "⬡", label: "Home", page: "Home" }, ...items] : items;
+    }
+    return [
+      ...(user?.role === "worker" ? [{ icon: "⬡", label: "Home", page: "Home" }] : [{ icon: "⬡", label: "Dashboard", page: "Dashboard" }]),
+      ...(entities.length > 0
+        ? entities.map(e => ({ icon: e.icon || "▦", label: e.name_plural || e.name, page: `entity:${e.entity_id}` }))
+        : [{ icon: "🔧", label: "Production Line", page: "Production Line" }, { icon: "📊", label: "Analytics", page: "Analytics" }, { icon: "⚠️", label: "Predictive", page: "Predictive" }, { icon: "📸", label: "Log Defect", page: "Log Defect" }, { icon: "🔍", label: "Search", page: "Vehicle Search" }]),
+      { icon: "📄", label: "Automations", page: "Automations" },
+      { icon: "⚙️", label: "Settings", page: "Settings" },
+    ];
+  }, [user?.role, entities, blueprint]);
   const dockItemsRef = useRef(dockItems);
   useEffect(() => { dockItemsRef.current = dockItems; }, [dockItems]);
 
@@ -328,9 +336,26 @@ export default function App() {
 
     fetch(`${API}/entities/${company.company_id}`)
       .then(r => r.json())
-      .then(d => setEntities(Array.isArray(d) ? d : []))
+      .then(d => {
+        const ents = Array.isArray(d) ? d : [];
+        setEntities(ents);
+        // The blueprint: this company's AI-designed platform structure.
+        if (ents.length > 0 && user) {
+          fetch(`${API}/blueprint/${company.company_id}`)
+            .then(r => r.json())
+            .then(b => setBlueprint(b.blueprint || null))
+            .catch(() => setBlueprint(null));
+        } else {
+          setBlueprint(null);
+        }
+      })
       .catch(() => {});
-  }, [company]);
+  }, [company, user]);
+
+  // Thread the company's accent identity through the whole app.
+  useEffect(() => {
+    document.documentElement.style.setProperty("--vx", blueprint?.accent || "#34d399");
+  }, [blueprint?.accent]);
 
   // Pulse: Viro checks the live data for events (low stock, criticals) and
   // proactively drafts the matching paperwork; results surface as notifications.
@@ -436,12 +461,14 @@ export default function App() {
     if (page.startsWith("entity:")) {
       const eid = page.slice("entity:".length);
       const entity = entities.find(e => e.entity_id === eid);
-      return entity ? <EntityPage company={company} entity={entity} /> : <DynamicDashboard company={company} config={effectiveConfig} />;
+      return entity
+        ? <EntityPage company={company} entity={entity} viewCfg={blueprint?.entity_views?.[eid]} surfaceLabel={pageLabel(page)} />
+        : <DynamicDashboard company={company} config={effectiveConfig} />;
     }
 
     switch (page) {
       case "Dashboard": return entities.length > 0
-        ? <GenerativeDashboard company={company} entities={entities} onNavigate={nav} nonce={entityDashNonce} user={user} />
+        ? <GenerativeDashboard company={company} entities={entities} onNavigate={nav} nonce={entityDashNonce} user={user} defaultView={blueprint?.dashboard_default} homeLabel={pageLabel("Dashboard")} />
         : <DynamicDashboard
             company={company}
             config={effectiveConfig}
@@ -467,10 +494,13 @@ export default function App() {
     }
   };
 
-  const pageLabel = (page) =>
-    page.startsWith("entity:")
+  const pageLabel = (page) => {
+    const surface = blueprint?.surfaces?.find(s => s.page === page);
+    if (surface?.label) return surface.label;
+    return page.startsWith("entity:")
       ? (entities.find(e => `entity:${e.entity_id}` === page)?.name_plural || "Records")
       : page.startsWith("report_") ? "Report" : page;
+  };
 
   if (!authChecked) return null;
 

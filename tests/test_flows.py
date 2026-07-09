@@ -87,6 +87,21 @@ class _FakeMessages:
         if "Draft this document" in prompt:
             return _Msg("Subject: Reorder request\n\nPlease send more Oat Milk and Strawberries.")
 
+        if "designing the STRUCTURE" in prompt:
+            ids = re.findall(r'"entity_id":\s*"([^"]+)"', prompt)
+            eid = ids[0] if ids else "unknown"
+            return _Msg(json.dumps({
+                "accent": "#ff9955",
+                "surfaces": [
+                    {"page": "Dashboard", "label": "The Counter", "icon": "T"},
+                    {"page": f"entity:{eid}", "label": "Prep Line", "icon": "P"},
+                    {"page": "Automations", "label": "Back Office", "icon": "B"},
+                    {"page": "Settings", "label": "Settings", "icon": "S"},
+                ],
+                "entity_views": {eid: {"default_view": "cards", "board_field": None, "card_title": "name", "card_fields": ["on_hand"]}},
+                "dashboard_default": "overview",
+            }))
+
         if "morning briefing" in prompt:
             return _Msg("Operations are steady with 2 orders in flight. Restock Oat Milk today. Watch Friday demand.")
 
@@ -240,6 +255,46 @@ def test_records_crud_and_entity_cascade():
     assert tc.get(f"/records/{cid}/{eid}").json()[0]["item"] == "Green Machine"
     tc.delete(f"/entities/{eid}")
     assert tc.get(f"/records/{cid}/{eid}").json() == []  # cascade
+
+
+def test_blueprint_contract_persistence_and_validation():
+    cid = _company()
+    auth = _register(cid)
+    assert tc.get(f"/blueprint/{cid}").status_code == 401  # auth-gated
+    r = tc.post(f"/entities/{cid}/bulk", json={"entities": [
+        {"name": "Ingredient", "name_plural": "Ingredients", "icon": "I", "fields": [
+            {"key": "name", "label": "Name", "type": "text"},
+            {"key": "on_hand", "label": "On Hand", "type": "number"},
+            {"key": "reorder_at", "label": "Reorder At", "type": "number"},
+        ]},
+    ]})
+    eid = r.json()["created"][0]
+
+    calls = {"n": 0}
+    real = main.client.messages.create
+
+    def counting(**kw):
+        calls["n"] += 1
+        return real(**kw)
+
+    main.client.messages.create = counting
+    try:
+        bp = tc.get(f"/blueprint/{cid}", headers=auth).json()["blueprint"]
+        assert bp["accent"] == "#ff9955"
+        labels = {s["page"]: s["label"] for s in bp["surfaces"]}
+        assert labels[f"entity:{eid}"] == "Prep Line" and labels["Dashboard"] == "The Counter"
+        assert bp["entity_views"][eid]["default_view"] == "cards"
+        bp2 = tc.get(f"/blueprint/{cid}", headers=auth).json()["blueprint"]
+        assert bp2 == bp and calls["n"] == 1, "blueprint must persist — one design call ever"
+    finally:
+        main.client.messages.create = real
+
+    # validation: garbage from the model degrades to a sane per-company fallback
+    bad = main._validate_blueprint({"accent": "purple!!", "surfaces": "nope"}, cid)
+    import re as _re
+    assert _re.match(r"^#[0-9a-fA-F]{6}$", bad["accent"])
+    assert any(s["page"] == f"entity:{eid}" for s in bad["surfaces"])
+    assert bad["entity_views"][eid]["default_view"] in ("board", "cards", "table")
 
 
 def test_briefing_contract_and_daily_cache():

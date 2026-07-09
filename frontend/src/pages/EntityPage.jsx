@@ -21,8 +21,13 @@ function stockFields(fields) {
   return qty && reorder ? { qty: qty.key, reorder: reorder.key } : null;
 }
 
-export default function EntityPage({ company, entity }) {
+export default function EntityPage({ company, entity, viewCfg, surfaceLabel }) {
   const [records, setRecords] = useState(null);
+  const boardField = (entity.fields || []).find(f => f.key === viewCfg?.board_field && f.type === "select" && (f.options || []).length)
+    || (entity.fields || []).find(f => f.type === "select" && (f.options || []).length);
+  const availableViews = ["table", "cards", ...(boardField ? ["board"] : [])];
+  const [view, setView] = useState(() =>
+    availableViews.includes(viewCfg?.default_view) ? viewCfg.default_view : "table");
   const [editing, setEditing] = useState(null); // null=closed, {}=new, {...record}=edit
   const [form, setForm] = useState({});
   const [saving, setSaving] = useState(false);
@@ -60,15 +65,108 @@ export default function EntityPage({ company, entity }) {
   const isLow = (r) => stock && Number(r[stock.qty]) <= Number(r[stock.reorder]);
   const lowCount = stock && records ? records.filter(isLow).length : 0;
 
+  const moveCard = (recordId, value) => {
+    if (!boardField) return;
+    setRecords(rs => rs.map(r => r.record_id === recordId ? { ...r, [boardField.key]: value } : r));
+    const row = (records || []).find(r => r.record_id === recordId);
+    if (!row) return;
+    const data = {};
+    fields.forEach(f => { if (row[f.key] !== undefined) data[f.key] = row[f.key]; });
+    data[boardField.key] = value;
+    fetch(`${API}/records/${recordId}`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ data }) }).catch(() => {});
+  };
+
+  const titleKey = viewCfg?.card_title && fields.some(f => f.key === viewCfg.card_title) ? viewCfg.card_title : fields[0]?.key;
+  const cardKeys = (viewCfg?.card_fields || fields.slice(1, 4).map(f => f.key)).filter(k => fields.some(f => f.key === k)).slice(0, 3);
+  const fmtCell = (k, v) => {
+    const f = fields.find(x => x.key === k);
+    return fmtVal(f || {}, v);
+  };
+
+  const ViewPill = ({ id, label }) => (
+    <button onClick={() => setView(id)} style={{
+      background: view === id ? "rgba(255,255,255,0.1)" : "rgba(255,255,255,0.04)",
+      border: `1px solid ${view === id ? "rgba(255,255,255,0.16)" : "rgba(255,255,255,0.08)"}`,
+      borderRadius: 9, padding: "7px 13px", color: view === id ? "#fff" : "rgba(255,255,255,0.55)",
+      fontSize: 12.5, fontWeight: view === id ? 600 : 500, cursor: "pointer", fontFamily: "inherit" }}>{label}</button>
+  );
+
   return (
     <div>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
-        <PageHeader title={`${entity.icon || "▦"} ${entity.name_plural || entity.name}`}
+        <PageHeader title={`${entity.icon || "▦"} ${surfaceLabel || entity.name_plural || entity.name}`}
           subtitle={`${company.name} · ${records ? records.length : "…"} ${(entity.name_plural || "records").toLowerCase()}${lowCount ? ` · ${lowCount} low` : ""}`} />
         <button onClick={openNew} style={{ background: "#fff", border: "none", borderRadius: 10, padding: "11px 18px", color: "#08090a", fontSize: 13.5, fontWeight: 700, cursor: "pointer", fontFamily: "inherit", marginTop: 4 }}>+ Add {entity.name}</button>
       </div>
 
-      <div style={{ ...card, padding: 0, overflow: "hidden", marginTop: 6 }}>
+      <div style={{ display: "flex", gap: 7, marginBottom: 16 }}>
+        <ViewPill id="table" label="Table" />
+        <ViewPill id="cards" label="Cards" />
+        {boardField && <ViewPill id="board" label="Board" />}
+      </div>
+
+      {/* CARDS — things you look at */}
+      {view === "cards" && records !== null && (
+        records.length === 0 ? (
+          <div style={{ ...card, padding: "48px 20px", textAlign: "center", color: COLORS.muted }}>No {(entity.name_plural || "records").toLowerCase()} yet.</div>
+        ) : (
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(230px, 1fr))", gap: 14 }}>
+            {records.map((r, i) => {
+              const low = isLow(r);
+              return (
+                <div key={r.record_id || i} onClick={() => openEdit(r)} className="viro-btn"
+                  style={{ ...card, padding: 18, cursor: "pointer", borderColor: low ? RED + "55" : "rgba(255,255,255,0.08)", animation: `fadeIn .4s cubic-bezier(.16,1,.3,1) both`, animationDelay: `${Math.min(i, 12) * 35}ms` }}>
+                  <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 8, marginBottom: 10 }}>
+                    <div style={{ fontSize: 15, fontWeight: 700, letterSpacing: "-0.01em", lineHeight: 1.3 }}>{String(r[titleKey] ?? "—")}</div>
+                    {low && <span style={{ width: 8, height: 8, borderRadius: "50%", background: RED, boxShadow: `0 0 7px ${RED}`, flexShrink: 0, marginTop: 4 }} />}
+                  </div>
+                  {cardKeys.map(k => (
+                    <div key={k} style={{ display: "flex", justifyContent: "space-between", gap: 10, padding: "3px 0" }}>
+                      <span style={{ fontFamily: MONO, fontSize: 9, letterSpacing: "0.08em", textTransform: "uppercase", color: "rgba(255,255,255,0.35)" }}>{fields.find(f => f.key === k)?.label || k}</span>
+                      <span style={{ fontSize: 12.5, color: "rgba(255,255,255,0.8)", textAlign: "right" }}>{fmtCell(k, r[k])}</span>
+                    </div>
+                  ))}
+                </div>
+              );
+            })}
+          </div>
+        )
+      )}
+
+      {/* BOARD — things that flow */}
+      {view === "board" && boardField && records !== null && (
+        <div style={{ display: "grid", gridTemplateColumns: `repeat(${(boardField.options || []).length}, 1fr)`, gap: 12 }}>
+          {(boardField.options || []).map(col => {
+            const colRows = records.filter(r => String(r[boardField.key] ?? "") === col);
+            return (
+              <div key={col}
+                onDragOver={ev => ev.preventDefault()}
+                onDrop={ev => { ev.preventDefault(); const rid = ev.dataTransfer.getData("rid"); if (rid) moveCard(rid, col); }}>
+                <div style={{ ...card, borderRadius: "12px 12px 0 0", padding: "12px 15px", borderBottom: "2px solid rgba(255,255,255,0.16)" }}>
+                  <div style={{ fontFamily: MONO, fontSize: 9.5, letterSpacing: "0.12em", textTransform: "uppercase", color: "rgba(255,255,255,0.35)", marginBottom: 4 }}>{col}</div>
+                  <div style={{ fontFamily: MONO, fontSize: 18, fontWeight: 700 }}>{colRows.length}</div>
+                </div>
+                <div style={{ background: "rgba(255,255,255,0.015)", border: "1px solid rgba(255,255,255,0.08)", borderTop: "none", borderRadius: "0 0 12px 12px", padding: 8, minHeight: 200 }}>
+                  {colRows.length === 0 ? (
+                    <div style={{ textAlign: "center", padding: "22px 0", color: "rgba(255,255,255,0.22)", fontSize: 12 }}>Drop here</div>
+                  ) : colRows.map((r, i) => (
+                    <div key={r.record_id || i} draggable
+                      onDragStart={ev => ev.dataTransfer.setData("rid", r.record_id)}
+                      onClick={() => openEdit(r)}
+                      className="viro-btn"
+                      style={{ background: "rgba(255,255,255,0.045)", border: "1px solid rgba(255,255,255,0.09)", borderRadius: 10, padding: "10px 12px", marginBottom: 6, cursor: "grab" }}>
+                      <div style={{ fontSize: 12.5, fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{String(r[titleKey] ?? "—")}</div>
+                      {cardKeys[0] && <div style={{ fontFamily: MONO, fontSize: 10.5, color: "rgba(255,255,255,0.45)", marginTop: 4 }}>{fmtCell(cardKeys[0], r[cardKeys[0]])}</div>}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {view === "table" && <div style={{ ...card, padding: 0, overflow: "hidden", marginTop: 6 }}>
         {records === null ? (
           <div style={{ padding: 40, textAlign: "center", color: COLORS.muted }}>Loading…</div>
         ) : records.length === 0 ? (
@@ -111,7 +209,7 @@ export default function EntityPage({ company, entity }) {
             </table>
           </div>
         )}
-      </div>
+      </div>}
 
       {editing !== null && (
         <div onClick={() => setEditing(null)} style={{ position: "fixed", inset: 0, zIndex: 100, background: "rgba(0,0,0,0.55)", backdropFilter: "blur(2px)", display: "flex", alignItems: "center", justifyContent: "center", padding: 24 }}>

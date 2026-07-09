@@ -838,6 +838,120 @@ Write ONE sentence (max ~22 words) that answers the single most important questi
         return {"insight": "", "error": str(e)}
 
 
+# ── App Blueprint: the AI designs each company's platform STRUCTURE ──
+import re as _re
+
+BLUEPRINT_DOC = """You are designing the STRUCTURE of a company's operations platform — not a dashboard, the app itself. Two different businesses must get visibly different platforms: their own color identity, their own vocabulary for surfaces, and the right working view for each kind of data.
+
+Return ONLY this JSON:
+{
+  "accent": "#hex — ONE distinctive brand accent fitting this industry. Rich and confident (teals, ambers, corals, greens, blues, roses). NEVER purple, never gray/white.",
+  "surfaces": [
+    {"page": "Dashboard", "label": "<what THIS company would call its home — e.g. 'The Pass', 'RFQ Desk', 'Floor Control'>", "icon": "one emoji"},
+    {"page": "entity:<entity_id>", "label": "<their word for this surface>", "icon": "one emoji"},
+    ... one per entity, ordered by daily importance ...
+    {"page": "Automations", "label": "<their word — e.g. 'Paperwork', 'Back Office'>", "icon": "one emoji"},
+    {"page": "Settings", "label": "Settings", "icon": "⚙️"}
+  ],
+  "entity_views": {
+    "<entity_id>": {"default_view": "board"|"cards"|"table", "board_field": "<select field key or null>", "card_title": "<field key for card titles>", "card_fields": ["up to 3 more field keys"]}
+  },
+  "dashboard_default": "overview"|"board"|"data"
+}
+
+Guidance: things that FLOW through statuses (orders, jobs, cases) → board. Things that are LOOKED AT (menu items, inventory, people, suppliers) → cards. Dense reference data → table. Pick what an operator of this exact business would want open at 7am."""
+
+_FALLBACK_ACCENTS = ["#2dd4bf", "#f0a83c", "#fb7185", "#34d399", "#60a5fa", "#f97316", "#facc15", "#22d3ee"]
+
+def _fallback_blueprint(company_id):
+    """Deterministic blueprint — used when AI is unavailable. Still per-company."""
+    name, _ = _company_identity(company_id)
+    ents = db.query("SELECT * FROM entities WHERE company_id = ? ORDER BY sort_order", (company_id,))
+    accent = _FALLBACK_ACCENTS[sum(ord(c) for c in (company_id or "x")) % len(_FALLBACK_ACCENTS)]
+    surfaces = [{"page": "Dashboard", "label": "Dashboard", "icon": "⬡"}]
+    entity_views = {}
+    for _, e in ents.iterrows():
+        fields = json.loads(e["fields"]) if e["fields"] else []
+        sel = next((f for f in fields if f.get("type") == "select" and f.get("options")), None)
+        surfaces.append({"page": f"entity:{e['entity_id']}", "label": e["name_plural"] or e["name"], "icon": e["icon"] or "▦"})
+        entity_views[e["entity_id"]] = {
+            "default_view": "board" if sel else "table",
+            "board_field": sel.get("key") if sel else None,
+            "card_title": (fields[0].get("key") if fields else None),
+            "card_fields": [f.get("key") for f in fields[1:4]],
+        }
+    surfaces += [{"page": "Automations", "label": "Automations", "icon": "📄"},
+                 {"page": "Settings", "label": "Settings", "icon": "⚙️"}]
+    return {"accent": accent, "surfaces": surfaces, "entity_views": entity_views, "dashboard_default": "overview"}
+
+def _validate_blueprint(cfg, company_id):
+    fb = _fallback_blueprint(company_id)
+    if not isinstance(cfg, dict):
+        return fb
+    accent = str(cfg.get("accent", ""))
+    if not _re.match(r"^#[0-9a-fA-F]{6}$", accent):
+        cfg["accent"] = fb["accent"]
+    if not isinstance(cfg.get("surfaces"), list) or not cfg["surfaces"]:
+        cfg["surfaces"] = fb["surfaces"]
+    else:
+        valid_pages = {s["page"] for s in fb["surfaces"]}
+        cfg["surfaces"] = [s for s in cfg["surfaces"] if isinstance(s, dict) and s.get("page") in valid_pages]
+        have = {s["page"] for s in cfg["surfaces"]}
+        cfg["surfaces"] += [s for s in fb["surfaces"] if s["page"] not in have]
+    if not isinstance(cfg.get("entity_views"), dict):
+        cfg["entity_views"] = fb["entity_views"]
+    else:
+        for eid, v in fb["entity_views"].items():
+            got = cfg["entity_views"].get(eid)
+            if not isinstance(got, dict) or got.get("default_view") not in ("board", "cards", "table"):
+                cfg["entity_views"][eid] = v
+    if cfg.get("dashboard_default") not in ("overview", "board", "data"):
+        cfg["dashboard_default"] = "overview"
+    return cfg
+
+def _save_blueprint(company_id, cfg):
+    existing = db.query("SELECT company_id FROM blueprints WHERE company_id = ?", (company_id,))
+    if existing.empty:
+        db.execute("INSERT INTO blueprints (company_id, config) VALUES (?, ?)", (company_id, json.dumps(cfg)))
+    else:
+        db.execute("UPDATE blueprints SET config = ?, updated_at = ? WHERE company_id = ?",
+                   (json.dumps(cfg), datetime.now().isoformat(), company_id))
+
+def _generate_blueprint(company_id):
+    name, industry = _company_identity(company_id)
+    ctx = _entity_dash_context(company_id)
+    try:
+        prompt = f"""{BLUEPRINT_DOC}
+
+COMPANY: {name} ({industry})
+ENTITIES (with fields, counts, samples):
+{json.dumps(ctx, default=str)}"""
+        response = client.messages.create(model=DESIGN_MODEL, max_tokens=1600,
+                                          messages=[{"role": "user", "content": prompt}])
+        cfg = _validate_blueprint(_parse_ai_json(response.content[0].text), company_id)
+    except Exception:
+        cfg = _fallback_blueprint(company_id)
+    _save_blueprint(company_id, cfg)
+    return cfg
+
+@app.get("/blueprint/{company_id}", dependencies=[Depends(require_auth)])
+def get_blueprint(company_id: str):
+    try:
+        row = db.query("SELECT config FROM blueprints WHERE company_id = ?", (company_id,))
+        if not row.empty:
+            return {"blueprint": json.loads(row.iloc[0]["config"])}
+        return {"blueprint": _generate_blueprint(company_id)}
+    except Exception as e:
+        return {"blueprint": _fallback_blueprint(company_id), "error": str(e)}
+
+@app.post("/blueprint/{company_id}/regenerate", dependencies=[Depends(require_auth)])
+def regenerate_blueprint(company_id: str):
+    try:
+        return {"blueprint": _generate_blueprint(company_id)}
+    except Exception as e:
+        return {"blueprint": _fallback_blueprint(company_id), "error": str(e)}
+
+
 # ── Daily briefing: the dashboard opens with your morning, written ──
 @app.get("/ai/briefing/{company_id}", dependencies=[Depends(require_auth)])
 def daily_briefing(company_id: str):
@@ -1606,6 +1720,14 @@ db.execute("""
 
 db.execute("""
     CREATE TABLE IF NOT EXISTS automation_catalogs (
+        company_id TEXT PRIMARY KEY,
+        config TEXT NOT NULL,
+        updated_at TEXT DEFAULT CURRENT_TIMESTAMP
+    )
+""")
+
+db.execute("""
+    CREATE TABLE IF NOT EXISTS blueprints (
         company_id TEXT PRIMARY KEY,
         config TEXT NOT NULL,
         updated_at TEXT DEFAULT CURRENT_TIMESTAMP

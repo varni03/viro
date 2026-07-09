@@ -89,8 +89,8 @@ function Briefing({ company, user }) {
       position: "relative", overflow: "hidden", marginBottom: 20, padding: "20px 22px",
       borderRadius: 18, background: "rgba(255,255,255,0.045)", border: "1px solid rgba(255,255,255,0.1)",
     }}>
-      <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: 1, background: "linear-gradient(90deg,transparent,rgba(255,255,255,0.35),transparent)" }} />
-      <div style={{ position: "absolute", top: -70, right: -40, width: 220, height: 180, borderRadius: "50%", background: "rgba(255,255,255,0.05)", filter: "blur(50px)", pointerEvents: "none" }} />
+      <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: 1, background: "linear-gradient(90deg,transparent,var(--vx,#fff),transparent)", opacity: 0.5 }} />
+      <div style={{ position: "absolute", top: -70, right: -40, width: 220, height: 180, borderRadius: "50%", background: "var(--vx, #fff)", opacity: 0.07, filter: "blur(50px)", pointerEvents: "none" }} />
       <div style={{ fontFamily: MONO, fontSize: 9.5, letterSpacing: "0.14em", textTransform: "uppercase", color: "rgba(255,255,255,0.35)", marginBottom: 8 }}>{dateStr} · Briefing</div>
       <div style={{ fontSize: 19, fontWeight: 800, letterSpacing: "-0.02em", marginBottom: 8 }}>
         {greet}{user?.first_name ? `, ${user.first_name}` : ""}.
@@ -453,12 +453,13 @@ function ensureVgStyles() {
 }
 
 /* ── main ─────────────────────────────────────────────────────── */
-export default function GenerativeDashboard({ company, entities, onNavigate, nonce, user }) {
+export default function GenerativeDashboard({ company, entities, onNavigate, nonce, user, defaultView, homeLabel }) {
   const [config, setConfig] = useState(null);
   const [recs, setRecs] = useState(null);
   const [regen, setRegen] = useState(false);
   const [ask, setAsk] = useState(null);
-  const [view, setView] = useState("overview");
+  const [view, setView] = useState(defaultView || "overview");
+  useEffect(() => { if (defaultView) setView(defaultView); }, [company.company_id, defaultView]);
   const [range, setRange] = useState("all");
   const [drill, setDrill] = useState(null); // { title, rows, entity }
   const [lastSync, setLastSync] = useState(null);
@@ -582,11 +583,11 @@ export default function GenerativeDashboard({ company, entities, onNavigate, non
   return (
     <div>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", flexWrap: "wrap", gap: 10 }}>
-        <PageHeader title={config.title || "Overview"} subtitle={`${company.name} · designed for your operation`} />
+        <PageHeader title={config.title || homeLabel || "Overview"} subtitle={`${company.name} · designed for your operation`} />
         <div style={{ display: "flex", alignItems: "center", gap: 12, marginTop: 6 }}>
           {lastSync && (
             <span style={{ display: "flex", alignItems: "center", gap: 6, fontFamily: MONO, fontSize: 10, color: "rgba(255,255,255,0.35)", letterSpacing: "0.06em" }}>
-              <span style={{ width: 6, height: 6, borderRadius: "50%", background: GREEN, boxShadow: `0 0 6px ${GREEN}` }} />
+              <span style={{ width: 6, height: 6, borderRadius: "50%", background: "var(--vx, #34d399)", boxShadow: "0 0 6px var(--vx, #34d399)" }} />
               LIVE · {String(lastSync.getHours()).padStart(2, "0")}:{String(lastSync.getMinutes()).padStart(2, "0")}:{String(lastSync.getSeconds()).padStart(2, "0")}
             </span>
           )}

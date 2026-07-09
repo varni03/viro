@@ -12,7 +12,7 @@ export default function Dock({ items, activePages = [], onSelect, splitActive, o
         fontSize: 19, position: "relative",
       }}>
       {icon}
-      {active && <span style={{ position: "absolute", bottom: 3, width: 4, height: 4, borderRadius: "50%", background: "#fff" }} />}
+      {active && <span style={{ position: "absolute", bottom: 3, width: 4, height: 4, borderRadius: "50%", background: "var(--vx, #fff)", boxShadow: "0 0 5px var(--vx, #fff)" }} />}
     </div>
   );
 
