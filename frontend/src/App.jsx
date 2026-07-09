@@ -494,6 +494,7 @@ export default function App() {
           user={user}
           entities={entities}
           onLogout={handleLogout}
+          onOpenPalette={() => setCmdOpen(true)}
         />
       </div>
 

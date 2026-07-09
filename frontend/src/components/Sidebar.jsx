@@ -17,7 +17,7 @@ const REPAIR_MODULES = ["workflow", "search"];
 
 export default function Sidebar({
   activePage, setActivePage, company, companies,
-  setCompany, stats, user, onLogout, entities = []
+  setCompany, stats, user, onLogout, entities = [], onOpenPalette
 }) {
   const [modules, setModules] = useState([]);
   const [notifications, setNotifications] = useState([]);
@@ -340,10 +340,11 @@ export default function Sidebar({
         </div>
       </div>
 
-      {/* ⌘K hint */}
-      <div style={{ padding: "0 16px 10px", display: "flex", alignItems: "center", gap: 7 }}>
-        <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 9.5, color: "rgba(255,255,255,0.3)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 5, padding: "2px 6px" }}>⌘K</span>
-        <span style={{ fontSize: 11, color: "rgba(255,255,255,0.3)" }}>jump anywhere</span>
+      {/* ⌘K launcher (clickable — works even when the browser owns the shortcut) */}
+      <div onClick={() => onOpenPalette && onOpenPalette()} className="nav-item"
+        style={{ margin: "0 12px 10px", padding: "7px 10px", display: "flex", alignItems: "center", gap: 7, cursor: "pointer" }}>
+        <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 9.5, color: "rgba(255,255,255,0.4)", border: "1px solid rgba(255,255,255,0.12)", borderRadius: 5, padding: "2px 6px" }}>⌘K</span>
+        <span style={{ fontSize: 11.5, color: "rgba(255,255,255,0.45)" }}>Jump anywhere</span>
       </div>
 
       {/* Divider */}
