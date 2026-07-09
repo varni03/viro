@@ -81,6 +81,24 @@ export function AuroraBackground() {
         @keyframes vc-drop { from { opacity: 0; transform: translateY(-6px); } to { opacity: 1; transform: none; } }
         @keyframes vc-dock-in { from { opacity: 0; transform: translate(-50%, 20px); } to { opacity: 1; transform: translate(-50%, 0); } }
 
+        /* ── Material & motion upgrade ── */
+        @keyframes vg-shimmer { from { background-position: 200% 0; } to { background-position: -200% 0; } }
+        .vg-skel {
+          background: linear-gradient(100deg, rgba(255,255,255,0.035) 40%, rgba(255,255,255,0.085) 50%, rgba(255,255,255,0.035) 60%);
+          background-size: 200% 100%;
+          animation: vg-shimmer 1.6s linear infinite;
+          border: 1px solid rgba(255,255,255,0.06);
+          border-radius: 16px;
+        }
+        @keyframes vg-draw { from { stroke-dashoffset: 1; } to { stroke-dashoffset: 0; } }
+        .vg-draw { stroke-dasharray: 1; animation: vg-draw 1.1s cubic-bezier(.16,1,.3,1) forwards; }
+        .glass-card, .vg-card, .vc-pane {
+          box-shadow: inset 0 1px 0 rgba(255,255,255,0.055), 0 1px 2px rgba(0,0,0,0.3), 0 12px 40px rgba(0,0,0,0.35);
+        }
+        /* macOS dock physics — neighbors magnetize toward the hovered icon */
+        .vc-dock-item:has(+ .vc-dock-item:hover) { transform: translateY(-4px) scale(1.07); }
+        .vc-dock-item:hover + .vc-dock-item { transform: translateY(-4px) scale(1.07); }
+
         .viro-page { animation: fadeIn 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
 
         .glass-card {
@@ -174,6 +192,12 @@ export function AuroraBackground() {
       <div style={{
         position: "fixed", inset: 0, zIndex: 0, pointerEvents: "none",
         background: "radial-gradient(ellipse 80% 60% at 50% 0%, rgba(255,255,255,0.04) 0%, transparent 60%)",
+      }} />
+
+      {/* Film grain — kills the flat digital look */}
+      <div style={{
+        position: "fixed", inset: 0, zIndex: 1, pointerEvents: "none", opacity: 0.028,
+        backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2'/%3E%3C/filter%3E%3Crect width='140' height='140' filter='url(%23n)'/%3E%3C/svg%3E")`,
       }} />
 
       {/* Floating orbs */}

@@ -111,10 +111,13 @@ function Briefing({ company, user }) {
 function Spark({ series }) {
   if (!series.some(v => v > 0)) return null;
   const w = 120, h = 26, max = Math.max(...series, 1);
-  const pts = series.map((v, i) => `${(i / (series.length - 1)) * w},${h - (v / max) * (h - 3)}`).join(" ");
+  const coords = series.map((v, i) => [(i / (series.length - 1)) * w, h - (v / max) * (h - 4) - 1]);
+  const pts = coords.map(c => c.join(",")).join(" ");
   return (
-    <svg viewBox={`0 0 ${w} ${h}`} style={{ width: "100%", height: 22, marginTop: 10, opacity: 0.7 }} preserveAspectRatio="none">
-      <polyline points={pts} fill="none" stroke="rgba(255,255,255,0.55)" strokeWidth="1.5" vectorEffect="non-scaling-stroke" />
+    <svg viewBox={`0 0 ${w} ${h}`} style={{ width: "100%", height: 22, marginTop: 10 }} preserveAspectRatio="none">
+      <polygon points={`0,${h} ${pts} ${w},${h}`} fill="rgba(255,255,255,0.07)" />
+      <polyline points={pts} fill="none" stroke="rgba(255,255,255,0.6)" strokeWidth="1.5" vectorEffect="non-scaling-stroke" strokeLinecap="round" />
+      <circle cx={coords[coords.length - 1][0]} cy={coords[coords.length - 1][1]} r="2" fill="#fff" />
     </svg>
   );
 }
@@ -151,16 +154,35 @@ function Breakdown({ block, rows, onDrill }) {
   const data = groupCounts(scoped, block.group_by);
   const drillSeg = (label) => onDrill(`${block.label} · ${label}`, scoped.filter(r => String(r[block.group_by] ?? "—") === label));
   if (block.chart === "donut") {
-    const total = data.reduce((s, d) => s + d.value, 0) || 1;
+    const total = data.reduce((s, d) => s + d.value, 0);
+    const R = 44, C = 2 * Math.PI * R;
     let acc = 0;
-    const segs = data.map((d, i) => { const start = acc / total * 360; acc += d.value; return { ...d, color: PALETTE[i % PALETTE.length], start, end: acc / total * 360 }; });
-    const grad = segs.map(s => `${s.color} ${s.start}deg ${s.end}deg`).join(",");
+    const segs = data.map((d, i) => {
+      const frac = total ? d.value / total : 0;
+      const seg = { ...d, color: PALETTE[i % PALETTE.length], frac, offset: acc };
+      acc += frac;
+      return seg;
+    });
     return (
       <div className="vg-card" style={{ ...card, padding: 18 }}>
         <div style={lbl}>{block.label}</div>
-        <div style={{ display: "flex", gap: 18, alignItems: "center", flexWrap: "wrap" }}>
-          <div style={{ width: 120, height: 120, borderRadius: "50%", background: `conic-gradient(${grad})`, position: "relative", flexShrink: 0 }}>
-            <div style={{ position: "absolute", inset: "24%", borderRadius: "50%", background: "#0c0d0e" }} />
+        <div style={{ display: "flex", gap: 20, alignItems: "center", flexWrap: "wrap" }}>
+          <div style={{ position: "relative", width: 128, height: 128, flexShrink: 0 }}>
+            <svg viewBox="0 0 120 120" style={{ width: "100%", height: "100%" }}>
+              <circle cx="60" cy="60" r={R} fill="none" stroke="rgba(255,255,255,0.05)" strokeWidth="11" />
+              {segs.map((s, i) => (
+                <circle key={i} cx="60" cy="60" r={R} fill="none" stroke={s.color} strokeWidth="11"
+                  strokeLinecap="round"
+                  strokeDasharray={`${Math.max(s.frac * C - 4, 0.6)} ${C}`}
+                  strokeDashoffset={-(s.offset * C)}
+                  transform="rotate(-90 60 60)"
+                  style={{ transition: "stroke-dasharray .8s cubic-bezier(.16,1,.3,1), stroke-dashoffset .8s cubic-bezier(.16,1,.3,1)" }} />
+              ))}
+            </svg>
+            <div style={{ position: "absolute", inset: 0, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center" }}>
+              <span style={{ fontFamily: MONO, fontSize: 24, fontWeight: 700, lineHeight: 1 }}>{total}</span>
+              <span style={{ fontSize: 8.5, letterSpacing: "0.1em", textTransform: "uppercase", color: "rgba(255,255,255,0.35)", marginTop: 3 }}>total</span>
+            </div>
           </div>
           <div style={{ display: "flex", flexDirection: "column", gap: 6, flex: 1, minWidth: 120 }}>
             {segs.map((s, i) => (
@@ -197,7 +219,8 @@ function Breakdown({ block, rows, onDrill }) {
     </div>
   );
 }
-function Trend({ block, rows }) {
+function Trend({ block, rows, drawKey }) {
+  const gid = useMemo(() => "tg" + Math.abs([...(block.label || "t")].reduce((a, c) => a + c.charCodeAt(0), 0)), [block.label]);
   const buckets = {};
   rows.forEach(r => { const d = r[block.date_field] || r.created_at; if (!d) return; const day = String(d).slice(0, 10); buckets[day] = (buckets[day] || 0) + 1; });
   const pts = Object.entries(buckets).sort((a, b) => (a[0] < b[0] ? -1 : 1)).slice(-14);
@@ -205,14 +228,26 @@ function Trend({ block, rows }) {
   const ys = pts.map(p => p[1]); const max = Math.max(...ys, 1), min = Math.min(...ys, 0), span = (max - min) || 1;
   const coords = pts.map((p, i) => [pad + (i * (w - 2 * pad)) / Math.max(pts.length - 1, 1), h - pad - ((p[1] - min) / span) * (h - 2 * pad)]);
   const d = coords.map((c, i) => `${i ? "L" : "M"}${c[0].toFixed(1)},${c[1].toFixed(1)}`).join(" ");
+  const last = coords[coords.length - 1];
   return (
     <div className="vg-card" style={{ ...card, padding: 18 }}>
       <div style={lbl}>{block.label}</div>
       {pts.length < 2 ? <Empty /> : (
         <>
-          <svg viewBox={`0 0 ${w} ${h}`} style={{ width: "100%", height: 150 }} preserveAspectRatio="none">
-            <path d={`${d} L${coords[coords.length - 1][0].toFixed(1)},${h - pad} L${coords[0][0].toFixed(1)},${h - pad} Z`} fill="rgba(255,255,255,0.06)" />
-            <path d={d} fill="none" stroke="#fff" strokeWidth="2" vectorEffect="non-scaling-stroke" />
+          <svg key={drawKey} viewBox={`0 0 ${w} ${h}`} style={{ width: "100%", height: 150 }} preserveAspectRatio="none">
+            <defs>
+              <linearGradient id={gid} x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stopColor="rgba(255,255,255,0.16)" />
+                <stop offset="100%" stopColor="rgba(255,255,255,0)" />
+              </linearGradient>
+              <filter id={gid + "glow"} x="-20%" y="-20%" width="140%" height="140%">
+                <feDropShadow dx="0" dy="0" stdDeviation="3" floodColor="#ffffff" floodOpacity="0.55" />
+              </filter>
+            </defs>
+            <path d={`${d} L${last[0].toFixed(1)},${h - pad} L${coords[0][0].toFixed(1)},${h - pad} Z`} fill={`url(#${gid})`} />
+            <path d={d} className="vg-draw" pathLength="1" fill="none" stroke="#fff" strokeWidth="2"
+              vectorEffect="non-scaling-stroke" filter={`url(#${gid}glow)`} strokeLinecap="round" />
+            <circle cx={last[0]} cy={last[1]} r="3.5" fill="#fff" filter={`url(#${gid}glow)`} />
           </svg>
           <div style={{ display: "flex", justifyContent: "space-between", fontSize: 9, color: "rgba(255,255,255,0.4)" }}>
             <span>{pts[0]?.[0]?.slice(5)}</span><span>{pts[pts.length - 1]?.[0]?.slice(5)}</span>
@@ -484,9 +519,19 @@ export default function GenerativeDashboard({ company, entities, onNavigate, non
 
   if (config === null || recs === null) {
     return (
-      <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", height: "60vh", color: "rgba(255,255,255,0.5)", gap: 14 }}>
-        <span style={{ display: "inline-block", animation: "spin 1s linear infinite", fontSize: 20 }}>◴</span>
-        <div style={{ fontSize: 14 }}>Designing {company.name}'s dashboard…</div>
+      <div>
+        <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 22 }}>
+          <span style={{ display: "inline-block", animation: "spin 1s linear infinite", color: "rgba(255,255,255,0.5)" }}>◴</span>
+          <span style={{ fontSize: 13.5, color: "rgba(255,255,255,0.5)" }}>Designing {company.name}'s dashboard…</span>
+        </div>
+        <div className="vg-skel" style={{ height: 96, marginBottom: 18 }} />
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 14, marginBottom: 14 }}>
+          {[0, 1, 2, 3].map(i => <div key={i} className="vg-skel" style={{ height: 108, animationDelay: `${i * 120}ms` }} />)}
+        </div>
+        <div style={{ display: "grid", gridTemplateColumns: "1.4fr 1fr", gap: 14 }}>
+          <div className="vg-skel" style={{ height: 220 }} />
+          <div className="vg-skel" style={{ height: 220, animationDelay: "160ms" }} />
+        </div>
       </div>
     );
   }
@@ -503,7 +548,7 @@ export default function GenerativeDashboard({ company, entities, onNavigate, non
     const inner =
       b.type === "metric" ? <Metric block={b} rows={rows} field={field} onDrill={drillFn} />
       : b.type === "breakdown" ? <Breakdown block={b} rows={rows} onDrill={drillFn} />
-      : b.type === "trend" ? <Trend block={b} rows={rows} />
+      : b.type === "trend" ? <Trend block={b} rows={rows} drawKey={range} />
       : b.type === "lowstock" ? <LowStock block={b} rows={rows} entity={entity} onDrill={drillFn} />
       : b.type === "recent" ? <Recent block={b} rows={rows} entity={entity} onDrill={drillFn} />
       : null;
