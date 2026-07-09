@@ -16,6 +16,7 @@ import Landing from "./pages/Landing";
 import Automations from "./pages/Automations";
 import WorkerHome from "./pages/WorkerHome";
 import EntityPage from "./pages/EntityPage";
+import CommandPalette from "./components/CommandPalette";
 import GenerativeDashboard from "./pages/GenerativeDashboard";
 import { useBreakpoint } from "./hooks/useBreakpoint";
 import DynamicDashboard from "./pages/DynamicDashboard";
@@ -123,6 +124,15 @@ export default function App() {
   const [entities, setEntities] = useState([]);
   const [entityDashNonce, setEntityDashNonce] = useState(0);
   const [toasts, setToasts] = useState([]);
+  const [cmdOpen, setCmdOpen] = useState(false);
+
+  useEffect(() => {
+    const onKey = (e) => {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") { e.preventDefault(); setCmdOpen(o => !o); }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, []);
 
   const dismissToast = (id) => setToasts(ts => ts.filter(t => t.id !== id));
   const pushToast = (t) => {
@@ -412,6 +422,17 @@ export default function App() {
       position: "relative",
     }}>
       <AuroraBackground />
+
+      <CommandPalette
+        open={cmdOpen}
+        onClose={() => setCmdOpen(false)}
+        company={company}
+        entities={entities}
+        pages={entities.length > 0
+          ? [{ icon: "⬡", label: "Dashboard", page: "Dashboard" }, { icon: "📄", label: "Automations", page: "Automations" }, { icon: "⚙️", label: "Settings", page: "Settings" }]
+          : [{ icon: "⬡", label: "Dashboard", page: "Dashboard" }, { icon: "🔧", label: "Production Line", page: "Production Line" }, { icon: "📊", label: "Analytics", page: "Analytics" }, { icon: "⚠️", label: "Predictive", page: "Predictive" }, { icon: "📸", label: "Log Defect", page: "Log Defect" }, { icon: "🔍", label: "Search", page: "Vehicle Search" }, { icon: "📄", label: "Automations", page: "Automations" }, { icon: "⚙️", label: "Settings", page: "Settings" }]}
+        onNavigate={setActivePage}
+      />
 
       {/* Pulse toasts — Viro acting on its own, sliding in like mission control */}
       {toasts.length > 0 && (

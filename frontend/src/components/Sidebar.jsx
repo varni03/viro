@@ -340,6 +340,12 @@ export default function Sidebar({
         </div>
       </div>
 
+      {/* ⌘K hint */}
+      <div style={{ padding: "0 16px 10px", display: "flex", alignItems: "center", gap: 7 }}>
+        <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 9.5, color: "rgba(255,255,255,0.3)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 5, padding: "2px 6px" }}>⌘K</span>
+        <span style={{ fontSize: 11, color: "rgba(255,255,255,0.3)" }}>jump anywhere</span>
+      </div>
+
       {/* Divider */}
       <div style={{ height: 1, background: "rgba(255,255,255,0.04)" }} />
 
