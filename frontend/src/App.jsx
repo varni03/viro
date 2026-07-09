@@ -1,4 +1,16 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
+
+// Cockpit clock — the mission-control heartbeat.
+function StripClock() {
+  const [now, setNow] = useState(() => new Date());
+  useEffect(() => { const t = setInterval(() => setNow(new Date()), 1000); return () => clearInterval(t); }, []);
+  const pad = n => String(n).padStart(2, "0");
+  return (
+    <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 11, color: "rgba(255,255,255,0.4)", fontVariantNumeric: "tabular-nums", letterSpacing: "0.04em" }}>
+      {pad(now.getHours())}:{pad(now.getMinutes())}:{pad(now.getSeconds())}
+    </span>
+  );
+}
 import { getCompanies, getAtRisk, getDefects, getProducts } from "./api/client";
 import Sidebar from "./components/Sidebar";
 import AIPanel from "./components/AIPanel";
@@ -16,9 +28,8 @@ import Landing from "./pages/Landing";
 import Automations from "./pages/Automations";
 import WorkerHome from "./pages/WorkerHome";
 import EntityPage from "./pages/EntityPage";
-import CommandPalette from "./components/CommandPalette";
-import TopBar from "./components/TopBar";
-import StatusBar from "./components/StatusBar";
+import Dock from "./components/Dock";
+import Omnibar from "./components/Omnibar";
 import GenerativeDashboard from "./pages/GenerativeDashboard";
 import { useBreakpoint } from "./hooks/useBreakpoint";
 import DynamicDashboard from "./pages/DynamicDashboard";
@@ -126,15 +137,31 @@ export default function App() {
   const [entities, setEntities] = useState([]);
   const [entityDashNonce, setEntityDashNonce] = useState(0);
   const [toasts, setToasts] = useState([]);
-  const [cmdOpen, setCmdOpen] = useState(false);
+  const [paneB, setPaneB] = useState(null);          // split view: second surface
+  const [focusedPane, setFocusedPane] = useState("a");
+  const [copilotOpen, setCopilotOpen] = useState(false);
+  const [pendingAsk, setPendingAsk] = useState(null); // omnibar → copilot handoff
+  const omnibarRef = useRef();
 
   useEffect(() => {
     const onKey = (e) => {
-      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") { e.preventDefault(); setCmdOpen(o => !o); }
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") { e.preventDefault(); omnibarRef.current?.focus(); }
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, []);
+
+  // Navigation targets the focused pane when split view is on.
+  const nav = (page) => {
+    if (paneB !== null && focusedPane === "b") setPaneB(page);
+    else setActivePage(page);
+    setSidebarOpen(false);
+  };
+  const toggleSplit = () => {
+    if (paneB !== null) { setPaneB(null); setFocusedPane("a"); }
+    else setPaneB(activePage === "Dashboard" ? "Automations" : "Dashboard");
+  };
+  const askViro = (q) => { setCopilotOpen(true); setPendingAsk({ q, ts: Date.now() }); };
 
   const dismissToast = (id) => setToasts(ts => ts.filter(t => t.id !== id));
   const pushToast = (t) => {
@@ -330,7 +357,7 @@ export default function App() {
     setActivePage("Dashboard");
   };
 
-  const renderPage = () => {
+  const renderPage = (page = activePage) => {
     if (!company) {
       return (
         <div style={{
@@ -347,21 +374,21 @@ export default function App() {
       );
     }
 
-    if (activePage.startsWith("report_")) {
-      const id = parseInt(activePage.replace("report_", ""));
+    if (page.startsWith("report_")) {
+      const id = parseInt(page.replace("report_", ""));
       const report = reportTabs.find(r => r.id === id);
       return report ? <ReportTab report={report} /> : <Dashboard company={company} />;
     }
 
-    if (activePage.startsWith("entity:")) {
-      const eid = activePage.slice("entity:".length);
+    if (page.startsWith("entity:")) {
+      const eid = page.slice("entity:".length);
       const entity = entities.find(e => e.entity_id === eid);
       return entity ? <EntityPage company={company} entity={entity} /> : <DynamicDashboard company={company} config={effectiveConfig} />;
     }
 
-    switch (activePage) {
+    switch (page) {
       case "Dashboard": return entities.length > 0
-        ? <GenerativeDashboard company={company} entities={entities} onNavigate={setActivePage} nonce={entityDashNonce} />
+        ? <GenerativeDashboard company={company} entities={entities} onNavigate={nav} nonce={entityDashNonce} />
         : <DynamicDashboard
             company={company}
             config={effectiveConfig}
@@ -374,7 +401,7 @@ export default function App() {
           />;
       case "Production Line": return <ProductionLine company={company} user={user} />;
       case "Predictive": return <Predictive company={company} />;
-      case "Home": return <WorkerHome user={user} company={company} stats={stats} entities={entities} onNavigate={setActivePage} />;
+      case "Home": return <WorkerHome user={user} company={company} stats={stats} entities={entities} onNavigate={nav} />;
       case "Analytics": return <Analytics company={company} />;
       case "Automations": return <Automations company={company} />;
       case "Vehicle Search": return <VehicleSearch company={company} />;
@@ -386,6 +413,11 @@ export default function App() {
       default: return <Dashboard company={company} />;
     }
   };
+
+  const pageLabel = (page) =>
+    page.startsWith("entity:")
+      ? (entities.find(e => `entity:${e.entity_id}` === page)?.name_plural || "Records")
+      : page.startsWith("report_") ? "Report" : page;
 
   if (!authChecked) return null;
 
@@ -425,23 +457,12 @@ export default function App() {
     }}>
       <AuroraBackground />
 
-      <CommandPalette
-        open={cmdOpen}
-        onClose={() => setCmdOpen(false)}
-        company={company}
-        entities={entities}
-        pages={entities.length > 0
-          ? [{ icon: "⬡", label: "Dashboard", page: "Dashboard" }, { icon: "📄", label: "Automations", page: "Automations" }, { icon: "⚙️", label: "Settings", page: "Settings" }]
-          : [{ icon: "⬡", label: "Dashboard", page: "Dashboard" }, { icon: "🔧", label: "Production Line", page: "Production Line" }, { icon: "📊", label: "Analytics", page: "Analytics" }, { icon: "⚠️", label: "Predictive", page: "Predictive" }, { icon: "📸", label: "Log Defect", page: "Log Defect" }, { icon: "🔍", label: "Search", page: "Vehicle Search" }, { icon: "📄", label: "Automations", page: "Automations" }, { icon: "⚙️", label: "Settings", page: "Settings" }]}
-        onNavigate={setActivePage}
-      />
-
       {/* Pulse toasts — Viro acting on its own, sliding in like mission control */}
       {toasts.length > 0 && (
         <div style={{ position: "fixed", top: 18, right: 18, zIndex: 200, display: "flex", flexDirection: "column", gap: 10, width: 360, maxWidth: "calc(100vw - 36px)" }}>
           {toasts.map(t => (
             <div key={t.id}
-              onClick={() => { dismissToast(t.id); if (t.docId) setActivePage("Automations"); }}
+              onClick={() => { dismissToast(t.id); if (t.docId) nav("Automations"); }}
               style={{
                 display: "flex", gap: 12, padding: "14px 16px", cursor: t.docId ? "pointer" : "default",
                 background: "rgba(20,21,23,0.96)", backdropFilter: "blur(20px)", WebkitBackdropFilter: "blur(20px)",
@@ -461,34 +482,25 @@ export default function App() {
         </div>
       )}
 
-      {/* Mobile/Tablet overlay when sidebar open */}
-      {(isMobile || isTablet) && sidebarOpen && (
+      {/* Sidebar is now a summonable drawer (☰) — the cockpit owns navigation */}
+      {sidebarOpen && (
         <div
           onClick={() => setSidebarOpen(false)}
-          style={{
-            position: "fixed",
-            inset: 0,
-            background: "rgba(0,0,0,0.6)",
-            zIndex: 40,
-          }}
+          style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.55)", backdropFilter: "blur(2px)", zIndex: 40 }}
         />
       )}
-
-      {/* Left sidebar */}
       <div style={{
-        position: isMobile || isTablet ? "fixed" : "relative",
-        left: isMobile || isTablet ? (sidebarOpen ? 0 : -240) : 0,
+        position: "fixed",
+        left: sidebarOpen ? 0 : -260,
+        top: 0,
         zIndex: 50,
-        transition: "left 0.25s ease",
+        transition: "left 0.25s cubic-bezier(.16,1,.3,1)",
         height: "100vh",
-        flexShrink: 0,
+        boxShadow: sidebarOpen ? "30px 0 80px rgba(0,0,0,0.45)" : "none",
       }}>
         <Sidebar
           activePage={activePage}
-          setActivePage={(page) => {
-            setActivePage(page);
-            if (isMobile || isTablet) setSidebarOpen(false);
-          }}
+          setActivePage={nav}
           company={company}
           companies={companies}
           setCompany={setCompany}
@@ -496,7 +508,7 @@ export default function App() {
           user={user}
           entities={entities}
           onLogout={handleLogout}
-          onOpenPalette={() => setCmdOpen(true)}
+          onOpenPalette={() => { setSidebarOpen(false); omnibarRef.current?.focus(); }}
         />
       </div>
 
@@ -546,18 +558,47 @@ export default function App() {
           </div>
         )}
 
-        {/* Desktop command bar */}
+        {/* Command strip — the cockpit's top rail */}
         {!isMobile && !isTablet && (
-          <TopBar
-            company={company}
-            user={user}
-            pageLabel={
-              activePage.startsWith("entity:")
-                ? (entities.find(e => `entity:${e.entity_id}` === activePage)?.name_plural || "Records")
-                : activePage.startsWith("report_") ? "Report" : activePage
-            }
-            onOpenPalette={() => setCmdOpen(true)}
-          />
+          <div style={{
+            display: "flex", alignItems: "center", gap: 14, height: 52, padding: "0 16px",
+            borderBottom: "1px solid rgba(255,255,255,0.06)", background: "rgba(255,255,255,0.015)",
+            backdropFilter: "blur(20px)", WebkitBackdropFilter: "blur(20px)", flexShrink: 0,
+          }}>
+            <button onClick={() => setSidebarOpen(true)} title="Menu" style={{
+              background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.09)",
+              borderRadius: 9, padding: "6px 10px", color: "rgba(255,255,255,0.6)", fontSize: 13, cursor: "pointer", lineHeight: 1,
+            }}>☰</button>
+            <div style={{ display: "flex", alignItems: "center", gap: 9, minWidth: 0 }}>
+              <div style={{ width: 22, height: 22, borderRadius: 6, background: "#fff", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                <svg width="11" height="11" viewBox="0 0 100 100"><polygon points="50,23 73.4,36.5 73.4,63.5 50,77 26.6,63.5 26.6,36.5" fill="#08090a" /></svg>
+              </div>
+              <span style={{ fontSize: 13, fontWeight: 700, letterSpacing: "-0.01em", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", maxWidth: 170 }}>{company?.name}</span>
+              <span style={{ display: "flex", alignItems: "center", gap: 5, marginLeft: 4 }}>
+                <span style={{ width: 6, height: 6, borderRadius: "50%", background: "#34d399", boxShadow: "0 0 6px #34d399" }} />
+                <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 9.5, letterSpacing: "0.1em", color: "rgba(255,255,255,0.4)" }}>LIVE</span>
+              </span>
+            </div>
+            <div style={{ flex: 1, display: "flex", justifyContent: "center" }}>
+              <Omnibar
+                ref={omnibarRef}
+                company={company}
+                entities={entities}
+                pages={entities.length > 0
+                  ? [{ icon: "⬡", label: "Dashboard", page: "Dashboard" }, { icon: "📄", label: "Automations", page: "Automations" }, { icon: "⚙️", label: "Settings", page: "Settings" }]
+                  : [{ icon: "⬡", label: "Dashboard", page: "Dashboard" }, { icon: "🔧", label: "Production Line", page: "Production Line" }, { icon: "📊", label: "Analytics", page: "Analytics" }, { icon: "⚠️", label: "Predictive", page: "Predictive" }, { icon: "📸", label: "Log Defect", page: "Log Defect" }, { icon: "🔍", label: "Search", page: "Vehicle Search" }, { icon: "📄", label: "Automations", page: "Automations" }, { icon: "⚙️", label: "Settings", page: "Settings" }]}
+                onNavigate={nav}
+                onAsk={askViro}
+              />
+            </div>
+            <StripClock />
+            <div title={`${user?.first_name || ""} ${user?.last_name || ""} · ${user?.role || ""}`} style={{
+              width: 30, height: 30, borderRadius: 9, flexShrink: 0,
+              background: "rgba(255,255,255,0.08)", border: "1px solid rgba(255,255,255,0.12)",
+              display: "flex", alignItems: "center", justifyContent: "center",
+              fontFamily: "'JetBrains Mono', monospace", fontSize: 11, fontWeight: 700, color: "rgba(255,255,255,0.85)",
+            }}>{`${user?.first_name?.[0] || ""}${user?.last_name?.[0] || ""}`.toUpperCase() || "V"}</div>
+          </div>
         )}
 
         {/* Tab bar */}
@@ -603,46 +644,94 @@ export default function App() {
           </div>
         )}
 
-        {/* Page content */}
-        <div style={{
-          flex: 1, overflow: "auto",
-          padding: isMobile ? "16px" : isTablet ? "20px 24px" : "28px 32px",
-        }}>
-          <div key={activePage} className="viro-page">
-            {renderPage()}
+        {/* The stage — floating glass panes, split-capable */}
+        {!isMobile && !isTablet ? (
+          <div className="vc-stage-bg" style={{ flex: 1, display: "flex", gap: 14, padding: "16px 16px 76px", overflow: "hidden" }}>
+            {[["a", activePage], ...(paneB !== null ? [["b", paneB]] : [])].map(([paneId, page]) => (
+              <div key={paneId}
+                onMouseDown={() => setFocusedPane(paneId)}
+                className={"vc-pane" + (paneB !== null && focusedPane === paneId ? " focused" : "")}
+                style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", overflow: "hidden" }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "10px 16px", borderBottom: "1px solid rgba(255,255,255,0.06)", flexShrink: 0 }}>
+                  {paneB !== null && <span style={{ width: 6, height: 6, borderRadius: "50%", background: focusedPane === paneId ? "#fff" : "rgba(255,255,255,0.2)" }} />}
+                  <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 9.5, letterSpacing: "0.12em", textTransform: "uppercase", color: "rgba(255,255,255,0.4)" }}>
+                    {pageLabel(page)}
+                  </span>
+                  <span style={{ marginLeft: "auto", display: "flex", gap: 8 }}>
+                    {paneId === "b" && (
+                      <span onClick={() => { setPaneB(null); setFocusedPane("a"); }} style={{ cursor: "pointer", color: "rgba(255,255,255,0.35)", fontSize: 12 }}>✕</span>
+                    )}
+                  </span>
+                </div>
+                <div style={{ flex: 1, overflow: "auto", padding: "24px 26px" }}>
+                  <div key={page} className="viro-page">
+                    {renderPage(page)}
+                  </div>
+                </div>
+              </div>
+            ))}
           </div>
-        </div>
-
-        {/* OS status bar */}
-        {!isMobile && !isTablet && (
-          <StatusBar
-            company={company}
-            entities={entities}
-            pageLabel={
-              activePage.startsWith("entity:")
-                ? (entities.find(e => `entity:${e.entity_id}` === activePage)?.name_plural || "Records")
-                : activePage.startsWith("report_") ? "Report" : activePage
-            }
-          />
+        ) : (
+          <div style={{ flex: 1, overflow: "auto", padding: isMobile ? "16px" : "20px 24px" }}>
+            <div key={activePage} className="viro-page">
+              {renderPage()}
+            </div>
+          </div>
         )}
       </div>
 
-      {/* Right AI panel */}
-      {(!isMobile && !isTablet) ? (
-        <AIPanel
-        company={company}
-        onNewReport={addReportTab}
-        activePage={activePage}
-        onFilterChange={setFilters}
-        currentFilters={filters}
-        prefs={prefs}
-        onPrefsChange={setPrefs}
-        onReshape={setDashboardConfig}
-        currentConfig={effectiveConfig}
-        hasEntities={entities.length > 0}
-        onEntityReshaped={() => setEntityDashNonce(n => n + 1)}
-      />
+      {/* The dock — primary navigation */}
+      {!isMobile && !isTablet && (
+        <Dock
+          items={[
+            ...(user?.role === "worker" ? [{ icon: "⬡", label: "Home", page: "Home" }] : [{ icon: "⬡", label: "Dashboard", page: "Dashboard" }]),
+            ...(entities.length > 0
+              ? entities.map(e => ({ icon: e.icon || "▦", label: e.name_plural || e.name, page: `entity:${e.entity_id}` }))
+              : [{ icon: "🔧", label: "Production Line", page: "Production Line" }, { icon: "📊", label: "Analytics", page: "Analytics" }, { icon: "⚠️", label: "Predictive", page: "Predictive" }, { icon: "📸", label: "Log Defect", page: "Log Defect" }, { icon: "🔍", label: "Search", page: "Vehicle Search" }]),
+            { icon: "📄", label: "Automations", page: "Automations" },
+            { icon: "⚙️", label: "Settings", page: "Settings" },
+          ]}
+          activePages={[activePage, ...(paneB !== null ? [paneB] : [])]}
+          onSelect={nav}
+          splitActive={paneB !== null}
+          onToggleSplit={toggleSplit}
+          copilotOpen={copilotOpen}
+          onToggleCopilot={() => setCopilotOpen(o => !o)}
+        />
+      )}
 
+      {/* Copilot — a summonable drawer, not a permanent strip */}
+      {(!isMobile && !isTablet) ? (
+        copilotOpen && (
+          <div style={{
+            position: "fixed", top: 62, right: 14, bottom: 76, width: 400, zIndex: 90,
+            borderRadius: 18, overflow: "hidden",
+            border: "1px solid rgba(255,255,255,0.13)",
+            boxShadow: "0 30px 90px rgba(0,0,0,0.6)",
+            animation: "vc-drawer .28s cubic-bezier(.16,1,.3,1)",
+            background: "rgba(14,15,17,0.97)",
+          }}>
+            <button onClick={() => setCopilotOpen(false)} style={{
+              position: "absolute", top: 12, right: 12, zIndex: 95,
+              background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.12)",
+              borderRadius: 8, padding: "4px 9px", color: "rgba(255,255,255,0.6)", fontSize: 12, cursor: "pointer",
+            }}>✕</button>
+            <AIPanel
+              company={company}
+              onNewReport={addReportTab}
+              activePage={activePage}
+              onFilterChange={setFilters}
+              currentFilters={filters}
+              prefs={prefs}
+              onPrefsChange={setPrefs}
+              onReshape={setDashboardConfig}
+              currentConfig={effectiveConfig}
+              hasEntities={entities.length > 0}
+              onEntityReshaped={() => setEntityDashNonce(n => n + 1)}
+              pendingAsk={pendingAsk}
+            />
+          </div>
+        )
       ) : (
         aiPanelOpen && (
           <div style={{

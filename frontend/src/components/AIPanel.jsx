@@ -13,7 +13,7 @@ const SUGGESTIONS = [
   "Best practices for reducing defects?",
 ];
 
-export default function AIPanel({ company, onNewReport, activePage, onFilterChange, currentFilters, prefs, onPrefsChange: setPrefs, onReshape, currentConfig, hasEntities, onEntityReshaped }) {
+export default function AIPanel({ company, onNewReport, activePage, onFilterChange, currentFilters, prefs, onPrefsChange: setPrefs, onReshape, currentConfig, hasEntities, onEntityReshaped, pendingAsk }) {
     const [messages, setMessages] = useState([
     {
       role: "assistant",
@@ -82,6 +82,12 @@ export default function AIPanel({ company, onNewReport, activePage, onFilterChan
     }
     return false;
   };
+
+  // Questions handed over from the omnibar ("Ask Viro — …").
+  useEffect(() => {
+    if (pendingAsk && pendingAsk.q) send(pendingAsk.q);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pendingAsk?.ts]);
 
   const send = async (question) => {
     if (!question.trim() || loading || !company) return;

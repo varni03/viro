@@ -58,6 +58,29 @@ export function AuroraBackground() {
           to { opacity: 1; transform: none; }
         }
 
+        /* ── Viro Command cockpit ── */
+        .vc-stage-bg {
+          background-image: linear-gradient(rgba(255,255,255,0.016) 1px, transparent 1px),
+            linear-gradient(90deg, rgba(255,255,255,0.016) 1px, transparent 1px);
+          background-size: 44px 44px;
+        }
+        .vc-pane {
+          background: rgba(255,255,255,0.025);
+          border: 1px solid rgba(255,255,255,0.08);
+          border-radius: 18px;
+          box-shadow: 0 24px 70px rgba(0,0,0,0.45);
+          transition: border-color .2s ease, box-shadow .2s ease;
+        }
+        .vc-pane.focused { border-color: rgba(255,255,255,0.18); }
+        .vc-dock-item {
+          transition: transform .18s cubic-bezier(.16,1,.3,1), background .18s ease;
+          cursor: pointer;
+        }
+        .vc-dock-item:hover { transform: translateY(-8px) scale(1.16); background: rgba(255,255,255,0.1) !important; }
+        @keyframes vc-drawer { from { transform: translateX(36px); opacity: 0; } to { transform: none; opacity: 1; } }
+        @keyframes vc-drop { from { opacity: 0; transform: translateY(-6px); } to { opacity: 1; transform: none; } }
+        @keyframes vc-dock-in { from { opacity: 0; transform: translate(-50%, 20px); } to { opacity: 1; transform: translate(-50%, 0); } }
+
         .viro-page { animation: fadeIn 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
 
         .glass-card {
