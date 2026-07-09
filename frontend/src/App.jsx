@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useRef } from "react";
+import { useState, useEffect, useMemo, useRef, Fragment } from "react";
 
 // Cockpit clock — the mission-control heartbeat.
 function StripClock() {
@@ -30,6 +30,8 @@ import WorkerHome from "./pages/WorkerHome";
 import EntityPage from "./pages/EntityPage";
 import Dock from "./components/Dock";
 import Omnibar from "./components/Omnibar";
+import WorkspacesMenu from "./components/WorkspacesMenu";
+import NotificationCenter from "./components/NotificationCenter";
 import GenerativeDashboard from "./pages/GenerativeDashboard";
 import { useBreakpoint } from "./hooks/useBreakpoint";
 import DynamicDashboard from "./pages/DynamicDashboard";
@@ -143,9 +145,29 @@ export default function App() {
   const [pendingAsk, setPendingAsk] = useState(null); // omnibar → copilot handoff
   const omnibarRef = useRef();
 
+  const dockItems = useMemo(() => [
+    ...(user?.role === "worker" ? [{ icon: "⬡", label: "Home", page: "Home" }] : [{ icon: "⬡", label: "Dashboard", page: "Dashboard" }]),
+    ...(entities.length > 0
+      ? entities.map(e => ({ icon: e.icon || "▦", label: e.name_plural || e.name, page: `entity:${e.entity_id}` }))
+      : [{ icon: "🔧", label: "Production Line", page: "Production Line" }, { icon: "📊", label: "Analytics", page: "Analytics" }, { icon: "⚠️", label: "Predictive", page: "Predictive" }, { icon: "📸", label: "Log Defect", page: "Log Defect" }, { icon: "🔍", label: "Search", page: "Vehicle Search" }]),
+    { icon: "📄", label: "Automations", page: "Automations" },
+    { icon: "⚙️", label: "Settings", page: "Settings" },
+  ], [user?.role, entities]);
+  const dockItemsRef = useRef(dockItems);
+  useEffect(() => { dockItemsRef.current = dockItems; }, [dockItems]);
+
   useEffect(() => {
     const onKey = (e) => {
-      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") { e.preventDefault(); omnibarRef.current?.focus(); }
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") { e.preventDefault(); omnibarRef.current?.focus(); return; }
+      // ⌥-chords — skip while typing
+      const tag = (e.target?.tagName || "").toLowerCase();
+      if (!e.altKey || e.metaKey || e.ctrlKey || tag === "input" || tag === "textarea" || tag === "select") return;
+      if (e.code?.startsWith("Digit")) {
+        const i = parseInt(e.code.slice(5), 10) - 1;
+        const item = dockItemsRef.current[i];
+        if (item) { e.preventDefault(); navRef.current(item.page); }
+      } else if (e.code === "KeyS") { e.preventDefault(); splitRef.current(); }
+      else if (e.code === "KeyC") { e.preventDefault(); setCopilotOpen(o => !o); }
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
@@ -162,6 +184,37 @@ export default function App() {
     else setPaneB(activePage === "Dashboard" ? "Automations" : "Dashboard");
   };
   const askViro = (q) => { setCopilotOpen(true); setPendingAsk({ q, ts: Date.now() }); };
+  const navRef = useRef(nav); navRef.current = nav;
+  const splitRef = useRef(toggleSplit); splitRef.current = toggleSplit;
+
+  // Resizable split — drag the divider, remembered across sessions.
+  const [splitRatio, setSplitRatio] = useState(() => {
+    const v = parseFloat(localStorage.getItem("viro_split") || "0.5");
+    return isNaN(v) ? 0.5 : Math.min(0.75, Math.max(0.25, v));
+  });
+  const stageRef = useRef();
+  const startDivider = (e) => {
+    e.preventDefault();
+    const rect = stageRef.current?.getBoundingClientRect();
+    if (!rect) return;
+    const onMove = (ev) => {
+      const r = Math.min(0.75, Math.max(0.25, (ev.clientX - rect.left) / rect.width));
+      setSplitRatio(r);
+    };
+    const onUp = () => {
+      window.removeEventListener("mousemove", onMove);
+      window.removeEventListener("mouseup", onUp);
+      setSplitRatio(r => { localStorage.setItem("viro_split", String(r)); return r; });
+    };
+    window.addEventListener("mousemove", onMove);
+    window.addEventListener("mouseup", onUp);
+  };
+  const swapPanes = () => {
+    if (paneB === null) return;
+    const t = activePage;
+    setActivePage(paneB);
+    setPaneB(t);
+  };
 
   const dismissToast = (id) => setToasts(ts => ts.filter(t => t.id !== id));
   const pushToast = (t) => {
@@ -591,6 +644,13 @@ export default function App() {
                 onAsk={askViro}
               />
             </div>
+            <NotificationCenter company={company} />
+            <WorkspacesMenu
+              companyId={company?.company_id}
+              current={{ a: activePage, b: paneB }}
+              onApply={(w) => { setActivePage(w.a); setPaneB(w.b ?? null); setFocusedPane("a"); }}
+              pageLabel={pageLabel}
+            />
             <StripClock />
             <div title={`${user?.first_name || ""} ${user?.last_name || ""} · ${user?.role || ""}`} style={{
               width: 30, height: 30, borderRadius: 9, flexShrink: 0,
@@ -644,31 +704,45 @@ export default function App() {
           </div>
         )}
 
-        {/* The stage — floating glass panes, split-capable */}
+        {/* The stage — floating glass panes, split-capable, resizable */}
         {!isMobile && !isTablet ? (
-          <div className="vc-stage-bg" style={{ flex: 1, display: "flex", gap: 14, padding: "16px 16px 76px", overflow: "hidden" }}>
-            {[["a", activePage], ...(paneB !== null ? [["b", paneB]] : [])].map(([paneId, page]) => (
-              <div key={paneId}
-                onMouseDown={() => setFocusedPane(paneId)}
-                className={"vc-pane" + (paneB !== null && focusedPane === paneId ? " focused" : "")}
-                style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", overflow: "hidden" }}>
-                <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "10px 16px", borderBottom: "1px solid rgba(255,255,255,0.06)", flexShrink: 0 }}>
-                  {paneB !== null && <span style={{ width: 6, height: 6, borderRadius: "50%", background: focusedPane === paneId ? "#fff" : "rgba(255,255,255,0.2)" }} />}
-                  <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 9.5, letterSpacing: "0.12em", textTransform: "uppercase", color: "rgba(255,255,255,0.4)" }}>
-                    {pageLabel(page)}
-                  </span>
-                  <span style={{ marginLeft: "auto", display: "flex", gap: 8 }}>
-                    {paneId === "b" && (
-                      <span onClick={() => { setPaneB(null); setFocusedPane("a"); }} style={{ cursor: "pointer", color: "rgba(255,255,255,0.35)", fontSize: 12 }}>✕</span>
-                    )}
-                  </span>
-                </div>
-                <div style={{ flex: 1, overflow: "auto", padding: "24px 26px" }}>
-                  <div key={page} className="viro-page">
-                    {renderPage(page)}
+          <div ref={stageRef} className="vc-stage-bg" style={{ flex: 1, display: "flex", padding: "16px 16px 76px", overflow: "hidden" }}>
+            {[["a", activePage], ...(paneB !== null ? [["b", paneB]] : [])].map(([paneId, page], idx) => (
+              <Fragment key={paneId}>
+                {idx === 1 && (
+                  <div onMouseDown={startDivider}
+                    style={{ width: 14, flexShrink: 0, cursor: "col-resize", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                    <div style={{ width: 3, height: 44, borderRadius: 3, background: "rgba(255,255,255,0.14)" }} />
+                  </div>
+                )}
+                <div
+                  onMouseDown={() => setFocusedPane(paneId)}
+                  className={"vc-pane" + (paneB !== null && focusedPane === paneId ? " focused" : "")}
+                  style={{
+                    flexGrow: paneB === null ? 1 : (paneId === "a" ? splitRatio : 1 - splitRatio),
+                    flexBasis: 0, minWidth: 0, display: "flex", flexDirection: "column", overflow: "hidden",
+                  }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "10px 16px", borderBottom: "1px solid rgba(255,255,255,0.06)", flexShrink: 0 }}>
+                    {paneB !== null && <span style={{ width: 6, height: 6, borderRadius: "50%", background: focusedPane === paneId ? "#fff" : "rgba(255,255,255,0.2)" }} />}
+                    <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 9.5, letterSpacing: "0.12em", textTransform: "uppercase", color: "rgba(255,255,255,0.4)" }}>
+                      {pageLabel(page)}
+                    </span>
+                    <span style={{ marginLeft: "auto", display: "flex", gap: 10 }}>
+                      {paneB !== null && paneId === "a" && (
+                        <span onClick={swapPanes} title="Swap panes" style={{ cursor: "pointer", color: "rgba(255,255,255,0.35)", fontSize: 12 }}>⇄</span>
+                      )}
+                      {paneId === "b" && (
+                        <span onClick={() => { setPaneB(null); setFocusedPane("a"); }} style={{ cursor: "pointer", color: "rgba(255,255,255,0.35)", fontSize: 12 }}>✕</span>
+                      )}
+                    </span>
+                  </div>
+                  <div style={{ flex: 1, overflow: "auto", padding: "24px 26px" }}>
+                    <div key={page} className="viro-page">
+                      {renderPage(page)}
+                    </div>
                   </div>
                 </div>
-              </div>
+              </Fragment>
             ))}
           </div>
         ) : (
@@ -683,14 +757,7 @@ export default function App() {
       {/* The dock — primary navigation */}
       {!isMobile && !isTablet && (
         <Dock
-          items={[
-            ...(user?.role === "worker" ? [{ icon: "⬡", label: "Home", page: "Home" }] : [{ icon: "⬡", label: "Dashboard", page: "Dashboard" }]),
-            ...(entities.length > 0
-              ? entities.map(e => ({ icon: e.icon || "▦", label: e.name_plural || e.name, page: `entity:${e.entity_id}` }))
-              : [{ icon: "🔧", label: "Production Line", page: "Production Line" }, { icon: "📊", label: "Analytics", page: "Analytics" }, { icon: "⚠️", label: "Predictive", page: "Predictive" }, { icon: "📸", label: "Log Defect", page: "Log Defect" }, { icon: "🔍", label: "Search", page: "Vehicle Search" }]),
-            { icon: "📄", label: "Automations", page: "Automations" },
-            { icon: "⚙️", label: "Settings", page: "Settings" },
-          ]}
+          items={dockItems.map((it, i) => (i < 9 ? { ...it, label: `${it.label} — ⌥${i + 1}` } : it))}
           activePages={[activePage, ...(paneB !== null ? [paneB] : [])]}
           onSelect={nav}
           splitActive={paneB !== null}
