@@ -37,6 +37,26 @@ DESIGN_MODEL = "claude-opus-4-8"
 
 SECRET_KEY = os.getenv("JWT_SECRET", "viro-secret-key-change-in-production")
 
+# ── In-memory AI response cache (cuts credit drip on repeat views) ──
+import time as _time
+import hashlib as _hashlib
+_AI_CACHE = {}
+
+def _cache_key(*parts):
+    return _hashlib.sha256("|".join(str(p) for p in parts).encode()).hexdigest()
+
+def _cache_get(key, ttl_seconds):
+    v = _AI_CACHE.get(key)
+    if v and _time.time() - v[0] < ttl_seconds:
+        return v[1]
+    return None
+
+def _cache_put(key, value):
+    if len(_AI_CACHE) > 600:  # bound memory; drop oldest third
+        for k, _ in sorted(_AI_CACHE.items(), key=lambda kv: kv[1][0])[:200]:
+            _AI_CACHE.pop(k, None)
+    _AI_CACHE[key] = (_time.time(), value)
+
 def require_auth(authorization: Optional[str] = Header(None)):
     """Gate for AI/expensive endpoints — a valid login JWT is required.
     The Railway URL ships in the public frontend bundle; without this,
@@ -707,14 +727,19 @@ class DashboardInsightsRequest(BaseModel):
 
 @app.post("/dashboard/insights/{company_id}", dependencies=[Depends(require_auth)])
 def dashboard_insights(company_id: str, req: DashboardInsightsRequest):
-    """One Claude call → a one-sentence insight per dashboard card."""
+    """One Claude call → a one-sentence insight per dashboard card.
+    Cached ~10 min per (company, card data) — identical dashboard views are free."""
+    cards = [
+        {"key": c.key, "label": c.label, "type": c.type, "data": c.data}
+        for c in req.cards
+    ]
+    cards_json = json.dumps(cards, default=str)
+    key = _cache_key("dashboard_insights", company_id, cards_json)
+    cached = _cache_get(key, 600)
+    if cached is not None:
+        return cached
     try:
         name, industry = _company_identity(company_id)
-        cards = [
-            {"key": c.key, "label": c.label, "type": c.type, "data": c.data}
-            for c in req.cards
-        ]
-        cards_json = json.dumps(cards, default=str)
         prompt = f"""You are the intelligence layer of Viro, an operations platform for {name} ({industry}).
 
 For each dashboard card below, write ONE sentence (max 18 words) naming the single most important thing the live numbers reveal — a decision, risk, or opportunity, never a description of what the card shows. Use the actual numbers. If a card has no data, write a short note saying so.
@@ -730,7 +755,9 @@ Return ONLY a JSON object mapping each card's "key" to its sentence. No other te
             messages=[{"role": "user", "content": prompt}],
         )
         text = _strip_json_fences(response.content[0].text)
-        return {"insights": json.loads(text)}
+        result = {"insights": json.loads(text)}
+        _cache_put(key, result)
+        return result
     except Exception as e:
         return {"insights": {}, "error": str(e)}
 
@@ -786,7 +813,12 @@ class PageInsightRequest(BaseModel):
 
 @app.post("/ai/page-insight", dependencies=[Depends(require_auth)])
 def page_insight(req: PageInsightRequest):
-    """One sentence answering the single most important question a page should answer."""
+    """One sentence answering the single most important question a page should answer.
+    Cached ~10 min per (company, page, data) — identical views are free."""
+    key = _cache_key("page_insight", req.company_id, req.page, json.dumps(req.summary, default=str, sort_keys=True))
+    cached = _cache_get(key, 600)
+    if cached is not None:
+        return cached
     try:
         name, industry = _company_identity(req.company_id)
         prompt = f"""You are the intelligence layer of Viro for {name} ({industry}).
@@ -799,7 +831,9 @@ Write ONE sentence (max ~22 words) that answers the single most important questi
             messages=[{"role": "user", "content": prompt}],
         )
         answer = "".join(b.text for b in response.content if hasattr(b, "text")).strip()
-        return {"insight": answer}
+        result = {"insight": answer}
+        _cache_put(key, result)
+        return result
     except Exception as e:
         return {"insight": "", "error": str(e)}
 
