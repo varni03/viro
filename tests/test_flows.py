@@ -87,6 +87,9 @@ class _FakeMessages:
         if "Draft this document" in prompt:
             return _Msg("Subject: Reorder request\n\nPlease send more Oat Milk and Strawberries.")
 
+        if "morning briefing" in prompt:
+            return _Msg("Operations are steady with 2 orders in flight. Restock Oat Milk today. Watch Friday demand.")
+
         return _Msg("OK")
 
 
@@ -237,6 +240,34 @@ def test_records_crud_and_entity_cascade():
     assert tc.get(f"/records/{cid}/{eid}").json()[0]["item"] == "Green Machine"
     tc.delete(f"/entities/{eid}")
     assert tc.get(f"/records/{cid}/{eid}").json() == []  # cascade
+
+
+def test_briefing_contract_and_daily_cache():
+    cid = _company()
+    auth = _register(cid)
+    assert tc.get(f"/ai/briefing/{cid}").status_code == 401  # auth-gated
+    r = tc.post(f"/entities/{cid}/bulk", json={"entities": [
+        {"name": "Order", "name_plural": "Orders", "icon": "O",
+         "fields": [{"key": "item", "label": "Item", "type": "text"}]},
+    ]})
+    eid = r.json()["created"][0]
+    tc.post(f"/records/{cid}/{eid}", json={"data": {"item": "Berry Blast"}})
+    calls = {"n": 0}
+    real = main.client.messages.create
+
+    def counting(**kw):
+        calls["n"] += 1
+        return real(**kw)
+
+    main.client.messages.create = counting
+    try:
+        r1 = tc.get(f"/ai/briefing/{cid}", headers=auth).json()
+        r2 = tc.get(f"/ai/briefing/{cid}", headers=auth).json()
+        assert "Restock Oat Milk" in r1["briefing"]
+        assert r1 == r2
+        assert calls["n"] == 1, "same-day briefing must be served from cache"
+    finally:
+        main.client.messages.create = real
 
 
 def test_page_insight_cache_prevents_second_ai_call():

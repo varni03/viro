@@ -838,6 +838,42 @@ Write ONE sentence (max ~22 words) that answers the single most important questi
         return {"insight": "", "error": str(e)}
 
 
+# ── Daily briefing: the dashboard opens with your morning, written ──
+@app.get("/ai/briefing/{company_id}", dependencies=[Depends(require_auth)])
+def daily_briefing(company_id: str):
+    """2-3 sentences on the state of the operation — cached per company per day."""
+    day = datetime.now().strftime("%Y-%m-%d")
+    key = _cache_key("briefing", company_id, day)
+    cached = _cache_get(key, 21600)  # 6h — at most a few AI calls per day
+    if cached is not None:
+        return cached
+    try:
+        name, industry = _company_identity(company_id)
+        ctx = _automation_context(company_id)
+        notes = db.query(
+            "SELECT title, message FROM notifications WHERE company_id = ? ORDER BY created_at DESC LIMIT 5",
+            (company_id,)
+        )
+        recent_notes = [f"{r['title']}: {r['message']}" for _, r in notes.iterrows()]
+        prompt = f"""You are Viro, the operations intelligence for {name} ({industry}). Write today's morning briefing — exactly 2-3 sentences, no preamble, no greeting: (1) the state of the operation using the real numbers, (2) the single most important thing to handle today, (3) one thing to watch or an opportunity. Confident and specific.
+
+LIVE DATA (JSON):
+{json.dumps(ctx, default=str)}
+
+RECENT ACTIVITY:
+{json.dumps(recent_notes)}"""
+        response = client.messages.create(
+            model=AI_MODEL, max_tokens=300,
+            messages=[{"role": "user", "content": prompt}],
+        )
+        briefing = "".join(b.text for b in response.content if hasattr(b, "text")).strip()
+        result = {"briefing": briefing, "day": day}
+        _cache_put(key, result)
+        return result
+    except Exception as e:
+        return {"briefing": "", "day": day, "error": str(e)}
+
+
 # ── Role automations (draft the documents teams write by hand) ──
 DOC_SPECS = {
     "weekly_quality_report": ("Weekly Quality Report",
@@ -888,11 +924,17 @@ def _automation_context(company_id):
             low = [r for r in rows if qf and rf and _to_num(r.get(qf)) <= _to_num(r.get(rf))] if (qf and rf) else []
             ctx["entities"][e["name_plural"] or e["name"]] = {"count": len(rows), "low_stock": low[:10], "recent": rows[:10]}
         return ctx
-    return {
-        "summary": get_analytics_summary(company_id),
-        "top_issues": get_top_defects(company_id),
-        "stage_performance": get_stage_performance(company_id),
-    }
+    # Legacy (no entities): gather what we can — one failed query shouldn't
+    # blank the whole context.
+    ctx = {}
+    for key, fn in (("summary", get_analytics_summary),
+                    ("top_issues", get_top_defects),
+                    ("stage_performance", get_stage_performance)):
+        try:
+            ctx[key] = fn(company_id)
+        except Exception:
+            pass
+    return ctx
 
 def _load_catalog(company_id):
     row = db.query("SELECT config FROM automation_catalogs WHERE company_id = ?", (company_id,))

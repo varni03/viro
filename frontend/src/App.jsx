@@ -441,7 +441,7 @@ export default function App() {
 
     switch (page) {
       case "Dashboard": return entities.length > 0
-        ? <GenerativeDashboard company={company} entities={entities} onNavigate={nav} nonce={entityDashNonce} />
+        ? <GenerativeDashboard company={company} entities={entities} onNavigate={nav} nonce={entityDashNonce} user={user} />
         : <DynamicDashboard
             company={company}
             config={effectiveConfig}

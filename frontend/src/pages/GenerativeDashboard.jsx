@@ -1,5 +1,5 @@
-import { useState, useEffect, useMemo } from "react";
-import { COLORS, PageHeader, InsightBanner } from "../components/Layout";
+import { useState, useEffect, useMemo, useRef } from "react";
+import { COLORS, PageHeader } from "../components/Layout";
 
 const API = "https://web-production-0457e.up.railway.app";
 const MONO = "'JetBrains Mono', monospace";
@@ -44,6 +44,70 @@ function sparkSeries(rows, days = 14) {
 }
 
 /* ── tiny visuals ─────────────────────────────────────────────── */
+// Numbers that count to their value — the dashboard feels alive.
+function Tick({ v, format }) {
+  const [disp, setDisp] = useState(v);
+  const prev = useRef(v);
+  useEffect(() => {
+    const from = prev.current, to = v;
+    prev.current = v;
+    if (from === to) { setDisp(to); return; }
+    const t0 = performance.now(), dur = 550;
+    let raf;
+    const step = (t) => {
+      const p = Math.min(1, (t - t0) / dur);
+      setDisp(from + (to - from) * (1 - Math.pow(1 - p, 3)));
+      if (p < 1) raf = requestAnimationFrame(step);
+    };
+    raf = requestAnimationFrame(step);
+    return () => cancelAnimationFrame(raf);
+  }, [v]);
+  return <>{format(disp)}</>;
+}
+
+// The morning briefing — Viro writes your day before you ask (1 AI call/day, cached).
+function Briefing({ company, user }) {
+  const [text, setText] = useState("");
+  const [loading, setLoading] = useState(true);
+  useEffect(() => {
+    let alive = true;
+    setLoading(true); setText("");
+    fetch(`${API}/ai/briefing/${company.company_id}`)
+      .then(r => r.json())
+      .then(d => { if (alive) { setText(d.briefing || ""); setLoading(false); } })
+      .catch(() => { if (alive) setLoading(false); });
+    return () => { alive = false; };
+  }, [company.company_id]);
+
+  const h = new Date().getHours();
+  const greet = h < 12 ? "Good morning" : h < 18 ? "Good afternoon" : "Good evening";
+  const dateStr = new Date().toLocaleDateString(undefined, { weekday: "long", month: "long", day: "numeric" });
+
+  if (!loading && !text) return null;
+  return (
+    <div style={{
+      position: "relative", overflow: "hidden", marginBottom: 20, padding: "20px 22px",
+      borderRadius: 18, background: "rgba(255,255,255,0.045)", border: "1px solid rgba(255,255,255,0.1)",
+    }}>
+      <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: 1, background: "linear-gradient(90deg,transparent,rgba(255,255,255,0.35),transparent)" }} />
+      <div style={{ position: "absolute", top: -70, right: -40, width: 220, height: 180, borderRadius: "50%", background: "rgba(255,255,255,0.05)", filter: "blur(50px)", pointerEvents: "none" }} />
+      <div style={{ fontFamily: MONO, fontSize: 9.5, letterSpacing: "0.14em", textTransform: "uppercase", color: "rgba(255,255,255,0.35)", marginBottom: 8 }}>{dateStr} · Briefing</div>
+      <div style={{ fontSize: 19, fontWeight: 800, letterSpacing: "-0.02em", marginBottom: 8 }}>
+        {greet}{user?.first_name ? `, ${user.first_name}` : ""}.
+      </div>
+      {loading ? (
+        <div style={{ display: "flex", alignItems: "center", gap: 9, color: "rgba(255,255,255,0.4)", fontSize: 13.5 }}>
+          <span style={{ display: "inline-block", animation: "spin 1s linear infinite" }}>◴</span> Reading your operation…
+        </div>
+      ) : (
+        <div style={{ fontSize: 14.5, lineHeight: 1.65, color: "rgba(255,255,255,0.85)", maxWidth: 760 }}>
+          <span style={{ color: "rgba(255,255,255,0.45)", marginRight: 8 }}>✦</span>{text}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function Spark({ series }) {
   if (!series.some(v => v > 0)) return null;
   const w = 120, h = 26, max = Math.max(...series, 1);
@@ -66,11 +130,18 @@ function Metric({ block, rows, field, onDrill }) {
   else if (block.agg === "avg") v = r.length ? r.reduce((s, x) => s + num(x[block.field]), 0) / r.length : 0;
   else v = r.length;
   const isCurrency = field?.type === "currency";
-  const display = (isCurrency ? "$" : "") + (Number.isInteger(v) ? v.toLocaleString() : v.toFixed(1)) + (block.suffix || "");
+  const fmt = (x) => (isCurrency ? "$" : "") + (Number.isInteger(v) ? Math.round(x).toLocaleString() : x.toFixed(1)) + (block.suffix || "");
   return (
-    <div className="vg-card" onClick={() => onDrill(block.label, r)} style={{ ...card, padding: "18px 20px", cursor: "pointer", ...(block.accent ? { background: "rgba(255,255,255,0.06)" } : {}) }}>
+    <div className="vg-card" onClick={() => onDrill(block.label, r)} style={{ ...card, padding: "18px 20px", cursor: "pointer", position: "relative", overflow: "hidden", ...(block.accent ? { background: "rgba(255,255,255,0.06)", borderColor: "rgba(255,255,255,0.14)" } : {}) }}>
+      {block.accent && <>
+        <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: 1, background: "linear-gradient(90deg,transparent,rgba(255,255,255,0.35),transparent)" }} />
+        <div style={{ position: "absolute", top: -50, right: -30, width: 140, height: 120, borderRadius: "50%", background: "rgba(255,255,255,0.06)", filter: "blur(36px)", pointerEvents: "none" }} />
+      </>}
+      {block.danger && v > 0 && <div style={{ position: "absolute", top: -50, right: -30, width: 140, height: 120, borderRadius: "50%", background: RED + "22", filter: "blur(36px)", pointerEvents: "none" }} />}
       <div style={{ fontSize: 10, letterSpacing: "0.1em", textTransform: "uppercase", color: "rgba(255,255,255,0.4)", marginBottom: 11 }}>{block.label}</div>
-      <div style={{ fontFamily: MONO, fontSize: block.accent ? 34 : 28, fontWeight: 700, letterSpacing: "-0.02em", lineHeight: 1, fontVariantNumeric: "tabular-nums", color: block.danger && v > 0 ? RED : "#fff" }}>{display}</div>
+      <div style={{ fontFamily: MONO, fontSize: block.accent ? 34 : 28, fontWeight: 700, letterSpacing: "-0.02em", lineHeight: 1, fontVariantNumeric: "tabular-nums", color: block.danger && v > 0 ? RED : "#fff" }}>
+        <Tick v={v} format={fmt} />
+      </div>
       <Spark series={sparkSeries(r)} />
     </div>
   );
@@ -347,7 +418,7 @@ function ensureVgStyles() {
 }
 
 /* ── main ─────────────────────────────────────────────────────── */
-export default function GenerativeDashboard({ company, entities, onNavigate, nonce }) {
+export default function GenerativeDashboard({ company, entities, onNavigate, nonce, user }) {
   const [config, setConfig] = useState(null);
   const [recs, setRecs] = useState(null);
   const [regen, setRegen] = useState(false);
@@ -355,16 +426,20 @@ export default function GenerativeDashboard({ company, entities, onNavigate, non
   const [view, setView] = useState("overview");
   const [range, setRange] = useState("all");
   const [drill, setDrill] = useState(null); // { title, rows, entity }
+  const [lastSync, setLastSync] = useState(null);
   const entById = Object.fromEntries(entities.map(e => [e.entity_id, e]));
 
   useEffect(() => { ensureVgStyles(); }, []);
 
+  // Live data — loads immediately, then silently refreshes every 60s.
   useEffect(() => {
     let alive = true;
-    Promise.all(entities.map(e =>
+    const load = () => Promise.all(entities.map(e =>
       fetch(`${API}/records/${company.company_id}/${e.entity_id}`).then(r => r.json()).then(rows => [e.entity_id, Array.isArray(rows) ? rows : []]).catch(() => [e.entity_id, []])
-    )).then(res => { if (alive) setRecs(Object.fromEntries(res)); });
-    return () => { alive = false; };
+    )).then(res => { if (alive) { setRecs(Object.fromEntries(res)); setLastSync(new Date()); } });
+    load();
+    const t = setInterval(load, 60000);
+    return () => { alive = false; clearInterval(t); };
   }, [company.company_id, entities]);
 
   useEffect(() => {
@@ -442,7 +517,14 @@ export default function GenerativeDashboard({ company, entities, onNavigate, non
     );
   };
 
-  const summary = entities.map(e => ({ entity: e.name_plural, count: (recs[e.entity_id] || []).length }));
+  // Contextual quick actions — the obvious next moves, one tap away.
+  const lowTotal = entities.reduce((sum, e) => {
+    const fs = e.fields || [];
+    const qf = fs.find(f => f.type === "number" && /on_hand|stock|qty|quantity|inventory|count/i.test(f.key));
+    const rf = fs.find(f => f.type === "number" && /reorder|min|threshold|par/i.test(f.key));
+    if (!qf || !rf) return sum;
+    return sum + (recs[e.entity_id] || []).filter(r => num(r[qf.key]) <= num(r[rf.key])).length;
+  }, 0);
   const drillEntityFields = drill?.entity ? (drill.entity.fields || []).slice(0, 4) : [];
 
   const Tab = ({ id, label }) => (
@@ -456,9 +538,17 @@ export default function GenerativeDashboard({ company, entities, onNavigate, non
     <div>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", flexWrap: "wrap", gap: 10 }}>
         <PageHeader title={config.title || "Overview"} subtitle={`${company.name} · designed for your operation`} />
-        <button onClick={regenerate} disabled={regen} style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 10, padding: "10px 16px", color: COLORS.muted, fontSize: 13, cursor: regen ? "not-allowed" : "pointer", marginTop: 4, fontFamily: "inherit" }}>
-          {regen ? "Redesigning…" : "✦ Redesign"}
-        </button>
+        <div style={{ display: "flex", alignItems: "center", gap: 12, marginTop: 6 }}>
+          {lastSync && (
+            <span style={{ display: "flex", alignItems: "center", gap: 6, fontFamily: MONO, fontSize: 10, color: "rgba(255,255,255,0.35)", letterSpacing: "0.06em" }}>
+              <span style={{ width: 6, height: 6, borderRadius: "50%", background: GREEN, boxShadow: `0 0 6px ${GREEN}` }} />
+              LIVE · {String(lastSync.getHours()).padStart(2, "0")}:{String(lastSync.getMinutes()).padStart(2, "0")}:{String(lastSync.getSeconds()).padStart(2, "0")}
+            </span>
+          )}
+          <button onClick={regenerate} disabled={regen} style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 10, padding: "10px 16px", color: COLORS.muted, fontSize: 13, cursor: regen ? "not-allowed" : "pointer", fontFamily: "inherit" }}>
+            {regen ? "Redesigning…" : "✦ Redesign"}
+          </button>
+        </div>
       </div>
 
       {/* navigation strip: views + time scope */}
@@ -478,7 +568,23 @@ export default function GenerativeDashboard({ company, entities, onNavigate, non
 
       {view === "overview" && (
         <>
-          <InsightBanner companyId={company.company_id} page="Overview" summary={summary} />
+          <Briefing company={company} user={user} />
+
+          {/* quick actions */}
+          <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 18 }}>
+            {lowTotal > 0 && (
+              <button onClick={() => onNavigate("Automations")} className="vg-pill-btn" style={{
+                background: RED + "1a", border: `1px solid ${RED}44`, color: RED, fontWeight: 700 }}>
+                ✦ Draft reorder — {lowTotal} low
+              </button>
+            )}
+            {entities.slice(0, 5).map(e => (
+              <button key={e.entity_id} onClick={() => onNavigate(`entity:${e.entity_id}`)} className="vg-pill-btn" style={{
+                background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.09)", color: "rgba(255,255,255,0.6)" }}>
+                ＋ {e.name}
+              </button>
+            ))}
+          </div>
           {(config.sections || []).map((section, si) => (
             <div key={si} style={{ display: "grid", gridTemplateColumns: section.cols || "1fr", gap: 14, marginBottom: 14 }}>
               {(section.blocks || []).map(renderBlock)}
