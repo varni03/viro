@@ -17,6 +17,8 @@ import Automations from "./pages/Automations";
 import WorkerHome from "./pages/WorkerHome";
 import EntityPage from "./pages/EntityPage";
 import CommandPalette from "./components/CommandPalette";
+import TopBar from "./components/TopBar";
+import StatusBar from "./components/StatusBar";
 import GenerativeDashboard from "./pages/GenerativeDashboard";
 import { useBreakpoint } from "./hooks/useBreakpoint";
 import DynamicDashboard from "./pages/DynamicDashboard";
@@ -544,6 +546,20 @@ export default function App() {
           </div>
         )}
 
+        {/* Desktop command bar */}
+        {!isMobile && !isTablet && (
+          <TopBar
+            company={company}
+            user={user}
+            pageLabel={
+              activePage.startsWith("entity:")
+                ? (entities.find(e => `entity:${e.entity_id}` === activePage)?.name_plural || "Records")
+                : activePage.startsWith("report_") ? "Report" : activePage
+            }
+            onOpenPalette={() => setCmdOpen(true)}
+          />
+        )}
+
         {/* Tab bar */}
         {reportTabs.length > 0 && (
           <div style={{
@@ -592,8 +608,23 @@ export default function App() {
           flex: 1, overflow: "auto",
           padding: isMobile ? "16px" : isTablet ? "20px 24px" : "28px 32px",
         }}>
-          {renderPage()}
+          <div key={activePage} className="viro-page">
+            {renderPage()}
+          </div>
         </div>
+
+        {/* OS status bar */}
+        {!isMobile && !isTablet && (
+          <StatusBar
+            company={company}
+            entities={entities}
+            pageLabel={
+              activePage.startsWith("entity:")
+                ? (entities.find(e => `entity:${e.entity_id}` === activePage)?.name_plural || "Records")
+                : activePage.startsWith("report_") ? "Report" : activePage
+            }
+          />
+        )}
       </div>
 
       {/* Right AI panel */}

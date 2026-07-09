@@ -34,6 +34,8 @@ export function AuroraBackground() {
           -webkit-font-smoothing: antialiased;
           overflow: hidden;
         }
+        ::selection { background: rgba(255,255,255,0.2); }
+        :focus-visible { outline: 2px solid rgba(255,255,255,0.35); outline-offset: 2px; border-radius: 6px; }
         ::-webkit-scrollbar { width: 3px; height: 3px; }
         ::-webkit-scrollbar-track { background: transparent; }
         ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 10px; }
