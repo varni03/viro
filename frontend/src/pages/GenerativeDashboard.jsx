@@ -4,7 +4,24 @@ import { COLORS, PageHeader } from "../components/Layout";
 const API = "https://web-production-0457e.up.railway.app";
 const MONO = "'JetBrains Mono', monospace";
 const RED = "#ff5a5a", GREEN = "#34d399";
-const PALETTE = ["#ffffff", "#34d399", "#f0a83c", "#ff5a5a", "rgba(255,255,255,0.55)", "rgba(255,255,255,0.4)", "rgba(255,255,255,0.28)"];
+const PALETTE = ["var(--vx, #ffffff)", "#34d399", "#f0a83c", "#ff5a5a", "rgba(255,255,255,0.55)", "rgba(255,255,255,0.4)", "rgba(255,255,255,0.28)"];
+// Status colors for select-type fields — option order → consistent hue.
+export const STATUS_HUES = ["#60a5fa", "#f0a83c", "#34d399", "#94a3b8", "#fb7185", "#22d3ee"];
+export function StatusPill({ value, options = [] }) {
+  const i = Math.max(options.indexOf(value), 0);
+  const c = STATUS_HUES[i % STATUS_HUES.length];
+  return (
+    <span style={{ fontFamily: MONO, fontSize: 9.5, fontWeight: 700, letterSpacing: "0.05em", textTransform: "uppercase",
+      color: c, background: c + "1c", border: `1px solid ${c}44`, padding: "3px 8px", borderRadius: 6, whiteSpace: "nowrap" }}>
+      {String(value ?? "—")}
+    </span>
+  );
+}
+// Render **bold** from AI text without a markdown lib.
+function MdText({ text }) {
+  const parts = String(text).split(/\*\*/);
+  return <>{parts.map((p, i) => (i % 2 ? <b key={i} style={{ color: "#fff" }}>{p}</b> : p))}</>;
+}
 const card = { background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 16 };
 const lbl = { fontFamily: MONO, fontSize: 9.5, letterSpacing: "0.12em", textTransform: "uppercase", color: "rgba(255,255,255,0.32)", fontWeight: 600, marginBottom: 12 };
 const num = v => { const n = Number(v); return isNaN(n) ? 0 : n; };
@@ -31,6 +48,13 @@ function inRange(r, range) {
   const d = recDate(r);
   if (!d || !days) return true;
   return (Date.now() - d.getTime()) < days * 86400000;
+}
+function inPrevRange(r, range) {
+  const days = RANGES.find(x => x[0] === range)?.[2];
+  const d = recDate(r);
+  if (!d || !days) return false;
+  const age = Date.now() - d.getTime();
+  return age >= days * 86400000 && age < 2 * days * 86400000;
 }
 function sparkSeries(rows, days = 14) {
   const buckets = {};
@@ -66,7 +90,7 @@ function Tick({ v, format }) {
 }
 
 // The morning briefing — Viro writes your day before you ask (1 AI call/day, cached).
-function Briefing({ company, user }) {
+function Briefing({ company, user, actions }) {
   const [text, setText] = useState("");
   const [loading, setLoading] = useState(true);
   useEffect(() => {
@@ -91,19 +115,30 @@ function Briefing({ company, user }) {
     }}>
       <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: 1, background: "linear-gradient(90deg,transparent,var(--vx,#fff),transparent)", opacity: 0.5 }} />
       <div style={{ position: "absolute", top: -70, right: -40, width: 220, height: 180, borderRadius: "50%", background: "var(--vx, #fff)", opacity: 0.07, filter: "blur(50px)", pointerEvents: "none" }} />
-      <div style={{ fontFamily: MONO, fontSize: 9.5, letterSpacing: "0.14em", textTransform: "uppercase", color: "rgba(255,255,255,0.35)", marginBottom: 8 }}>{dateStr} · Briefing</div>
-      <div style={{ fontSize: 19, fontWeight: 800, letterSpacing: "-0.02em", marginBottom: 8 }}>
-        {greet}{user?.first_name ? `, ${user.first_name}` : ""}.
+      <div style={{ display: "flex", gap: 24, position: "relative" }}>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ fontFamily: MONO, fontSize: 9.5, letterSpacing: "0.14em", textTransform: "uppercase", color: "rgba(255,255,255,0.35)", marginBottom: 8 }}>{dateStr} · Briefing</div>
+          <div style={{ fontSize: 19, fontWeight: 800, letterSpacing: "-0.02em", marginBottom: 8 }}>
+            {greet}{user?.first_name ? `, ${user.first_name}` : ""}.
+          </div>
+          {loading ? (
+            <div style={{ display: "flex", alignItems: "center", gap: 9, color: "rgba(255,255,255,0.4)", fontSize: 13.5 }}>
+              <span style={{ display: "inline-block", animation: "spin 1s linear infinite" }}>◴</span> Reading your operation…
+            </div>
+          ) : (
+            <div style={{ fontSize: 14.5, lineHeight: 1.65, color: "rgba(255,255,255,0.85)" }}>
+              <span style={{ color: "var(--vx, rgba(255,255,255,0.45))", marginRight: 8 }}>✦</span>
+              <MdText text={text} />
+            </div>
+          )}
+        </div>
+        {actions && (
+          <div style={{ width: 190, flexShrink: 0, display: "flex", flexDirection: "column", gap: 8, justifyContent: "center", borderLeft: "1px solid rgba(255,255,255,0.07)", paddingLeft: 20 }}>
+            <div style={{ fontFamily: MONO, fontSize: 8.5, letterSpacing: "0.14em", color: "rgba(255,255,255,0.3)", marginBottom: 2 }}>WHAT NOW</div>
+            {actions}
+          </div>
+        )}
       </div>
-      {loading ? (
-        <div style={{ display: "flex", alignItems: "center", gap: 9, color: "rgba(255,255,255,0.4)", fontSize: 13.5 }}>
-          <span style={{ display: "inline-block", animation: "spin 1s linear infinite" }}>◴</span> Reading your operation…
-        </div>
-      ) : (
-        <div style={{ fontSize: 14.5, lineHeight: 1.65, color: "rgba(255,255,255,0.85)", maxWidth: 760 }}>
-          <span style={{ color: "rgba(255,255,255,0.45)", marginRight: 8 }}>✦</span>{text}
-        </div>
-      )}
     </div>
   );
 }
@@ -126,12 +161,18 @@ function Empty() {
 }
 
 /* ── blocks (Overview) ────────────────────────────────────────── */
-function Metric({ block, rows, field, onDrill }) {
+function Metric({ block, rows, prevRows = [], field, onDrill, range }) {
+  const agg = (list) => {
+    const f = applyFilter(list, block.filter);
+    if (block.agg === "sum") return f.reduce((s, x) => s + num(x[block.field]), 0);
+    if (block.agg === "avg") return f.length ? f.reduce((s, x) => s + num(x[block.field]), 0) / f.length : 0;
+    return f.length;
+  };
   const r = applyFilter(rows, block.filter);
-  let v = 0;
-  if (block.agg === "sum") v = r.reduce((s, x) => s + num(x[block.field]), 0);
-  else if (block.agg === "avg") v = r.length ? r.reduce((s, x) => s + num(x[block.field]), 0) / r.length : 0;
-  else v = r.length;
+  const v = agg(rows);
+  const prev = range !== "all" ? agg(prevRows) : null;
+  const delta = prev !== null && prev > 0 ? ((v - prev) / prev) * 100 : null;
+  const deltaGood = block.danger ? (v <= prev) : (v >= prev);
   const isCurrency = field?.type === "currency";
   const fmt = (x) => (isCurrency ? "$" : "") + (Number.isInteger(v) ? Math.round(x).toLocaleString() : x.toFixed(1)) + (block.suffix || "");
   return (
@@ -145,6 +186,11 @@ function Metric({ block, rows, field, onDrill }) {
       <div style={{ fontFamily: MONO, fontSize: block.accent ? 34 : 28, fontWeight: 700, letterSpacing: "-0.02em", lineHeight: 1, fontVariantNumeric: "tabular-nums", color: block.danger && v > 0 ? RED : "#fff" }}>
         <Tick v={v} format={fmt} />
       </div>
+      {delta !== null && (
+        <div style={{ marginTop: 8, fontSize: 11, fontWeight: 600, color: deltaGood ? GREEN : RED }}>
+          {delta >= 0 ? "↑" : "↓"} {Math.abs(delta).toFixed(0)}% <span style={{ color: "rgba(255,255,255,0.35)", fontWeight: 400 }}>vs prior {RANGES.find(x => x[0] === range)?.[1].toLowerCase()}</span>
+        </div>
+      )}
       <Spark series={sparkSeries(r)} />
     </div>
   );
@@ -287,7 +333,18 @@ function Recent({ block, rows, entity, onDrill }) {
           <thead><tr>{fields.map(k => <th key={k} style={{ textAlign: "left", padding: "0 10px 9px", fontFamily: MONO, fontSize: 9, letterSpacing: "0.08em", textTransform: "uppercase", color: "rgba(255,255,255,0.3)" }}>{labelFor(k)}</th>)}</tr></thead>
           <tbody>{data.map((r, ri) => (
             <tr key={ri} onClick={() => onDrill(block.label, rows)} style={{ cursor: "pointer" }}>
-              {fields.map(k => <td key={k} style={{ padding: "9px 10px", borderTop: "1px solid rgba(255,255,255,0.05)", color: "rgba(255,255,255,0.82)" }}>{String(r[k] ?? "—")}</td>)}
+              {fields.map(k => {
+                const f = fdefs.find(x => x.key === k);
+                return (
+                  <td key={k} style={{ padding: "8px 10px", borderTop: "1px solid rgba(255,255,255,0.05)", color: "rgba(255,255,255,0.82)", fontFamily: (f?.type === "number" || f?.type === "currency") ? MONO : "inherit" }}>
+                    {f?.type === "select"
+                      ? <StatusPill value={r[k]} options={f.options || []} />
+                      : f?.type === "currency" && r[k] !== undefined && r[k] !== ""
+                        ? "$" + num(r[k]).toLocaleString()
+                        : String(r[k] ?? "—")}
+                  </td>
+                );
+              })}
             </tr>
           ))}</tbody>
         </table>
@@ -410,8 +467,10 @@ function DataView({ entities, recsFor, onDrill }) {
               ) : rows.map((r, i) => (
                 <tr key={r.record_id || i} className="vdyn-row" onClick={() => onDrill(e.name_plural || e.name, [r])} style={{ borderBottom: "1px solid rgba(255,255,255,0.05)", cursor: "pointer" }}>
                   {fields.map((f, ci) => (
-                    <td key={f.key} style={{ padding: "11px 15px", color: ci === 0 ? "#fff" : "rgba(255,255,255,0.72)", fontWeight: ci === 0 ? 600 : 400, fontFamily: (f.type === "number" || f.type === "currency") ? MONO : "inherit" }}>
-                      {f.type === "currency" && r[f.key] !== undefined && r[f.key] !== "" ? "$" + num(r[f.key]).toLocaleString() : String(r[f.key] ?? "—")}
+                    <td key={f.key} style={{ padding: "10px 15px", color: ci === 0 ? "#fff" : "rgba(255,255,255,0.72)", fontWeight: ci === 0 ? 600 : 400, fontFamily: (f.type === "number" || f.type === "currency") ? MONO : "inherit" }}>
+                      {f.type === "select"
+                        ? <StatusPill value={r[f.key]} options={f.options || []} />
+                        : f.type === "currency" && r[f.key] !== undefined && r[f.key] !== "" ? "$" + num(r[f.key]).toLocaleString() : String(r[f.key] ?? "—")}
                     </td>
                   ))}
                 </tr>
@@ -546,8 +605,9 @@ export default function GenerativeDashboard({ company, entities, onNavigate, non
     const rows = scopedFor(b.entity);
     const field = (entity.fields || []).find(f => f.key === b.field);
     const drillFn = openDrill(entity);
+    const prevRows = (recs[b.entity] || []).filter(r => inPrevRange(r, range));
     const inner =
-      b.type === "metric" ? <Metric block={b} rows={rows} field={field} onDrill={drillFn} />
+      b.type === "metric" ? <Metric block={b} rows={rows} prevRows={prevRows} field={field} onDrill={drillFn} range={range} />
       : b.type === "breakdown" ? <Breakdown block={b} rows={rows} onDrill={drillFn} />
       : b.type === "trend" ? <Trend block={b} rows={rows} drawKey={range} />
       : b.type === "lowstock" ? <LowStock block={b} rows={rows} entity={entity} onDrill={drillFn} />
@@ -575,9 +635,9 @@ export default function GenerativeDashboard({ company, entities, onNavigate, non
 
   const Tab = ({ id, label }) => (
     <button onClick={() => setView(id)} className="vg-pill-btn" style={{
-      background: view === id ? "rgba(255,255,255,0.1)" : "rgba(255,255,255,0.04)",
-      border: `1px solid ${view === id ? "rgba(255,255,255,0.16)" : "rgba(255,255,255,0.08)"}`,
-      color: view === id ? "#fff" : "rgba(255,255,255,0.55)" }}>{label}</button>
+      background: view === id ? "color-mix(in srgb, var(--vx, #fff) 16%, transparent)" : "rgba(255,255,255,0.04)",
+      border: `1px solid ${view === id ? "color-mix(in srgb, var(--vx, #fff) 45%, transparent)" : "rgba(255,255,255,0.08)"}`,
+      color: view === id ? "var(--vx, #fff)" : "rgba(255,255,255,0.55)" }}>{label}</button>
   );
 
   return (
@@ -614,23 +674,22 @@ export default function GenerativeDashboard({ company, entities, onNavigate, non
 
       {view === "overview" && (
         <>
-          <Briefing company={company} user={user} />
-
-          {/* quick actions */}
-          <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 18 }}>
-            {lowTotal > 0 && (
-              <button onClick={() => onNavigate("Automations")} className="vg-pill-btn" style={{
-                background: RED + "1a", border: `1px solid ${RED}44`, color: RED, fontWeight: 700 }}>
-                ✦ Draft reorder — {lowTotal} low
-              </button>
-            )}
-            {entities.slice(0, 5).map(e => (
-              <button key={e.entity_id} onClick={() => onNavigate(`entity:${e.entity_id}`)} className="vg-pill-btn" style={{
-                background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.09)", color: "rgba(255,255,255,0.6)" }}>
-                ＋ {e.name}
-              </button>
-            ))}
-          </div>
+          <Briefing company={company} user={user} actions={
+            <>
+              {lowTotal > 0 && (
+                <button onClick={() => onNavigate("Automations")} className="vg-pill-btn" style={{
+                  background: RED + "1a", border: `1px solid ${RED}44`, color: RED, fontWeight: 700, textAlign: "left" }}>
+                  ✦ Draft reorder — {lowTotal} low
+                </button>
+              )}
+              {entities.slice(0, lowTotal > 0 ? 3 : 4).map(e => (
+                <button key={e.entity_id} onClick={() => onNavigate(`entity:${e.entity_id}`)} className="vg-pill-btn" style={{
+                  background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.09)", color: "rgba(255,255,255,0.65)", textAlign: "left" }}>
+                  ＋ {e.name}
+                </button>
+              ))}
+            </>
+          } />
           {(config.sections || []).map((section, si) => (
             <div key={si} style={{ display: "grid", gridTemplateColumns: section.cols || "1fr", gap: 14, marginBottom: 14 }}>
               {(section.blocks || []).map(renderBlock)}

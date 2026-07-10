@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { COLORS, PageHeader } from "../components/Layout";
+import { STATUS_HUES, StatusPill } from "./GenerativeDashboard";
 
 const API = "https://web-production-0457e.up.railway.app";
 const MONO = "'JetBrains Mono', monospace";
@@ -136,27 +137,38 @@ export default function EntityPage({ company, entity, viewCfg, surfaceLabel }) {
       {/* BOARD — things that flow */}
       {view === "board" && boardField && records !== null && (
         <div style={{ display: "grid", gridTemplateColumns: `repeat(${(boardField.options || []).length}, 1fr)`, gap: 12 }}>
-          {(boardField.options || []).map(col => {
+          {(boardField.options || []).map((col, colIdx) => {
+            const hue = STATUS_HUES[colIdx % STATUS_HUES.length];
             const colRows = records.filter(r => String(r[boardField.key] ?? "") === col);
+            const moneyField = fields.find(f => f.type === "currency");
+            const subKey = moneyField?.key || cardKeys[0];
+            const colTotal = moneyField ? colRows.reduce((s, r) => s + (Number(r[moneyField.key]) || 0), 0) : null;
             return (
               <div key={col}
                 onDragOver={ev => ev.preventDefault()}
                 onDrop={ev => { ev.preventDefault(); const rid = ev.dataTransfer.getData("rid"); if (rid) moveCard(rid, col); }}>
-                <div style={{ ...card, borderRadius: "12px 12px 0 0", padding: "12px 15px", borderBottom: "2px solid rgba(255,255,255,0.16)" }}>
-                  <div style={{ fontFamily: MONO, fontSize: 9.5, letterSpacing: "0.12em", textTransform: "uppercase", color: "rgba(255,255,255,0.35)", marginBottom: 4 }}>{col}</div>
-                  <div style={{ fontFamily: MONO, fontSize: 18, fontWeight: 700 }}>{colRows.length}</div>
+                <div style={{ ...card, borderRadius: "12px 12px 0 0", padding: "12px 15px", borderBottom: `2px solid ${hue}`, position: "relative", overflow: "hidden" }}>
+                  <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, height: 34, background: `linear-gradient(0deg, ${hue}14, transparent)`, pointerEvents: "none" }} />
+                  <div style={{ fontFamily: MONO, fontSize: 9.5, letterSpacing: "0.12em", textTransform: "uppercase", color: hue, marginBottom: 4, fontWeight: 700 }}>{col}</div>
+                  <div style={{ display: "flex", alignItems: "baseline", gap: 8 }}>
+                    <div style={{ fontFamily: MONO, fontSize: 19, fontWeight: 700 }}>{colRows.length}</div>
+                    {colTotal !== null && colTotal > 0 && <div style={{ fontFamily: MONO, fontSize: 11, color: "rgba(255,255,255,0.4)" }}>${colTotal.toLocaleString()}</div>}
+                  </div>
                 </div>
-                <div style={{ background: "rgba(255,255,255,0.015)", border: "1px solid rgba(255,255,255,0.08)", borderTop: "none", borderRadius: "0 0 12px 12px", padding: 8, minHeight: 200 }}>
+                <div style={{ background: "rgba(255,255,255,0.015)", border: "1px solid rgba(255,255,255,0.08)", borderTop: "none", borderRadius: "0 0 12px 12px", padding: 8, minHeight: 340 }}>
                   {colRows.length === 0 ? (
-                    <div style={{ textAlign: "center", padding: "22px 0", color: "rgba(255,255,255,0.22)", fontSize: 12 }}>Drop here</div>
+                    <div style={{ textAlign: "center", padding: "26px 0", color: "rgba(255,255,255,0.22)", fontSize: 12 }}>Drop here</div>
                   ) : colRows.map((r, i) => (
                     <div key={r.record_id || i} draggable
                       onDragStart={ev => ev.dataTransfer.setData("rid", r.record_id)}
                       onClick={() => openEdit(r)}
                       className="viro-btn"
-                      style={{ background: "rgba(255,255,255,0.045)", border: "1px solid rgba(255,255,255,0.09)", borderRadius: 10, padding: "10px 12px", marginBottom: 6, cursor: "grab" }}>
-                      <div style={{ fontSize: 12.5, fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{String(r[titleKey] ?? "—")}</div>
-                      {cardKeys[0] && <div style={{ fontFamily: MONO, fontSize: 10.5, color: "rgba(255,255,255,0.45)", marginTop: 4 }}>{fmtCell(cardKeys[0], r[cardKeys[0]])}</div>}
+                      style={{ background: "rgba(255,255,255,0.045)", border: "1px solid rgba(255,255,255,0.09)", borderLeft: `2px solid ${hue}66`, borderRadius: 10, padding: "10px 12px", marginBottom: 6, cursor: "grab" }}>
+                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 8 }}>
+                        <div style={{ fontSize: 12.5, fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{String(r[titleKey] ?? "—")}</div>
+                        {subKey && <div style={{ fontFamily: MONO, fontSize: 11, color: "rgba(255,255,255,0.55)", flexShrink: 0 }}>{fmtCell(subKey, r[subKey])}</div>}
+                      </div>
+                      {cardKeys[0] && cardKeys[0] !== subKey && <div style={{ fontSize: 10.5, color: "rgba(255,255,255,0.4)", marginTop: 4 }}>{fmtCell(cardKeys[0], r[cardKeys[0]])}</div>}
                     </div>
                   ))}
                 </div>
@@ -194,7 +206,7 @@ export default function EntityPage({ company, entity, viewCfg, surfaceLabel }) {
                         <td key={f.key} style={{ padding: "12px 16px", color: ci === 0 ? "#fff" : "rgba(255,255,255,0.75)", fontWeight: ci === 0 ? 600 : 400,
                           fontFamily: (f.type === "number" || f.type === "currency") ? MONO : "inherit" }}>
                           {f.type === "select" && r[f.key]
-                            ? <span style={{ fontSize: 10.5, fontWeight: 700, letterSpacing: "0.04em", padding: "3px 9px", borderRadius: 6, color: "rgba(255,255,255,0.85)", background: "rgba(255,255,255,0.08)", border: "1px solid rgba(255,255,255,0.12)" }}>{r[f.key]}</span>
+                            ? <StatusPill value={r[f.key]} options={f.options || []} />
                             : <span style={{ color: low && f.key === stock?.qty ? RED : undefined }}>{fmtVal(f, r[f.key])}{low && f.key === stock?.qty ? " ⚠" : ""}</span>}
                         </td>
                       ))}
