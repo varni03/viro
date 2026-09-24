@@ -22,11 +22,15 @@ class ViroDB:
     def get_engine(self):
         if not hasattr(self, '_engine'):
             from sqlalchemy import create_engine
+            # Vercel runs many small instances, each with its own pool —
+            # keep each one tiny so they fit Supabase's connection limit.
+            serverless = bool(os.getenv("VERCEL"))
             self._engine = create_engine(
                 self.db_url,
-                pool_size=3,
-                max_overflow=2,
+                pool_size=1 if serverless else 3,
+                max_overflow=1 if serverless else 2,
                 pool_pre_ping=True,
+                pool_recycle=300,
             )
         return self._engine
 

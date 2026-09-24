@@ -1,0 +1,10 @@
+frontend
+venv
+tests
+data
+app.py
+viro_dev.db
+seed_production.py
+__pycache__
+*.pyc
+.env
