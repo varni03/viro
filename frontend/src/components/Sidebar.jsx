@@ -27,7 +27,7 @@ export default function Sidebar({
 
   useEffect(() => {
     if (!company) return;
-    fetch(`https://web-production-0457e.up.railway.app/modules/${company.company_id}`)
+    fetch(`https://viro1.vercel.app/modules/${company.company_id}`)
       .then(r => r.json())
       .then(data => {
         if (data && data.length > 0) {
@@ -44,7 +44,7 @@ export default function Sidebar({
   useEffect(() => {
     if (!company) return;
     const fetchNotifications = () => {
-      fetch(`https://web-production-0457e.up.railway.app/notifications/${company.company_id}`)
+      fetch(`https://viro1.vercel.app/notifications/${company.company_id}`)
         .then(r => r.json())
         .then(setNotifications)
         .catch(() => {});
@@ -57,7 +57,7 @@ export default function Sidebar({
   const unreadCount = notifications.filter(n => n.read === 0).length;
 
   const markAllRead = () => {
-    fetch(`https://web-production-0457e.up.railway.app/notifications/${company.company_id}/read-all`, {
+    fetch(`https://viro1.vercel.app/notifications/${company.company_id}/read-all`, {
       method: "PUT"
     }).then(() => {
       setNotifications(prev => prev.map(n => ({ ...n, read: 1 })));
@@ -311,7 +311,7 @@ export default function Sidebar({
                   <div
                     key={i}
                     onClick={() => {
-                      fetch(`https://web-production-0457e.up.railway.app/notifications/${n.notification_id}/read`, { method: "PUT" });
+                      fetch(`https://viro1.vercel.app/notifications/${n.notification_id}/read`, { method: "PUT" });
                       setNotifications(prev => prev.map(notif =>
                         notif.notification_id === n.notification_id ? { ...notif, read: 1 } : notif
                       ));

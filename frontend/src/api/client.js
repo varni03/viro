@@ -1,7 +1,7 @@
 import axios from 'axios';
 
 const API = axios.create({
-  baseURL: 'https://web-production-0457e.up.railway.app',
+  baseURL: 'https://viro1.vercel.app',
   headers: { 'Content-Type': 'application/json' }
 });
 

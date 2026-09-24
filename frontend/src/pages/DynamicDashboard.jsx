@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { COLORS, severityColor } from "../components/Layout";
 
-const API = "https://web-production-0457e.up.railway.app";
+const API = "https://viro1.vercel.app";
 
 /* ────────────────────────────────────────────────────────────
    DynamicDashboard — renders a dashboard from JSON config.

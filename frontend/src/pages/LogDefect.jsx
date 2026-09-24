@@ -2,7 +2,7 @@ import { useState, useRef, useEffect } from "react";
 import { logDefect, analyzeImage } from "../api/client";
 import { COLORS, PageHeader, severityColor } from "../components/Layout";
 
-const API = "https://web-production-0457e.up.railway.app";
+const API = "https://viro1.vercel.app";
 const MONO = "'JetBrains Mono', monospace";
 const SEVERITIES = ["low", "medium", "high", "critical"];
 const card = { background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 16 };

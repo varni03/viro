@@ -23,15 +23,17 @@ Goal: demo to the manager end of June; paying customer by end of July.
 |Layer   |Tech                                           |Where                                                  |
 |--------|-----------------------------------------------|-------------------------------------------------------|
 |Frontend|React + Vite, inline styles                    |Vercel — <https://viro-pearl.vercel.app>               |
-|Backend |Python FastAPI                                 |Railway — <https://web-production-0457e.up.railway.app>|
+|Backend |Python FastAPI                                 |Vercel (FastAPI preset, project `viro1`) — <https://viro1.vercel.app>|
 |Database|PostgreSQL (prod) / SQLite (local dev)         |Supabase, project ref `vfukukknebzkbhjbglde`           |
-|AI      |Anthropic API, model `claude-sonnet-4-20250514`|key in Railway env + local .env                        |
+|AI      |Anthropic API, model `claude-sonnet-4-20250514`|key in Vercel env + local .env                        |
 
-- Push to `main` → Railway and Vercel auto-deploy (~2 min).
-- Railway env vars: `ANTHROPIC_API_KEY`, `JWT_SECRET`, `DATABASE_URL`.
+- Push to `main` → both Vercel projects auto-deploy (~2 min). Frontend project root dir = `frontend`; backend project `viro1` root dir = repo root.
+- Backend Vercel env vars: `ANTHROPIC_API_KEY`, `JWT_SECRET`, `DATABASE_URL`. Password lives only there — repo is public, never commit it.
 - `DATABASE_URL` must use Supabase **Session Pooler** (IPv4):
   `postgresql://postgres.vfukukknebzkbhjbglde:<PASSWORD>@aws-1-us-east-2.pooler.supabase.com:5432/postgres`
-- Railway filesystem is ephemeral — never store data on disk in prod.
+- Backend is serverless — no disk, no background threads; each request may hit a fresh instance.
+- Entry: root `index.py` imports `main.app`. The preset routes requests as `/api/index/<path>`; `VercelPathFix` middleware in main.py strips it — don't remove. `GET /` is the health check (also touches DB so Supabase free tier doesn't pause).
+- `.vercelignore` keeps frontend/venv/tests out of the backend bundle; `requirements.txt` is backend-only (legacy Streamlit app is `legacy_streamlit_app.py`).
 
 ## Production data / credentials
 
@@ -50,8 +52,8 @@ cd ~/viro && source venv/bin/activate && PYTHONPATH=. uvicorn main:app --reload
 cd ~/viro/frontend && npm run dev   # localhost:5173
 ```
 
-NOTE: frontend currently points at the PROD Railway URL everywhere (was sed-replaced).
-Office WiFi blocks Railway + Anthropic API intermittently — AI features and prod
+NOTE: frontend points at the PROD backend URL `https://viro1.vercel.app` everywhere (hardcoded in each file).
+Office WiFi may block the Anthropic API intermittently — AI features and prod
 seeding must be tested on personal WiFi.
 
 ## File map
@@ -60,10 +62,11 @@ seeding must be tested on personal WiFi.
 ~/viro/
   main.py                      # all FastAPI endpoints + table creation at module level
   database/db.py               # ViroDB: dual-mode SQLite/Postgres via SQLAlchemy
-  Procfile, runtime.txt, nixpacks.toml, requirements.txt, vercel.json
+  index.py                     # Vercel entrypoint (from main import app)
+  requirements.txt, .python-version, .vercelignore
   frontend/src/
     App.jsx                    # auth, page switch, prefs, responsive shell
-    api/client.js              # axios baseURL = Railway prod
+    api/client.js              # axios baseURL = Vercel backend prod
     components/Layout.jsx      # COLORS + glass design system + AuroraBackground
     components/Sidebar.jsx     # dynamic modules, notifications bell
     components/AIPanel.jsx     # right-side AI: commands → filters → Q&A
@@ -144,7 +147,7 @@ seeding must be tested on personal WiFi.
 - User is a student founder; explain decisions briefly, give exact commands,
   one step at a time, ask for terminal output when debugging.
 - Prefer diffs over full-file rewrites unless the file is broken.
-- Never reintroduce purple. Never store data on Railway disk. Always check route order.
+- Never reintroduce purple. Never store data on server disk. Always check route order.
 
 ## Product design thesis — the soul of Viro (do not lose this)
 

@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { getProductionLine, getDefects, resolveDefect, updateStage, updateStatus } from "../api/client";
 import { COLORS, PageHeader, severityColor, InsightBanner } from "../components/Layout";
 
-const API = "https://web-production-0457e.up.railway.app";
+const API = "https://viro1.vercel.app";
 const MONO = "'JetBrains Mono', monospace";
 const fetchStages = (companyId) => fetch(`${API}/stages/${companyId}`).then(r => r.json());
 

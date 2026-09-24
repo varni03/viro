@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { COLORS, Card, PageHeader, SectionLabel, Input, Button } from "../components/Layout";
 
-const API = "https://web-production-0457e.up.railway.app";
+const API = "https://viro1.vercel.app";
 
 export default function Settings({ company, user, onCompanyUpdate, entities = [] }) {
   const hasEntities = entities && entities.length > 0;

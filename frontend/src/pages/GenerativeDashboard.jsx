@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo, useRef } from "react";
 import { COLORS, PageHeader } from "../components/Layout";
 
-const API = "https://web-production-0457e.up.railway.app";
+const API = "https://viro1.vercel.app";
 const MONO = "'JetBrains Mono', monospace";
 const RED = "#ff5a5a", GREEN = "#34d399";
 const PALETTE = ["var(--vx, #ffffff)", "#34d399", "#f0a83c", "#ff5a5a", "rgba(255,255,255,0.55)", "rgba(255,255,255,0.4)", "rgba(255,255,255,0.28)"];

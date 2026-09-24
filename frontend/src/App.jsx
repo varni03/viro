@@ -37,7 +37,7 @@ import { useBreakpoint } from "./hooks/useBreakpoint";
 import DynamicDashboard from "./pages/DynamicDashboard";
 import { buildDefaultConfig } from "./pages/defaultConfig";
 
-const API = "https://web-production-0457e.up.railway.app";
+const API = "https://viro1.vercel.app";
 
 
 function ReportTab({ report }) {
@@ -306,7 +306,7 @@ export default function App() {
 
   useEffect(() => {
     if (!company) return;
-    fetch(`https://web-production-0457e.up.railway.app/prefs/${company.company_id}`)
+    fetch(`https://viro1.vercel.app/prefs/${company.company_id}`)
     .then(r => r.json())
     .then(setPrefs)
     .catch(() => {});
@@ -324,7 +324,7 @@ export default function App() {
       });
     }).catch(() => {});
 
-    fetch(`https://web-production-0457e.up.railway.app/stages/${company.company_id}`)
+    fetch(`https://viro1.vercel.app/stages/${company.company_id}`)
       .then(r => r.json())
       .then(setStages)
       .catch(() => {});

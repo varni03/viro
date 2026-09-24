@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, forwardRef, useImperativeHandle } from "react";
 
-const API = "https://web-production-0457e.up.railway.app";
+const API = "https://viro1.vercel.app";
 const MONO = "'JetBrains Mono', monospace";
 
 // One bar: jump to anything, or talk to the agent. The cockpit's front door.

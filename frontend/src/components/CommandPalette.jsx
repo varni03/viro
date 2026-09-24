@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 
-const API = "https://web-production-0457e.up.railway.app";
+const API = "https://viro1.vercel.app";
 const MONO = "'JetBrains Mono', monospace";
 
 const STYLE_ID = "viro-cmdk-styles";

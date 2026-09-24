@@ -5,7 +5,7 @@ import App from './App.jsx'
 
 // Attach the login JWT to every request to the Viro API (the AI endpoints
 // require it). One wrapper covers every fetch call site across the app.
-const VIRO_API = 'https://web-production-0457e.up.railway.app'
+const VIRO_API = 'https://viro1.vercel.app'
 const rawFetch = window.fetch.bind(window)
 window.fetch = (input, init = {}) => {
   const url = typeof input === 'string' ? input : (input && input.url) || ''

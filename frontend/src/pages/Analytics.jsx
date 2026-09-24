@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { COLORS, PageHeader, SectionLabel, InsightBanner } from "../components/Layout";
 
-const API = "https://web-production-0457e.up.railway.app";
+const API = "https://viro1.vercel.app";
 const MONO = "'JetBrains Mono', monospace";
 const card = { background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 16 };
 

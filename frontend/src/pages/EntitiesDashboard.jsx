@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { COLORS, PageHeader, InsightBanner } from "../components/Layout";
 
-const API = "https://web-production-0457e.up.railway.app";
+const API = "https://viro1.vercel.app";
 const MONO = "'JetBrains Mono', monospace";
 const RED = "#ff5a5a", GREEN = "#34d399";
 

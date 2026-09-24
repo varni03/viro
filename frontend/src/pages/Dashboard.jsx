@@ -32,7 +32,7 @@ export default function Dashboard({ company, filters }) {
   
         let d;
         if (hasFilters) {
-          const res = await fetch("https://web-production-0457e.up.railway.app/defects/filtered", {
+          const res = await fetch("https://viro1.vercel.app/defects/filtered", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({

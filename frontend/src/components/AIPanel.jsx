@@ -2,7 +2,7 @@ import { useState, useRef, useEffect } from "react";
 import { askAI } from "../api/client";
 import { COLORS } from "./Layout";
 
-const API = "https://web-production-0457e.up.railway.app";
+const API = "https://viro1.vercel.app";
 
 const SUGGESTIONS = [
   "Focus the dashboard on critical defects",

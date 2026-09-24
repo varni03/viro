@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 
-const VIRO_API = "https://web-production-0457e.up.railway.app";
+const VIRO_API = "https://viro1.vercel.app";
 
 export const COLORS = {
   bg: "#08090a",
