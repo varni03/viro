@@ -17,6 +17,45 @@ load_dotenv()
 
 app = FastAPI(title="Viro API")
 
+
+class VercelPathFix:
+    """Vercel's FastAPI preset can route requests as "/api/index/<path>" —
+    strip that so FastAPI sees the real route. ?__debug=1 echoes what arrived."""
+
+    PREFIXES = ("/api/index.py", "/api/index")
+    SECRET_HINTS = ("auth", "cookie", "token", "signature", "key")
+
+    def __init__(self, app):
+        self.app = app
+
+    async def __call__(self, scope, receive, send):
+        if scope["type"] != "http":
+            return await self.app(scope, receive, send)
+        received = scope.get("path", "")
+        path = received
+        for prefix in self.PREFIXES:
+            if path == prefix or path.startswith(prefix + "/"):
+                path = path[len(prefix):] or "/"
+                break
+        if b"__debug=1" in scope.get("query_string", b""):
+            headers = {
+                k.decode(): v.decode("latin-1")
+                for k, v in scope.get("headers", [])
+                if k.startswith(b"x-") and not any(h in k.decode() for h in self.SECRET_HINTS)
+            }
+            body = json.dumps({"path_received": received, "path_routed": path,
+                               "root_path": scope.get("root_path", ""),
+                               "query": scope.get("query_string", b"").decode(),
+                               "x_headers": headers}).encode()
+            await send({"type": "http.response.start", "status": 200,
+                        "headers": [(b"content-type", b"application/json")]})
+            return await send({"type": "http.response.body", "body": body})
+        scope = dict(scope, path=path, raw_path=path.encode(), root_path="")
+        await self.app(scope, receive, send)
+
+
+app.add_middleware(VercelPathFix)
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -27,6 +66,13 @@ app.add_middleware(
 
 db = ViroDB()
 client = anthropic.Anthropic()
+
+
+@app.get("/")
+def health():
+    """Liveness check — also touches the DB so Supabase's free tier doesn't pause."""
+    db.query("SELECT 1 AS ok")
+    return {"service": "viro-api", "status": "ok"}
 
 # Single source of truth for the Claude model. Bump to "claude-opus-4-8" for
 # richer output at higher cost. (claude-sonnet-4-20250514 retired 2026-06-15.)

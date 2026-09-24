@@ -2,7 +2,7 @@ frontend
 venv
 tests
 data
-app.py
+legacy_streamlit_app.py
 viro_dev.db
 seed_production.py
 __pycache__
