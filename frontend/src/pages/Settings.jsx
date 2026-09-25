@@ -291,7 +291,7 @@ const load = async () => {
   <div>
     <SectionLabel>Your data model</SectionLabel>
     <div style={{ fontSize: 13, color: COLORS.muted, marginBottom: 16, lineHeight: 1.6 }}>
-      These are the things {company.name} tracks — generated from your onboarding conversation. Your dashboard, pages, and automations are all built from them.
+      These are the things {company.name} tracks, generated from your onboarding conversation. Your dashboard, pages, and automations are all built from them.
     </div>
     {entities.map(e => (
       <Card key={e.entity_id} style={{ marginBottom: 12 }}>
@@ -321,7 +321,7 @@ const load = async () => {
     {connectors.length === 0 ? (
       <Card style={{ marginBottom: 16 }}>
         <div style={{ color: COLORS.muted, textAlign: "center", padding: 20 }}>
-          No connectors yet — add one below to import data from any source
+          No connectors yet. Add one below to import data from any source
         </div>
       </Card>
     ) : (
@@ -401,7 +401,7 @@ const load = async () => {
     {/* File upload sync panel */}
     {selectedConnector && (selectedConnector.connector_type === "csv" || selectedConnector.connector_type === "excel") && (
       <Card style={{ marginBottom: 16 }}>
-        <SectionLabel>Sync Data — {selectedConnector.connector_name}</SectionLabel>
+        <SectionLabel>Sync Data · {selectedConnector.connector_name}</SectionLabel>
 
         {/* File upload */}
         <div style={{ marginBottom: 16 }}>
@@ -493,7 +493,7 @@ const load = async () => {
                       outline: "none", cursor: "pointer",
                     }}
                   >
-                    <option value="">— Skip this field —</option>
+                    <option value="">Skip this field</option>
                     {filePreview.columns.map(col => (
                       <option key={col} value={col}>{col}</option>
                     ))}
@@ -510,7 +510,7 @@ const load = async () => {
               marginBottom: 16,
             }}>
               <div style={{ fontSize: 11, color: COLORS.muted, padding: "8px 14px", borderBottom: `1px solid ${COLORS.border}` }}>
-                DATA PREVIEW — First 3 rows
+                DATA PREVIEW · First 3 rows
               </div>
               <div style={{ overflowX: "auto" }}>
                 <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12 }}>
@@ -651,12 +651,12 @@ const load = async () => {
           marginBottom: 16, fontSize: 12,
           color: COLORS.accentLight,
         }}>
-          💡 {newConnector.connector_type === "snowflake" && "Snowflake connector — you'll need your account identifier, warehouse, database, and credentials."}
-          {newConnector.connector_type === "postgresql" && "PostgreSQL connector — you'll need host, port, database name, and credentials."}
-          {newConnector.connector_type === "salesforce" && "Salesforce connector — you'll need your instance URL and OAuth credentials."}
-          {newConnector.connector_type === "mysql" && "MySQL connector — you'll need host, database name, and credentials."}
-          {newConnector.connector_type === "mssql" && "Microsoft SQL Server connector — you'll need server address and credentials."}
-          {newConnector.connector_type === "api" && "Custom API connector — you'll need the endpoint URL and authentication details."}
+          💡 {newConnector.connector_type === "snowflake" && "Snowflake connector: you'll need your account identifier, warehouse, database, and credentials."}
+          {newConnector.connector_type === "postgresql" && "PostgreSQL connector: you'll need host, port, database name, and credentials."}
+          {newConnector.connector_type === "salesforce" && "Salesforce connector: you'll need your instance URL and OAuth credentials."}
+          {newConnector.connector_type === "mysql" && "MySQL connector: you'll need host, database name, and credentials."}
+          {newConnector.connector_type === "mssql" && "Microsoft SQL Server connector: you'll need server address and credentials."}
+          {newConnector.connector_type === "api" && "Custom API connector: you'll need the endpoint URL and authentication details."}
           {" "}Connection configuration coming in the next release. Create it now and configure later.
         </div>
       )}
@@ -694,7 +694,7 @@ const load = async () => {
     <SectionLabel>Customize Terminology</SectionLabel>
     <Card style={{ marginBottom: 16 }}>
       <div style={{ fontSize: 13, color: COLORS.muted, marginBottom: 20, lineHeight: 1.6 }}>
-        Change how Viro refers to things in your platform. These labels appear throughout the app — on buttons, tables, and in the AI assistant. Your data is never affected, only the display labels change.
+        Change how Viro refers to things in your platform. These labels appear throughout the app: on buttons, tables, and in the AI assistant. Your data is never affected, only the display labels change.
       </div>
 
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
@@ -761,7 +761,7 @@ const load = async () => {
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify(terminology)
           });
-          showSuccess("Terminology saved — refresh to see changes throughout the app");
+          showSuccess("Terminology saved. Refresh to see changes throughout the app");
         } catch { showError("Failed to save terminology"); }
         setSaving(false);
       }}
@@ -886,7 +886,7 @@ const load = async () => {
           <Card style={{ marginBottom: 16 }}>
             {defectTypes.length === 0 ? (
               <div style={{ color: COLORS.muted, textAlign: "center", padding: 20 }}>
-                No custom defect types — using defaults
+                No custom defect types, using defaults
               </div>
             ) : (
               defectTypes.map((type, i) => (
@@ -1239,7 +1239,7 @@ const load = async () => {
 
       {customFields.length === 0 ? (
         <div style={{ color: COLORS.muted, textAlign: "center", padding: 20 }}>
-          No custom fields yet — add one below
+          No custom fields yet. Add one below
         </div>
       ) : (
         customFields.map((field, i) => (
@@ -1411,7 +1411,7 @@ const load = async () => {
                 placeholder="e.g. vin, serial_number, batch_number"
               />
               <div style={{ fontSize: 11, color: COLORS.muted, marginTop: 6 }}>
-                This is what your product identifier is called — VIN for vehicles, batch number for food, serial number for medical devices
+                This is what your product identifier is called: VIN for vehicles, batch number for food, serial number for medical devices
               </div>
             </div>
             <button

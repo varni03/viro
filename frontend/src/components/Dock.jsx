@@ -1,6 +1,6 @@
 const MONO = "'JetBrains Mono', monospace";
 
-// The macOS-style dock — primary navigation for the cockpit.
+// The macOS-style dock: primary navigation for the cockpit.
 export default function Dock({ items, activePages = [], onSelect, splitActive, onToggleSplit, copilotOpen, onToggleCopilot }) {
   const Item = ({ icon, label, onClick, active, glow }) => (
     <div onClick={onClick} className="vc-dock-item" title={label}

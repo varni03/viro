@@ -95,7 +95,7 @@ export function AuroraBackground() {
         .glass-card, .vg-card, .vc-pane {
           box-shadow: inset 0 1px 0 rgba(255,255,255,0.055), 0 1px 2px rgba(0,0,0,0.3), 0 12px 40px rgba(0,0,0,0.35);
         }
-        /* macOS dock physics — neighbors magnetize toward the hovered icon */
+        /* macOS dock physics: neighbors magnetize toward the hovered icon */
         .vc-dock-item:has(+ .vc-dock-item:hover) { transform: translateY(-4px) scale(1.07); }
         .vc-dock-item:hover + .vc-dock-item { transform: translateY(-4px) scale(1.07); }
 
@@ -194,7 +194,7 @@ export function AuroraBackground() {
         background: "radial-gradient(ellipse 80% 60% at 50% 0%, rgba(255,255,255,0.04) 0%, transparent 60%)",
       }} />
 
-      {/* Film grain — kills the flat digital look */}
+      {/* Film grain: kills the flat digital look */}
       <div style={{
         position: "fixed", inset: 0, zIndex: 1, pointerEvents: "none", opacity: 0.028,
         backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2'/%3E%3C/filter%3E%3Crect width='140' height='140' filter='url(%23n)'/%3E%3C/svg%3E")`,
@@ -461,7 +461,7 @@ export function GlowCard({ children, color = "#ffffff", style = {} }) {
   );
 }
 
-// Page-level AI answer — "every screen answers a question" (CLAUDE.md thesis).
+// Page-level AI answer: "every screen answers a question" (CLAUDE.md thesis).
 export function InsightBanner({ companyId, page, summary }) {
   const [text, setText] = useState("");
   const [loading, setLoading] = useState(true);

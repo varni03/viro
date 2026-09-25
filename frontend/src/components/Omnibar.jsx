@@ -23,7 +23,7 @@ const Omnibar = forwardRef(function Omnibar({ company, entities = [], pages = []
         .then(r => r.json())
         .then(rows => (Array.isArray(rows) ? rows : []).map(r => {
           const key = (e.fields || [{}])[0]?.key;
-          return { kind: "record", icon: e.icon || "▦", label: String(r[key] ?? "—"), sub: e.name, page: `entity:${e.entity_id}` };
+          return { kind: "record", icon: e.icon || "▦", label: String(r[key] ?? "-"), sub: e.name, page: `entity:${e.entity_id}` };
         }))
         .catch(() => [])
     )).then(res => setRecords(res.flat()));
@@ -39,7 +39,7 @@ const Omnibar = forwardRef(function Omnibar({ company, entities = [], pages = []
     ? items.filter(i => `${i.label} ${i.sub}`.toLowerCase().includes(needle))
     : items.filter(i => i.kind !== "record")
   ).slice(0, 8);
-  const results = needle ? [...matches, { kind: "ask", icon: "✦", label: `Ask Viro — “${q.trim()}”`, sub: "Copilot" }] : matches;
+  const results = needle ? [...matches, { kind: "ask", icon: "✦", label: `Ask Viro: “${q.trim()}”`, sub: "Copilot" }] : matches;
   const cur = Math.min(sel, Math.max(results.length - 1, 0));
 
   const choose = (item) => {

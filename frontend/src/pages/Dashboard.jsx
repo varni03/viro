@@ -119,7 +119,7 @@ export default function Dashboard({ company, filters }) {
 
         {/* Trend line */}
         <Card>
-          <SectionLabel>Defect Trend — 7 Days</SectionLabel>
+          <SectionLabel>Defect Trend · 7 Days</SectionLabel>
           {trends.length > 0 ? (
             <ResponsiveContainer width="100%" height={160}>
               <LineChart data={trends}>

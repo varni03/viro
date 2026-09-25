@@ -229,7 +229,7 @@ with st.sidebar:
 
 # ── Dashboard Page ─────────────────────────────────────────────
 if page == "Dashboard":
-    st.title(f"{selected_name} — Quality Dashboard")
+    st.title(f"{selected_name} · Quality Dashboard")
 
     # Top metrics
     products = db.get_products(company_id)
@@ -317,9 +317,9 @@ elif page == "Vehicle Search":
         else:
             for _, product in matches.iterrows():
                 with st.expander(
-                    f"📦 {product['product_id']} — "
-                    f"Stage {product['current_stage']} — "
-                    f"{product['status'].upper()} — "
+                    f"📦 {product['product_id']} · "
+                    f"Stage {product['current_stage']} · "
+                    f"{product['status'].upper()} · "
                     f"{product['total_defects']} defects"
                 ):
                     defects = db.get_defects(company_id, product["product_id"])
@@ -401,10 +401,10 @@ elif page == "Log Defect":
                 ai_defect_type = result.get("defect_type", "")
                 ai_severity = result.get("severity", "low")
                 ai_notes = result.get("notes", "")
-                st.success("✅ AI analysis complete — review and edit below")
+                st.success("✅ AI analysis complete. Review and edit below")
 
             except Exception as e:
-                st.warning("⚠️ AI analysis unavailable — form ready for manual entry")
+                st.warning("⚠️ AI analysis unavailable. Form ready for manual entry")
                 ai_defect_type = ""
                 ai_severity = "low"
                 ai_notes = ""
@@ -469,11 +469,11 @@ elif page == "AI Assistant":
             try:
                 client = anthropic.Anthropic()
 
-                # Step 1 — run natural language to SQL query
+                # Step 1: run natural language to SQL query
                 with st.spinner("Querying data..."):
                     result_df, sql = db.natural_language_query(prompt, company_id)
 
-                # Step 2 — get AI to interpret the results
+                # Step 2: get AI to interpret the results
                 if result_df is not None and not result_df.empty:
                     data_context = f"""
                     The user asked: {prompt}
@@ -536,7 +536,7 @@ elif page == "AI Assistant":
     )
 # ── Analytics Page ─────────────────────────────────────────────
 elif page == "Analytics":
-    st.title(f"📊 {selected_name} — Analytics")
+    st.title(f"📊 {selected_name} · Analytics")
 
     # Defect trends over time
     st.subheader("Defect Trends Over Time")
@@ -570,7 +570,7 @@ elif page == "Analytics":
                 score = stage["health_score"]
                 color = "🟢" if score >= 80 else "🟡" if score >= 60 else "🔴"
                 st.metric(
-                    f"{color} Stage {int(stage['stage_number'])} — {stage['stage_name']}",
+                    f"{color} Stage {int(stage['stage_number'])} · {stage['stage_name']}",
                     f"{score}% healthy",
                     f"{int(stage['unresolved'])} unresolved defects"
                 )
@@ -660,7 +660,7 @@ elif page == "Analytics":
 
 # ── Predictive Page ────────────────────────────────────────────
 elif page == "Predictive":
-    st.title(f"⚠️ {selected_name} — Predictive Risk Analysis")
+    st.title(f"⚠️ {selected_name} · Predictive Risk Analysis")
     st.caption("AI identifies products at risk before they fail")
 
     at_risk = db.get_at_risk_products(company_id)
@@ -702,9 +702,9 @@ elif page == "Predictive":
             color = "🔴" if risk_score >= 6 else "🟠"
 
             with st.expander(
-                f"{color} {product['product_id']} — "
-                f"Risk Score: {int(risk_score)} — "
-                f"Stage {int(product['current_stage'])} — "
+                f"{color} {product['product_id']} · "
+                f"Risk Score: {int(risk_score)} · "
+                f"Stage {int(product['current_stage'])} · "
                 f"{int(product['unresolved_defects'])} unresolved defects"
             ):
                 col1, col2, col3 = st.columns(3)
@@ -755,5 +755,5 @@ elif page == "Predictive":
             color = "🟢" if score >= 80 else "🟡" if score >= 60 else "🔴"
             st.progress(
                 int(score) / 100,
-                text=f"{color} Stage {int(stage['stage_number'])} — {stage['stage_name']} — {score}% healthy — {int(stage['unresolved'])} unresolved defects"
+                text=f"{color} Stage {int(stage['stage_number'])} · {stage['stage_name']} · {score}% healthy · {int(stage['unresolved'])} unresolved defects"
             )

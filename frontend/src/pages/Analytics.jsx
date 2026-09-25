@@ -173,7 +173,7 @@ export default function Analytics({ company }) {
 
       {/* Defect volume */}
       <div style={{ ...card, padding: 18, marginBottom: 14 }}>
-        <SectionLabel>Defect Volume — Last 30 Days</SectionLabel>
+        <SectionLabel>Defect Volume · Last 30 Days</SectionLabel>
         {trends.length === 0 ? <div style={{ color: COLORS.muted, textAlign: "center", padding: 20 }}>No trend data yet</div> : (
           <div style={{ overflowX: "auto" }}>
             <div style={{ display: "flex", alignItems: "flex-end", gap: 4, height: 120, minWidth: trends.length * 24 }}>
@@ -192,7 +192,7 @@ export default function Analytics({ company }) {
 
       {/* Logged vs resolved */}
       <div style={{ ...card, padding: 18, marginBottom: 16 }}>
-        <SectionLabel>Logged vs Resolved — Last 30 Days</SectionLabel>
+        <SectionLabel>Logged vs Resolved · Last 30 Days</SectionLabel>
         {resolutionTrend.length === 0 ? <div style={{ color: COLORS.muted, textAlign: "center", padding: 20 }}>No data yet</div> : (
           <div>
             <div style={{ display: "flex", gap: 16, marginBottom: 12 }}>

@@ -4,7 +4,7 @@ import { COLORS, severityColor } from "../components/Layout";
 const API = "https://viro1.vercel.app";
 
 /* ────────────────────────────────────────────────────────────
-   DynamicDashboard — renders a dashboard from JSON config.
+   DynamicDashboard: renders a dashboard from JSON config.
    Visual language matches the Fable prototype:
    frosted glass, hover lift, monospace data, severity-only color.
    Config shape is unchanged from the previous renderer.
@@ -106,7 +106,7 @@ const lbl = {
   color: "rgba(255,255,255,0.3)", marginBottom: 12, fontWeight: 600,
 };
 function fmt(v, suffix = "") {
-  if (v === null || v === undefined) return "—";
+  if (v === null || v === undefined) return "-";
   return `${v}${suffix}`;
 }
 function pick(obj, path) {
@@ -218,7 +218,7 @@ function ChartPie(rows, x, y) {
   );
 }
 function ChartKpi(rows, y, block) {
-  const v = rows.length ? rows[0][y] : "—";
+  const v = rows.length ? rows[0][y] : "-";
   return (
     <div style={{ fontSize: 34, fontWeight: 800, letterSpacing: "-0.03em", marginTop: 10,
       fontVariantNumeric: "tabular-nums" }}>{fmt(v, block.suffix || "")}</div>
@@ -326,7 +326,7 @@ const BLOCKS = {
                 <div style={{ marginTop: 9, fontSize: 10.5, fontWeight: 600,
                   color: blocked ? COLORS.critical : (isLast ? COLORS.low : "rgba(255,255,255,0.3)") }}>
                   {blocked
-                    ? `● ${a.critical} blocked — critical`
+                    ? `● ${a.critical} blocked · critical`
                     : (isLast ? `ready to ship` : `on pace`)}
                 </div>
               </div>
@@ -533,7 +533,7 @@ export default function DynamicDashboard({ company, config, views = [], activeVi
     });
   }, [company, config]);
 
-  // Insight layer — one batch call → a one-sentence insight per card.
+  // Insight layer: one batch call → a one-sentence insight per card.
   useEffect(() => {
     if (loading || !company || !config?.sections) return;
     const cards = buildCards(config, data);

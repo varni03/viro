@@ -17,7 +17,7 @@ export default function AIPanel({ company, onNewReport, activePage, onFilterChan
     const [messages, setMessages] = useState([
     {
       role: "assistant",
-      content: `Hi, I'm your AI assistant. Tell me to rebuild the dashboard — "focus on critical defects", "show resolution trends" — and the screen reshapes live. Or just ask a question and I'll answer here.`,
+      content: `Hi, I'm your AI assistant. Tell me to rebuild the dashboard (like "focus on critical defects" or "show resolution trends") and the screen reshapes live. Or just ask a question and I'll answer here.`,
       data: null,
     }
   ]);
@@ -48,7 +48,7 @@ export default function AIPanel({ company, onNewReport, activePage, onFilterChan
     }
   };
 
-  // Live dashboard reshape — rebuilds the Dashboard config from a request.
+  // Live dashboard reshape: rebuilds the Dashboard config from a request.
   // Returns true if it handled the message (a reshape), false to fall through.
   const tryReshape = async (question) => {
     // Generative (entity) companies reshape their AI-designed entity dashboard;
@@ -83,7 +83,7 @@ export default function AIPanel({ company, onNewReport, activePage, onFilterChan
     return false;
   };
 
-  // Questions handed over from the omnibar ("Ask Viro — …").
+  // Questions handed over from the omnibar ("Ask Viro: …").
   useEffect(() => {
     if (pendingAsk && pendingAsk.q) send(pendingAsk.q);
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -152,7 +152,7 @@ export default function AIPanel({ company, onNewReport, activePage, onFilterChan
           });
           setMessages(prev => [...prev, {
             role: "assistant",
-            content: `✅ ${commandRes.message} — refresh the page to see the change.`,
+            content: `✅ ${commandRes.message} (refresh the page to see the change)`,
             data: null,
             isCommand: true,
           }]);

@@ -91,7 +91,7 @@ export default function Automations({ company }) {
   return (
     <div>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
-        <PageHeader title="Automations" subtitle={`Designed for ${company.name} — the paperwork your departments write by hand, drafted from live data.`} />
+        <PageHeader title="Automations" subtitle={`Designed for ${company.name}: the paperwork your departments write by hand, drafted from live data.`} />
         <div style={{ display: "flex", gap: 8, marginTop: 4 }}>
           <button onClick={() => setAdding(a => !a)} style={{ background: "#fff", border: "none", borderRadius: 10, padding: "10px 16px", color: "#08090a", fontSize: 13, fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}>＋ Automate something</button>
           <button onClick={regenerate} disabled={regen} style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 10, padding: "10px 16px", color: COLORS.muted, fontSize: 13, cursor: regen ? "not-allowed" : "pointer", fontFamily: "inherit" }}>{regen ? "Redesigning…" : "✦ Redesign"}</button>
@@ -101,7 +101,7 @@ export default function Automations({ company }) {
       {adding && (
         <div style={{ ...card, padding: 18, marginBottom: 18 }}>
           <div style={{ fontSize: 14, fontWeight: 700, marginBottom: 6 }}>What do you write by hand?</div>
-          <div style={{ fontSize: 12.5, color: COLORS.muted, marginBottom: 14 }}>Describe it in a sentence — Viro turns it into an automation. e.g. "every friday i email our top customers a promo with this week's specials"</div>
+          <div style={{ fontSize: 12.5, color: COLORS.muted, marginBottom: 14 }}>Describe it in a sentence and Viro turns it into an automation. e.g. "every friday i email our top customers a promo with this week's specials"</div>
           <div style={{ display: "flex", gap: 10 }}>
             <input value={addText} onChange={e => setAddText(e.target.value)} onKeyDown={e => e.key === "Enter" && addAutomation()}
               placeholder="Describe the document or email…"
@@ -158,7 +158,7 @@ export default function Automations({ company }) {
       )}
 
       <div style={{ textAlign: "center", marginTop: 24, fontSize: 13, color: COLORS.muted }}>
-        Every draft is written from <span style={{ color: "#fff", fontWeight: 600 }}>{company.name}</span>'s live data — you stay in control of what sends.
+        Every draft is written from <span style={{ color: "#fff", fontWeight: 600 }}>{company.name}</span>'s live data. You stay in control of what sends.
       </div>
 
       {draft && (

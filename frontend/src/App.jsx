@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo, useRef, Fragment } from "react";
 
-// Cockpit clock — the mission-control heartbeat.
+// Cockpit clock: the mission-control heartbeat.
 function StripClock() {
   const [now, setNow] = useState(() => new Date());
   useEffect(() => { const t = setInterval(() => setNow(new Date()), 1000); return () => clearInterval(t); }, []);
@@ -167,7 +167,7 @@ export default function App() {
   useEffect(() => {
     const onKey = (e) => {
       if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") { e.preventDefault(); omnibarRef.current?.focus(); return; }
-      // ⌥-chords — skip while typing
+      // ⌥-chords: skip while typing
       const tag = (e.target?.tagName || "").toLowerCase();
       if (!e.altKey || e.metaKey || e.ctrlKey || tag === "input" || tag === "textarea" || tag === "select") return;
       if (e.code?.startsWith("Digit")) {
@@ -195,7 +195,7 @@ export default function App() {
   const navRef = useRef(nav); navRef.current = nav;
   const splitRef = useRef(toggleSplit); splitRef.current = toggleSplit;
 
-  // Resizable split — drag the divider, remembered across sessions.
+  // Resizable split: drag the divider, remembered across sessions.
   const [splitRatio, setSplitRatio] = useState(() => {
     const v = parseFloat(localStorage.getItem("viro_split") || "0.5");
     return isNaN(v) ? 0.5 : Math.min(0.75, Math.max(0.25, v));
@@ -540,7 +540,7 @@ export default function App() {
     }}>
       <AuroraBackground />
 
-      {/* Pulse toasts — Viro acting on its own, sliding in like mission control */}
+      {/* Pulse toasts: Viro acting on its own, sliding in like mission control */}
       {toasts.length > 0 && (
         <div style={{ position: "fixed", top: 18, right: 18, zIndex: 200, display: "flex", flexDirection: "column", gap: 10, width: 360, maxWidth: "calc(100vw - 36px)" }}>
           {toasts.map(t => (
@@ -565,7 +565,7 @@ export default function App() {
         </div>
       )}
 
-      {/* Sidebar is now a summonable drawer (☰) — the cockpit owns navigation */}
+      {/* Sidebar is now a summonable drawer (☰); the cockpit owns navigation */}
       {sidebarOpen && (
         <div
           onClick={() => setSidebarOpen(false)}
@@ -641,7 +641,7 @@ export default function App() {
           </div>
         )}
 
-        {/* Command strip — the cockpit's top rail */}
+        {/* Command strip: the cockpit's top rail */}
         {!isMobile && !isTablet && (
           <div style={{
             display: "flex", alignItems: "center", gap: 14, height: 52, padding: "0 16px",
@@ -734,7 +734,7 @@ export default function App() {
           </div>
         )}
 
-        {/* The stage — floating glass panes, split-capable, resizable */}
+        {/* The stage: floating glass panes, split-capable, resizable */}
         {!isMobile && !isTablet ? (
           <div ref={stageRef} className="vc-stage-bg" style={{ flex: 1, display: "flex", padding: "16px 16px 76px", overflow: "hidden" }}>
             {[["a", activePage], ...(paneB !== null ? [["b", paneB]] : [])].map(([paneId, page], idx) => (
@@ -784,10 +784,10 @@ export default function App() {
         )}
       </div>
 
-      {/* The dock — primary navigation */}
+      {/* The dock: primary navigation */}
       {!isMobile && !isTablet && (
         <Dock
-          items={dockItems.map((it, i) => (i < 9 ? { ...it, label: `${it.label} — ⌥${i + 1}` } : it))}
+          items={dockItems.map((it, i) => (i < 9 ? { ...it, label: `${it.label} · ⌥${i + 1}` } : it))}
           activePages={[activePage, ...(paneB !== null ? [paneB] : [])]}
           onSelect={nav}
           splitActive={paneB !== null}
@@ -797,7 +797,7 @@ export default function App() {
         />
       )}
 
-      {/* Copilot — a summonable drawer, not a permanent strip */}
+      {/* Copilot: a summonable drawer, not a permanent strip */}
       {(!isMobile && !isTablet) ? (
         copilotOpen && (
           <div style={{

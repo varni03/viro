@@ -1,7 +1,7 @@
 const MONO = "'JetBrains Mono', monospace";
 const GREEN = "#34d399";
 
-// The OS footer — quiet, mono, always-on context.
+// The OS footer: quiet, mono, always-on context.
 export default function StatusBar({ company, entities = [], pageLabel }) {
   const seg = { display: "flex", alignItems: "center", gap: 6 };
   const txt = { fontFamily: MONO, fontSize: 10, letterSpacing: "0.06em", color: "rgba(255,255,255,0.35)" };

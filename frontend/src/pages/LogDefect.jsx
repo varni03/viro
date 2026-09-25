@@ -52,7 +52,7 @@ export default function LogDefect({ company, stages }) {
       }
       setSuccess(`Logged for ${productId}`);
       setProductId(""); setDefectType(""); setSeverity("low"); setNotes(""); setPhoto(null); setPreview(null); setStage(""); setCustomValues({});
-    } catch { setError("Failed to log defect — check connection"); }
+    } catch { setError("Failed to log defect. Check your connection."); }
     setSubmitting(false);
   };
 
@@ -60,7 +60,7 @@ export default function LogDefect({ company, stages }) {
 
   return (
     <div>
-      <PageHeader title="Log Defect" subtitle="Snap a photo — Viro fills in the rest. Review and confirm." />
+      <PageHeader title="Log Defect" subtitle="Snap a photo and Viro fills in the rest. Review and confirm." />
 
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
         {/* Photo */}
@@ -89,7 +89,7 @@ export default function LogDefect({ company, stages }) {
           )}
           {aiFilled && (
             <div style={{ marginTop: 12, padding: "11px 16px", background: COLORS.low + "1c", border: `1px solid ${COLORS.low}40`, borderRadius: 11, fontSize: 13, color: COLORS.low, textAlign: "center" }}>
-              ✓ Filled the fields — review on the right
+              ✓ Filled the fields. Review on the right
             </div>
           )}
         </div>
@@ -107,7 +107,7 @@ export default function LogDefect({ company, stages }) {
             <div style={{ fontSize: 11.5, color: COLORS.muted, marginBottom: 6 }}>STAGE</div>
             <select value={stage} onChange={e => setStage(e.target.value)} style={{ ...input, color: stage ? "#fff" : "rgba(255,255,255,0.3)", cursor: "pointer" }}>
               <option value="">Select stage…</option>
-              {stages.map(s => <option key={s.stage_id} value={s.stage_number}>{s.stage_number} — {s.stage_name}</option>)}
+              {stages.map(s => <option key={s.stage_id} value={s.stage_number}>{s.stage_number} · {s.stage_name}</option>)}
             </select>
           </div>
 

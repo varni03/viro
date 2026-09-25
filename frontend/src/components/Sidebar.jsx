@@ -192,7 +192,7 @@ export default function Sidebar({
       </div>
 
 
-      {/* Company selector — admin only */}
+      {/* Company selector: admin only */}
       {user?.role === "admin" && !collapsed && (
         <div style={{ padding: "0 16px 16px" }}>
           <div style={{ fontSize: 10, color: COLORS.muted, letterSpacing: "0.08em", marginBottom: 6, paddingLeft: 4 }}>
@@ -369,7 +369,7 @@ export default function Sidebar({
         </div>
       </div>}
 
-      {/* ⌘K launcher (clickable — works even when the browser owns the shortcut) */}
+      {/* ⌘K launcher (clickable; works even when the browser owns the shortcut) */}
       <div onClick={() => onOpenPalette && onOpenPalette()} className="nav-item"
         title={collapsed ? "Jump anywhere (⌘K)" : undefined}
         style={{ margin: "0 12px 10px", padding: "7px 10px", display: "flex", alignItems: "center", justifyContent: collapsed ? "center" : "flex-start", gap: 7, cursor: "pointer" }}>

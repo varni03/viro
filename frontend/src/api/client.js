@@ -5,7 +5,7 @@ const API = axios.create({
   headers: { 'Content-Type': 'application/json' }
 });
 
-// AI endpoints require the login JWT — attach it to every request.
+// AI endpoints require the login JWT: attach it to every request.
 API.interceptors.request.use((config) => {
   const token = localStorage.getItem('viro_token');
   if (token && !config.headers.Authorization) {

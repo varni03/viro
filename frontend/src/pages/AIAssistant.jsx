@@ -15,7 +15,7 @@ export default function AIAssistant({ company }) {
   const [messages, setMessages] = useState([
     {
       role: "assistant",
-      content: "Hi — I'm Viro AI. Ask me anything about your quality data in plain English. I'll query your database and give you a direct answer.",
+      content: "Hi, I'm Viro AI. Ask me anything about your quality data in plain English. I'll query your database and give you a direct answer.",
       data: null,
     }
   ]);

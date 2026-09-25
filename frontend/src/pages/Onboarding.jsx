@@ -14,7 +14,7 @@ const ALL_MODULES = [
   { id: "settings", label: "Settings", icon: "⚙️" },
 ];
 
-const GREETING = "Hey — I'm Viro. Tell me what your company does and how it runs, in your own words. Don't worry about being precise — I'll figure it out.";
+const GREETING = "Hey, I'm Viro. Tell me what your company does and how it runs, in your own words. Don't worry about being precise, I'll figure it out.";
 
 const STYLE_ID = "viro-onboarding-styles";
 function useOnboardingStyles() {
@@ -122,7 +122,7 @@ export default function Onboarding({ onComplete }) {
       setOptions(Array.isArray(res.options) ? res.options : []);
       if (res.ready) setReady(true);
     } catch {
-      setMessages(m => [...m, { role: "assistant", content: "I couldn't reach my brain just now — try again in a moment." }]);
+      setMessages(m => [...m, { role: "assistant", content: "I couldn't reach my brain just now. Try again in a moment." }]);
     }
     setSending(false);
   };
@@ -216,9 +216,9 @@ export default function Onboarding({ onComplete }) {
         {/* ── CHAT ── */}
         {phase === "chat" && (
           <div className="ob-step">
-            <div className="ob-eyebrow">Step 01 — Onboarding</div>
+            <div className="ob-eyebrow">Step 01 · Onboarding</div>
             <h1 className="ob-h">Tell Viro about your operation.</h1>
-            <p className="ob-sub">No setup wizard, no forms. Just talk — in plain English, typos and all. Viro understands, asks what it needs, and builds the platform around your answers.</p>
+            <p className="ob-sub">No setup wizard, no forms. Just talk, in plain English, typos and all. Viro understands, asks what it needs, and builds the platform around your answers.</p>
 
             <div className="ob-conv">
               {/* chat */}
@@ -270,14 +270,14 @@ export default function Onboarding({ onComplete }) {
                           background: on ? GREEN : "transparent", color: "#08090a", border: on ? "none" : "1px solid rgba(255,255,255,0.2)", transition: "all .4s ease" }}>{on ? "✓" : ""}</div>
                         <div style={{ minWidth: 0 }}>
                           <div style={{ fontSize: 9.5, fontWeight: 700, letterSpacing: "0.1em", color: "rgba(255,255,255,0.4)", marginBottom: 3 }}>{f.k}</div>
-                          <div style={{ fontSize: 13, color: "rgba(255,255,255,0.85)", lineHeight: 1.4 }}>{val || "—"}</div>
+                          <div style={{ fontSize: 13, color: "rgba(255,255,255,0.85)", lineHeight: 1.4 }}>{val || "-"}</div>
                         </div>
                       </div>
                     );
                   })}
                 </div>
 
-                {!ready && <div style={{ fontSize: 12, color: "rgba(255,255,255,0.35)", marginTop: 16, lineHeight: 1.5 }}>Keep chatting — once Viro has enough, you'll generate your platform here.</div>}
+                {!ready && <div style={{ fontSize: 12, color: "rgba(255,255,255,0.35)", marginTop: 16, lineHeight: 1.5 }}>Keep chatting. Once Viro has enough, you'll generate your platform here.</div>}
 
                 {ready && (
                   <div style={{ marginTop: 16, paddingTop: 16, borderTop: "1px solid rgba(255,255,255,0.08)", animation: "ob-rise .4s ease both" }}>
@@ -304,7 +304,7 @@ export default function Onboarding({ onComplete }) {
               <svg width="31" height="31" viewBox="0 0 100 100" style={{ transform: "rotate(-45deg)" }}><polygon points="50,23 73.4,36.5 73.4,63.5 50,77 26.6,63.5 26.6,36.5" fill="#08090a" /></svg>
             </div>
             <h1 className="ob-h">Building your platform</h1>
-            <p className="ob-sub" style={{ margin: "10px auto 0" }}>Designing an operations system for <span className="ob-mono" style={{ color: "#fff", fontSize: 13.5 }}>{account.company_name || "your company"}</span> — not a template.</p>
+            <p className="ob-sub" style={{ margin: "10px auto 0" }}>Designing an operations system for <span className="ob-mono" style={{ color: "#fff", fontSize: 13.5 }}>{account.company_name || "your company"}</span>, not a template.</p>
             <div style={{ marginTop: 32, display: "flex", flexDirection: "column", gap: 5, textAlign: "left", maxWidth: 460, margin: "32px auto 0" }}>
               {genSteps.map((s, i) => {
                 const state = i < genActive ? "done" : i === genActive ? "doing" : "todo";
@@ -331,8 +331,8 @@ export default function Onboarding({ onComplete }) {
               <div className="ob-eyebrow" style={{ marginBottom: 14 }}>Your setup</div>
               {[
                 ["Company", account.company_name],
-                ["Industry", learn.industry || "—"],
-                ["Tracks", learn.universal_id || "—"],
+                ["Industry", learn.industry || "-"],
+                ["Tracks", learn.universal_id || "-"],
                 ["Workflow", `${(learn.stages || []).length} stages`],
                 ["Issue types", `${(learn.defect_types || []).length} configured`],
               ].map((row, i) => (
@@ -351,7 +351,7 @@ export default function Onboarding({ onComplete }) {
               </>
             ) : (
               <div style={{ marginTop: 20, fontSize: 13.5, color: "rgba(255,255,255,0.6)", maxWidth: 420, margin: "20px auto 0", lineHeight: 1.6 }}>
-                Your platform <span className="ob-mono" style={{ color: "#fff" }}>{createdId}</span> is built — but that email is already in use, so I couldn't sign you in. Refresh and <b>sign in</b> with a different account, or use a new email next time.
+                Your platform <span className="ob-mono" style={{ color: "#fff" }}>{createdId}</span> is built, but that email is already in use, so I couldn't sign you in. Refresh and <b>sign in</b> with a different account, or use a new email next time.
               </div>
             )}
           </div>

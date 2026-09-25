@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from "react";
 
 const MONO = "'JetBrains Mono', monospace";
 
-// Saved pane layouts — "Morning check", "Restock run" — restored in one click.
+// Saved pane layouts ("Morning check", "Restock run"), restored in one click.
 export default function WorkspacesMenu({ companyId, current, onApply, pageLabel }) {
   const key = `viro_ws_${companyId}`;
   const [open, setOpen] = useState(false);

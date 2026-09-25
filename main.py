@@ -19,7 +19,7 @@ app = FastAPI(title="Viro API")
 
 
 class VercelPathFix:
-    """Vercel's FastAPI preset can route requests as "/api/index/<path>" —
+    """Vercel's FastAPI preset can route requests as "/api/index/<path>";
     strip that so FastAPI sees the real route. ?__debug=1 echoes what arrived."""
 
     PREFIXES = ("/api/index.py", "/api/index")
@@ -68,9 +68,28 @@ db = ViroDB()
 client = anthropic.Anthropic()
 
 
+def strip_em_dashes(text: str) -> str:
+    """House style: no em dashes anywhere, including AI-written copy."""
+    return text.replace(" \u2014 ", ", ").replace("\u2014", "-")
+
+
+def _guard_em_dashes(create):
+    # Wraps messages.create so every Claude reply is cleaned in one place.
+    def wrapped(*args, **kwargs):
+        response = create(*args, **kwargs)
+        for block in response.content:
+            if getattr(block, "type", None) == "text":
+                block.text = strip_em_dashes(block.text)
+        return response
+    return wrapped
+
+
+client.messages.create = _guard_em_dashes(client.messages.create)
+
+
 @app.get("/")
 def health():
-    """Liveness check — also touches the DB so Supabase's free tier doesn't pause."""
+    """Liveness check: also touches the DB so Supabase's free tier doesn't pause."""
     db.query("SELECT 1 AS ok")
     return {"service": "viro-api", "status": "ok"}
 
@@ -78,7 +97,7 @@ def health():
 # richer output at higher cost. (claude-sonnet-4-20250514 retired 2026-06-15.)
 AI_MODEL = "claude-sonnet-4-6"
 # Higher-quality model for rare, high-value "design" calls (dashboard generation,
-# reshape, headline insights) — worth the cost where the output is the wow moment.
+# reshape, headline insights), worth the cost where the output is the wow moment.
 DESIGN_MODEL = "claude-opus-4-8"
 
 SECRET_KEY = os.getenv("JWT_SECRET", "viro-secret-key-change-in-production")
@@ -104,7 +123,7 @@ def _cache_put(key, value):
     _AI_CACHE[key] = (_time.time(), value)
 
 def require_auth(authorization: Optional[str] = Header(None)):
-    """Gate for AI/expensive endpoints — a valid login JWT is required.
+    """Gate for AI/expensive endpoints: a valid login JWT is required.
     The Railway URL ships in the public frontend bundle; without this,
     anyone could burn the Anthropic credit balance."""
     if not authorization or not authorization.startswith("Bearer "):
@@ -274,7 +293,7 @@ def get_analytics_summary(company_id: str):
     """, (company_id,))
     avg_hours = round(avg_time.iloc[0]["avg_hours"] or 0, 1)
 
-    # First pass yield — products with zero defects
+    # First pass yield: products with zero defects
     total_products = db.query(
         "SELECT COUNT(*) as count FROM products WHERE company_id = ?",
         (company_id,)
@@ -774,7 +793,7 @@ class DashboardInsightsRequest(BaseModel):
 @app.post("/dashboard/insights/{company_id}", dependencies=[Depends(require_auth)])
 def dashboard_insights(company_id: str, req: DashboardInsightsRequest):
     """One Claude call → a one-sentence insight per dashboard card.
-    Cached ~10 min per (company, card data) — identical dashboard views are free."""
+    Cached ~10 min per (company, card data): identical dashboard views are free."""
     cards = [
         {"key": c.key, "label": c.label, "type": c.type, "data": c.data}
         for c in req.cards
@@ -788,7 +807,7 @@ def dashboard_insights(company_id: str, req: DashboardInsightsRequest):
         name, industry = _company_identity(company_id)
         prompt = f"""You are the intelligence layer of Viro, an operations platform for {name} ({industry}).
 
-For each dashboard card below, write ONE sentence (max 18 words) naming the single most important thing the live numbers reveal — a decision, risk, or opportunity, never a description of what the card shows. Use the actual numbers. If a card has no data, write a short note saying so.
+For each dashboard card below, write ONE sentence (max 18 words) naming the single most important thing the live numbers reveal: a decision, risk, or opportunity, never a description of what the card shows. Use the actual numbers. If a card has no data, write a short note saying so.
 
 Cards (JSON):
 {cards_json}
@@ -828,7 +847,7 @@ def card_action(req: CardActionRequest):
                 VALUES (?, ?, ?, ?, ?)
             """, (str(uuid.uuid4()), req.company_id, "🔔 Alert set",
                   f"You'll be notified when '{req.label}' changes significantly.", "low"))
-            return {"answer": f"Done — I'll alert you when {req.label} changes significantly."}
+            return {"answer": f"Done. I'll alert you when {req.label} changes significantly."}
 
         summary_json = json.dumps(req.summary, default=str)
         ask = req.question or "Explain what this means and what to do about it."
@@ -860,7 +879,7 @@ class PageInsightRequest(BaseModel):
 @app.post("/ai/page-insight", dependencies=[Depends(require_auth)])
 def page_insight(req: PageInsightRequest):
     """One sentence answering the single most important question a page should answer.
-    Cached ~10 min per (company, page, data) — identical views are free."""
+    Cached ~10 min per (company, page, data): identical views are free."""
     key = _cache_key("page_insight", req.company_id, req.page, json.dumps(req.summary, default=str, sort_keys=True))
     cached = _cache_get(key, 600)
     if cached is not None:
@@ -871,7 +890,7 @@ def page_insight(req: PageInsightRequest):
 A manager just opened the "{req.page}" screen. Its live data (JSON):
 {json.dumps(req.summary, default=str)}
 
-Write ONE sentence (max ~22 words) that answers the single most important question this screen should answer right now — the decision, risk, or action it points to — using the actual numbers. If the data looks healthy, say so confidently. No preamble, no "based on the data". Just the answer."""
+Write ONE sentence (max ~22 words) that answers the single most important question this screen should answer right now (the decision, risk, or action it points to), using the actual numbers. If the data looks healthy, say so confidently. No preamble, no "based on the data". Just the answer."""
         response = client.messages.create(
             model=DESIGN_MODEL, max_tokens=220,
             messages=[{"role": "user", "content": prompt}],
@@ -887,16 +906,16 @@ Write ONE sentence (max ~22 words) that answers the single most important questi
 # ── App Blueprint: the AI designs each company's platform STRUCTURE ──
 import re as _re
 
-BLUEPRINT_DOC = """You are designing the STRUCTURE of a company's operations platform — not a dashboard, the app itself. Two different businesses must get visibly different platforms: their own color identity, their own vocabulary for surfaces, and the right working view for each kind of data.
+BLUEPRINT_DOC = """You are designing the STRUCTURE of a company's operations platform: not a dashboard, the app itself. Two different businesses must get visibly different platforms: their own color identity, their own vocabulary for surfaces, and the right working view for each kind of data.
 
 Return ONLY this JSON:
 {
-  "accent": "#hex — ONE distinctive brand accent fitting this industry. Rich and confident (teals, ambers, corals, greens, blues, roses). NEVER purple, never gray/white.",
+  "accent": "#hex: ONE distinctive brand accent fitting this industry. Rich and confident (teals, ambers, corals, greens, blues, roses). NEVER purple, never gray/white.",
   "surfaces": [
-    {"page": "Dashboard", "label": "<what THIS company would call its home — e.g. 'The Pass', 'RFQ Desk', 'Floor Control'>", "icon": "one emoji"},
+    {"page": "Dashboard", "label": "<what THIS company would call its home: e.g. 'The Pass', 'RFQ Desk', 'Floor Control'>", "icon": "one emoji"},
     {"page": "entity:<entity_id>", "label": "<their word for this surface>", "icon": "one emoji"},
     ... one per entity, ordered by daily importance ...
-    {"page": "Automations", "label": "<their word — e.g. 'Paperwork', 'Back Office'>", "icon": "one emoji"},
+    {"page": "Automations", "label": "<their word: e.g. 'Paperwork', 'Back Office'>", "icon": "one emoji"},
     {"page": "Settings", "label": "Settings", "icon": "⚙️"}
   ],
   "entity_views": {
@@ -910,7 +929,7 @@ Guidance: things that FLOW through statuses (orders, jobs, cases) → board. Thi
 _FALLBACK_ACCENTS = ["#2dd4bf", "#f0a83c", "#fb7185", "#34d399", "#60a5fa", "#f97316", "#facc15", "#22d3ee"]
 
 def _fallback_blueprint(company_id):
-    """Deterministic blueprint — used when AI is unavailable. Still per-company."""
+    """Deterministic blueprint: used when AI is unavailable. Still per-company."""
     name, _ = _company_identity(company_id)
     ents = db.query("SELECT * FROM entities WHERE company_id = ? ORDER BY sort_order", (company_id,))
     accent = _FALLBACK_ACCENTS[sum(ord(c) for c in (company_id or "x")) % len(_FALLBACK_ACCENTS)]
@@ -1001,10 +1020,10 @@ def regenerate_blueprint(company_id: str):
 # ── Daily briefing: the dashboard opens with your morning, written ──
 @app.get("/ai/briefing/{company_id}", dependencies=[Depends(require_auth)])
 def daily_briefing(company_id: str):
-    """2-3 sentences on the state of the operation — cached per company per day."""
+    """2-3 sentences on the state of the operation, cached per company per day."""
     day = datetime.now().strftime("%Y-%m-%d")
     key = _cache_key("briefing", company_id, day)
-    cached = _cache_get(key, 21600)  # 6h — at most a few AI calls per day
+    cached = _cache_get(key, 21600)  # 6h: at most a few AI calls per day
     if cached is not None:
         return cached
     try:
@@ -1015,7 +1034,7 @@ def daily_briefing(company_id: str):
             (company_id,)
         )
         recent_notes = [f"{r['title']}: {r['message']}" for _, r in notes.iterrows()]
-        prompt = f"""You are Viro, the operations intelligence for {name} ({industry}). Write today's morning briefing — exactly 2-3 sentences, no preamble, no greeting: (1) the state of the operation using the real numbers, (2) the single most important thing to handle today, (3) one thing to watch or an opportunity. Confident and specific.
+        prompt = f"""You are Viro, the operations intelligence for {name} ({industry}). Write today's morning briefing: exactly 2-3 sentences, no preamble, no greeting: (1) the state of the operation using the real numbers, (2) the single most important thing to handle today, (3) one thing to watch or an opportunity. Confident and specific.
 
 LIVE DATA (JSON):
 {json.dumps(ctx, default=str)}
@@ -1037,24 +1056,24 @@ RECENT ACTIVITY:
 # ── Role automations (draft the documents teams write by hand) ──
 DOC_SPECS = {
     "weekly_quality_report": ("Weekly Quality Report",
-        "Write this week's quality report: a one-line headline on overall health, then 4-5 scannable bullet findings (first-pass-yield trend, top issue types with counts, the worst station, critical/open counts), then 2 concrete recommended actions. Professional and concise — ready to send to leadership."),
+        "Write this week's quality report: a one-line headline on overall health, then 4-5 scannable bullet findings (first-pass-yield trend, top issue types with counts, the worst station, critical/open counts), then 2 concrete recommended actions. Professional and concise, ready to send to leadership."),
     "supplier_email": ("Supplier Escalation Email",
         "Draft a professional email to the supplier responsible for the most frequent or most critical recurring issue type in the data. Include a subject line. Reference the specific issue type and its counts, state the impact, and request corrective action by a reasonable date. Firm but courteous."),
     "shift_handover": ("Shift Handover Note",
         "Write an end-of-shift handover note for the incoming shift: what's blocked or critical right now, which stations/stages need attention, and the top 2-3 things the next shift should prioritize. Crisp and scannable."),
     "exec_summary": ("Executive Summary",
-        "Write a 4-sentence executive summary of operations health this week for leadership — the single most important thing, the trend, the biggest risk, and the recommended focus. No preamble."),
+        "Write a 4-sentence executive summary of operations health this week for leadership: the single most important thing, the trend, the biggest risk, and the recommended focus. No preamble."),
 }
 
 ENTITY_DOC_SPECS = {
     "weekly_quality_report": ("Weekly Operations Report",
-        "Write this week's operations summary from the entity data: where things stand (counts), what's low or needs attention, anything notable, and 2 concrete recommended actions. Concise — for the owner."),
+        "Write this week's operations summary from the entity data: where things stand (counts), what's low or needs attention, anything notable, and 2 concrete recommended actions. Concise, for the owner."),
     "supplier_email": ("Reorder Email",
         "Draft an email to reorder the items that are LOW (at or below their reorder level), using the low_stock data. Include a subject line, list each item with the quantity to order, and a courteous request. If nothing is low, write a brief 'all stocked' note instead."),
     "shift_handover": ("Daily Handover Note",
         "Write an end-of-day handover from the entity data: what's low or needs attention, what's pending, and what tomorrow should prioritize. Crisp and scannable."),
     "exec_summary": ("Operations Summary",
-        "Write a 4-sentence summary of the operation's health from the entity data — the single most important thing, a trend, the biggest risk, and the recommended focus. No preamble."),
+        "Write a 4-sentence summary of the operation's health from the entity data: the single most important thing, a trend, the biggest risk, and the recommended focus. No preamble."),
 }
 
 def _to_num(v):
@@ -1063,7 +1082,7 @@ def _to_num(v):
     except (TypeError, ValueError):
         return 0.0
 
-AUTOMATION_CATALOG_DOC = """You design a company's automation catalog — the documents and communications its departments write by hand today, which Viro will draft automatically from live data.
+AUTOMATION_CATALOG_DOC = """You design a company's automation catalog: the documents and communications its departments write by hand today, which Viro will draft automatically from live data.
 
 Given the company and the data it tracks, invent 6-10 automations across 3-5 departments, each SPECIFIC to this business (a smoothie shop: supplier reorder email, daily prep list, weekly sales recap; a clinic: appointment reminders, referral letters; a manufacturer: quality report, shift handover). Each automation:
 {"id":"snake_case_unique","department":"short department name","icon":"one emoji","title":"...","description":"one line on what it does, in this company's terms","instruction":"a precise instruction to the drafting AI: exactly what document to write, which parts of the data to use, the structure (sections/bullets/subject line if an email), and the tone"}
@@ -1084,7 +1103,7 @@ def _automation_context(company_id):
             low = [r for r in rows if qf and rf and _to_num(r.get(qf)) <= _to_num(r.get(rf))] if (qf and rf) else []
             ctx["entities"][e["name_plural"] or e["name"]] = {"count": len(rows), "low_stock": low[:10], "recent": rows[:10]}
         return ctx
-    # Legacy (no entities): gather what we can — one failed query shouldn't
+    # Legacy (no entities): gather what we can; one failed query shouldn't
     # blank the whole context.
     ctx = {}
     for key, fn in (("summary", get_analytics_summary),
@@ -1183,7 +1202,7 @@ def _draft_from_automation(company_id, auto):
     import uuid
     name, industry = _company_identity(company_id)
     ctx = _automation_context(company_id)
-    prompt = f"""You are an operations assistant at {name}, a {industry} company. Draft this document using ONLY the live data provided — invent no numbers. Today is {datetime.now().strftime("%B %d, %Y")}.
+    prompt = f"""You are an operations assistant at {name}, a {industry} company. Draft this document using ONLY the live data provided. Invent no numbers. Today is {datetime.now().strftime("%B %d, %Y")}.
 
 DOCUMENT: {auto.get("title")}
 {auto.get("instruction")}
@@ -1316,7 +1335,7 @@ def pulse(company_id: str):
                     doc = None
 
             title = f"✦ Viro drafted: {doc['title']}" if doc else "✦ Viro noticed something"
-            message = t["reason"] + (" — draft ready in Automations." if doc else "")
+            message = t["reason"] + (" (draft ready in Automations)" if doc else "")
             db.execute("""
                 INSERT INTO notifications (notification_id, company_id, title, message, severity)
                 VALUES (?, ?, ?, ?, ?)
@@ -1362,7 +1381,7 @@ def generate_automation(req: AutomationRequest):
                 "top_issues": get_top_defects(req.company_id),
                 "stage_performance": get_stage_performance(req.company_id),
             }
-        prompt = f"""You are an operations assistant at {name}, a {industry} company. Draft the following document using ONLY the live data provided — invent no numbers.
+        prompt = f"""You are an operations assistant at {name}, a {industry} company. Draft the following document using ONLY the live data provided. Invent no numbers.
 
 DOCUMENT: {title}
 {instruction}
@@ -1384,7 +1403,7 @@ Return only the finished document text (include a subject line if it's an email)
 
 
 # ── Live dashboard reshape (AI panel as control plane) ──────────
-RESHAPE_SOURCES_DOC = """AVAILABLE DATA SOURCES — use these exact endpoint paths as the values in "sources" ({cid} is a literal placeholder):
+RESHAPE_SOURCES_DOC = """AVAILABLE DATA SOURCES: use these exact endpoint paths as the values in "sources" ({cid} is a literal placeholder):
 - "/analytics/summary/{cid}" -> object: total_defects, resolved, unresolved, critical, avg_resolution_hours, first_pass_yield, total_products
 - "/defects/by-stage/{cid}" -> list: stage_number, total_defects, critical
 - "/analytics/top-defects/{cid}" -> list: defect_type, count, critical_count, high_count, open_count
@@ -1398,7 +1417,7 @@ RESHAPE_BLOCKS_DOC = """BLOCK TYPES:
 - ranked_bars: {"type":"ranked_bars","source":<key to a list source>,"label":str,"name":<field used as the row label>,"value":<numeric field>,"limit":int}
 - table: {"type":"table","source":<key to a list source>,"label":str,"limit":int,"columns":[{"field":<field>,"label":str,"type":"severity"(optional),"mono":true(optional)}]}
 - query: {"type":"query","label":str,"chart":"bar"|"line"|"pie"|"table"|"kpi","sql":<a PostgreSQL SELECT>,"x":<column for category/x-axis/label>,"y":<numeric column for value>,"suffix":""|"%"|"h"(optional)}
-  USE "query" FOR ANY QUESTION THE FIXED SOURCES ABOVE CANNOT ANSWER (e.g. "defects by day of week", "pie of defect types", "criticals over time"). It carries its own SQL — no "source" needed. The result columns must suit the chart: pie/bar need a label column (x) + a numeric column (y); line needs an ordered x (usually a date) + a numeric y; kpi needs one numeric y; table shows every column."""
+  USE "query" FOR ANY QUESTION THE FIXED SOURCES ABOVE CANNOT ANSWER (e.g. "defects by day of week", "pie of defect types", "criticals over time"). It carries its own SQL; no "source" needed. The result columns must suit the chart: pie/bar need a label column (x) + a numeric column (y); line needs an ordered x (usually a date) + a numeric y; kpi needs one numeric y; table shows every column."""
 
 RESHAPE_SCHEMA_DOC = """DATABASE SCHEMA (for "query" blocks; dialect = PostgreSQL):
 - products(product_id, company_id, entry_date, current_stage, status)
@@ -1431,7 +1450,7 @@ CURRENT CONFIG:
 
 RULES:
 - "sources" is an object mapping short keys (e.g. "summary","line") to endpoint paths from the list above. Every kpi/pipeline/ranked_bars/table block's "source" MUST be a key you defined in "sources". "query" blocks do NOT use "source".
-- For anything the fixed sources can't express (specific groupings, time series, pie breakdowns, ad-hoc filters), use a "query" block with its own SQL — prefer this over forcing a fixed source.
+- For anything the fixed sources can't express (specific groupings, time series, pie breakdowns, ad-hoc filters), use a "query" block with its own SQL; prefer this over forcing a fixed source.
 - Keep the existing "title" and "subtitle_template".
 - "sections" is a list of objects like {{"cols":"repeat(4, 1fr)" or "1.5fr 1fr","blocks":[...]}}.
 - Make it genuinely answer the manager's intent and look great.
@@ -2328,18 +2347,18 @@ class OnboardingConverseRequest(BaseModel):
 
 ONBOARDING_SYSTEM = """You are Viro's onboarding guide. Viro is an AI operations platform that builds a company a custom dashboard + role automations from a short, natural conversation.
 
-Have a warm, BRIEF conversation — ONE short question at a time — to learn how the user's operation runs, and continuously extract structured config. Understand messy input the way a sharp human would: typos, fragments, lowercase, shorthand, "idk", changing their mind. Never make them repeat themselves or fill a form. Keep it to ~5-6 exchanges, then finish.
+Have a warm, BRIEF conversation (ONE short question at a time) to learn how the user's operation runs, and continuously extract structured config. Understand messy input the way a sharp human would: typos, fragments, lowercase, shorthand, "idk", changing their mind. Never make them repeat themselves or fill a form. Keep it to ~5-6 exchanges, then finish.
 
 Learn (skip what you already know; infer when you reasonably can):
 1. What the company does / industry (and its name if mentioned)
-2. The ONE thing that moves through their workflow — their "universal id" (e.g. Vehicle/VIN, RFQ, Batch, Shipment, Order)
+2. The ONE thing that moves through their workflow: their "universal id" (e.g. Vehicle/VIN, RFQ, Batch, Shipment, Order)
 3. The stages it passes through
 4. The decisions/metrics that matter most each day
 5. The manual paperwork that eats their time (to automate)
 
 After EACH user message, return ONLY this JSON (no prose, no code fence):
 {
-  "reply": "<your next message — warm, concise, ONE question; or a confirmation once you're done>",
+  "reply": "<your next message: warm, concise, ONE question; or a confirmation once you're done>",
   "state": {
     "company_name": string|null,
     "industry": string|null,
@@ -2366,20 +2385,20 @@ After EACH user message, return ONLY this JSON (no prose, no code fence):
 }
 
 Rules:
-- Carry forward EVERYTHING already in the provided state; only add or refine — never blank a field you already learned.
-- **`entities` is the most important field.** Model the 2-6 things this business ACTUALLY tracks, each with 3-7 fields. Build the data model their operation truly needs — not a generic template. Examples: a café → Orders {item, qty, customer, status:select, total:currency}, Ingredients {name, on_hand:number, reorder_at:number, unit, supplier}, Suppliers {name, contact, lead_time_days:number}. A clinic → Patients, Appointments, Prescriptions. Use a `select` field with options for any status/stage; use `number` + a reorder `number` for anything inventory/supply-like; use `currency` for money. Pick a fitting emoji icon per entity.
+- Carry forward EVERYTHING already in the provided state; only add or refine; never blank a field you already learned.
+- **`entities` is the most important field.** Model the 2-6 things this business ACTUALLY tracks, each with 3-7 fields. Build the data model their operation truly needs, not a generic template. Examples: a café → Orders {item, qty, customer, status:select, total:currency}, Ingredients {name, on_hand:number, reorder_at:number, unit, supplier}, Suppliers {name, contact, lead_time_days:number}. A clinic → Patients, Appointments, Prescriptions. Use a `select` field with options for any status/stage; use `number` + a reorder `number` for anything inventory/supply-like; use `currency` for money. Pick a fitting emoji icon per entity.
 - Always include "dashboard","search","log_issue","settings" in modules; add others when relevant.
 - Infer sensible stages, terminology, and 4-6 defect_types from context even when the user is brief.
-- "options" are tappable shortcuts (suggested industries, "Yes, those stages", "Add a QC step", etc.) — 1-4 words each.
+- "options" are tappable shortcuts (suggested industries, "Yes, those stages", "Add a QC step", etc.), 1-4 words each.
 - Set "ready": true once you have at least an industry, a universal_id, and 2+ stages, and the user has nothing major to add. When ready, the reply should warmly confirm you have what you need.
 Return ONLY the JSON object."""
 
 @app.post("/onboarding/converse")
 def onboarding_converse(req: OnboardingConverseRequest):
     """Claude-driven onboarding: understands free-form input, extracts config live.
-    Public by necessity (users aren't logged in yet) — so bound the abuse surface."""
+    Public by necessity (users aren't logged in yet), so bound the abuse surface."""
     if len(req.messages) > 40 or any(len(str(m.get("content", ""))) > 2000 for m in req.messages):
-        return {"reply": "Let's keep it brief — could you sum that up in a sentence or two?",
+        return {"reply": "Let's keep it brief. Could you sum that up in a sentence or two?",
                 "state": req.state, "options": [], "ready": False}
     try:
         msgs = [{"role": m["role"], "content": m["content"]}
@@ -2389,7 +2408,7 @@ def onboarding_converse(req: OnboardingConverseRequest):
         if not msgs:
             msgs = [{"role": "user", "content": "(let's begin)"}]
 
-        system = ONBOARDING_SYSTEM + f"\n\nCURRENT EXTRACTED STATE (carry forward, refine — do not blank fields):\n{json.dumps(req.state)}"
+        system = ONBOARDING_SYSTEM + f"\n\nCURRENT EXTRACTED STATE (carry forward, refine; do not blank fields):\n{json.dumps(req.state)}"
         response = client.messages.create(
             model=AI_MODEL,
             max_tokens=3500,  # the state JSON (with entities + fields) is large; avoid truncation
@@ -2409,7 +2428,7 @@ def onboarding_converse(req: OnboardingConverseRequest):
             data["state"] = merged
         return data
     except Exception as e:
-        return {"reply": "Sorry — I glitched for a second. Could you say that another way?",
+        return {"reply": "Sorry, I glitched for a second. Could you say that another way?",
                 "state": req.state, "options": [], "ready": False, "error": str(e)}
 
 # ── Entities + Records (generative data model) ─────────────────
@@ -2516,16 +2535,16 @@ def delete_record(record_id: str):
     return {"message": "Record deleted"}
 
 # ── AI-designed dashboard over a company's own entities ─────────
-ENTITY_DASH_DOC = """You design a custom operations dashboard for a company, from the entities it tracks. The dashboard is JSON the app renders. Make it genuinely TAILORED to this business — a smoothie shop, a clinic, and a law firm should get visibly different dashboards. Lead with what the owner needs to know.
+ENTITY_DASH_DOC = """You design a custom operations dashboard for a company, from the entities it tracks. The dashboard is JSON the app renders. Make it genuinely TAILORED to this business: a smoothie shop, a clinic, and a law firm should get visibly different dashboards. Lead with what the owner needs to know.
 
-BLOCK TYPES (compute client-side over the entity's records — reference real entity ids + field keys):
+BLOCK TYPES (compute client-side over the entity's records; reference real entity ids + field keys):
 - metric: {"type":"metric","entity":"<entity_id>","agg":"count"|"sum"|"avg","field":"<numeric field key, omit for count>","filter":{"field":"<key>","equals":"<value>"} (optional),"label":"...","suffix":""|"%"|"" ,"accent":bool (hero metric),"danger":bool (red when >0)}
 - breakdown: {"type":"breakdown","entity":"<id>","group_by":"<select-or-text field key>","chart":"bar"|"donut","label":"..."}
 - trend: {"type":"trend","entity":"<id>","date_field":"<date field key>","label":"..."}   // counts per day
 - lowstock: {"type":"lowstock","entity":"<id>","qty_field":"<number key>","reorder_field":"<number key>","label":"..."}   // only if the entity has both
 - recent: {"type":"recent","entity":"<id>","label":"...","fields":["<up to 4 field keys>"],"limit":6}
 
-LAYOUT: "sections" is a list of {"cols": one of "repeat(4, 1fr)" | "repeat(3, 1fr)" | "1.5fr 1fr" | "1fr 1fr" | "1fr", "blocks":[...]}. Open with a row of 3-4 KPI metrics (the numbers that matter for THIS business — e.g. orders today, revenue, low-stock count), then a row mixing a breakdown/trend chart with a low-stock or recent list, then more as useful. 2-4 sections, ~8-12 blocks total.
+LAYOUT: "sections" is a list of {"cols": one of "repeat(4, 1fr)" | "repeat(3, 1fr)" | "1.5fr 1fr" | "1fr 1fr" | "1fr", "blocks":[...]}. Open with a row of 3-4 KPI metrics (the numbers that matter for THIS business: e.g. orders today, revenue, low-stock count), then a row mixing a breakdown/trend chart with a low-stock or recent list, then more as useful. 2-4 sections, ~8-12 blocks total.
 
 Return ONLY: {"title":"<short dashboard title>","sections":[...]}. No prose, no code fence."""
 
@@ -2602,7 +2621,7 @@ class EntityReshapeRequest(BaseModel):
 
 @app.post("/entities/dashboard/{company_id}/reshape", dependencies=[Depends(require_auth)])
 def reshape_entity_dashboard(company_id: str, req: EntityReshapeRequest):
-    """Conversational control of the entity dashboard — rebuild it from an instruction."""
+    """Conversational control of the entity dashboard: rebuild it from an instruction."""
     try:
         name, industry = _company_identity(company_id)
         current = req.current_config

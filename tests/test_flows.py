@@ -1,7 +1,7 @@
 """Zero-credit verification of Viro's full pipeline.
 
 The Anthropic client is replaced with a fake that returns canned,
-contract-shaped responses — so parsing, persistence, auth, caching,
+contract-shaped responses, so parsing, persistence, auth, caching,
 and the pulse engine are exercised end-to-end without spending a cent.
 
 Run:  source venv/bin/activate && python -m pytest tests/ -q
@@ -36,7 +36,7 @@ class _FakeMessages:
 
         if "onboarding guide" in prompt:
             return _Msg(json.dumps({
-                "reply": "Got it — a smoothie bar. What do you track?",
+                "reply": "Got it, a smoothie bar. What do you track?",
                 "state": {
                     "company_name": "TestCo", "industry": "Smoothie bar", "universal_id": "Order",
                     "terminology": {"term_product": "Order", "term_defect": "Issue",
@@ -285,7 +285,7 @@ def test_blueprint_contract_persistence_and_validation():
         assert labels[f"entity:{eid}"] == "Prep Line" and labels["Dashboard"] == "The Counter"
         assert bp["entity_views"][eid]["default_view"] == "cards"
         bp2 = tc.get(f"/blueprint/{cid}", headers=auth).json()["blueprint"]
-        assert bp2 == bp and calls["n"] == 1, "blueprint must persist — one design call ever"
+        assert bp2 == bp and calls["n"] == 1, "blueprint must persist: one design call ever"
     finally:
         main.client.messages.create = real
 

@@ -5,7 +5,7 @@ const API = "https://viro1.vercel.app";
 const MONO = "'JetBrains Mono', monospace";
 const RED = "#ff5a5a", GREEN = "#34d399";
 const PALETTE = ["var(--vx, #ffffff)", "#34d399", "#f0a83c", "#ff5a5a", "rgba(255,255,255,0.55)", "rgba(255,255,255,0.4)", "rgba(255,255,255,0.28)"];
-// Status colors for select-type fields — option order → consistent hue.
+// Status colors for select-type fields: option order → consistent hue.
 export const STATUS_HUES = ["#60a5fa", "#f0a83c", "#34d399", "#94a3b8", "#fb7185", "#22d3ee"];
 export function StatusPill({ value, options = [] }) {
   const i = Math.max(options.indexOf(value), 0);
@@ -13,7 +13,7 @@ export function StatusPill({ value, options = [] }) {
   return (
     <span style={{ fontFamily: MONO, fontSize: 9.5, fontWeight: 700, letterSpacing: "0.05em", textTransform: "uppercase",
       color: c, background: c + "1c", border: `1px solid ${c}44`, padding: "3px 8px", borderRadius: 6, whiteSpace: "nowrap" }}>
-      {String(value ?? "—")}
+      {String(value ?? "-")}
     </span>
   );
 }
@@ -33,7 +33,7 @@ function applyFilter(rows, f) {
 }
 function groupCounts(rows, key) {
   const m = {};
-  rows.forEach(r => { const k = r[key] ?? "—"; m[k] = (m[k] || 0) + 1; });
+  rows.forEach(r => { const k = r[key] ?? "-"; m[k] = (m[k] || 0) + 1; });
   return Object.entries(m).map(([label, value]) => ({ label: String(label), value })).sort((a, b) => b.value - a.value).slice(0, 8);
 }
 function recDate(r) {
@@ -68,7 +68,7 @@ function sparkSeries(rows, days = 14) {
 }
 
 /* ── tiny visuals ─────────────────────────────────────────────── */
-// Numbers that count to their value — the dashboard feels alive.
+// Numbers that count to their value: the dashboard feels alive.
 function Tick({ v, format }) {
   const [disp, setDisp] = useState(v);
   const prev = useRef(v);
@@ -89,7 +89,7 @@ function Tick({ v, format }) {
   return <>{format(disp)}</>;
 }
 
-// The morning briefing — Viro writes your day before you ask (1 AI call/day, cached).
+// The morning briefing: Viro writes your day before you ask (1 AI call/day, cached).
 function Briefing({ company, user, actions }) {
   const [text, setText] = useState("");
   const [loading, setLoading] = useState(true);
@@ -198,7 +198,7 @@ function Metric({ block, rows, prevRows = [], field, onDrill, range }) {
 function Breakdown({ block, rows, onDrill }) {
   const scoped = applyFilter(rows, block.filter);
   const data = groupCounts(scoped, block.group_by);
-  const drillSeg = (label) => onDrill(`${block.label} · ${label}`, scoped.filter(r => String(r[block.group_by] ?? "—") === label));
+  const drillSeg = (label) => onDrill(`${block.label} · ${label}`, scoped.filter(r => String(r[block.group_by] ?? "-") === label));
   if (block.chart === "donut") {
     const total = data.reduce((s, d) => s + d.value, 0);
     const R = 44, C = 2 * Math.PI * R;
@@ -313,7 +313,7 @@ function LowStock({ block, rows, entity, onDrill }) {
         <div style={{ color: GREEN, fontSize: 13, padding: "14px 0" }}>✓ Everything's stocked.</div>
       ) : low.slice(0, 8).map((r, i) => (
         <div key={i} onClick={() => onDrill(block.label, low)} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "9px 0", borderTop: i ? "1px solid rgba(255,255,255,0.05)" : "none", cursor: "pointer" }}>
-          <span style={{ fontSize: 13, fontWeight: 500 }}>{String(r[nameKey] ?? "—")}</span>
+          <span style={{ fontSize: 13, fontWeight: 500 }}>{String(r[nameKey] ?? "-")}</span>
           <span style={{ fontFamily: MONO, fontSize: 11.5, fontWeight: 700, color: RED }}>{r[block.qty_field]} / {r[block.reorder_field]}</span>
         </div>
       ))}
@@ -341,7 +341,7 @@ function Recent({ block, rows, entity, onDrill }) {
                       ? <StatusPill value={r[k]} options={f.options || []} />
                       : f?.type === "currency" && r[k] !== undefined && r[k] !== ""
                         ? "$" + num(r[k]).toLocaleString()
-                        : String(r[k] ?? "—")}
+                        : String(r[k] ?? "-")}
                   </td>
                 );
               })}
@@ -403,7 +403,7 @@ function BoardView({ entities, recsFor, onDrill, onMove }) {
                     onClick={() => onDrill(`${e.name_plural} · ${col}`, colRows)}
                     className="viro-btn"
                     style={{ background: "rgba(255,255,255,0.045)", border: "1px solid rgba(255,255,255,0.09)", borderRadius: 10, padding: "10px 12px", marginBottom: 6, cursor: "grab" }}>
-                    <div style={{ fontSize: 12.5, fontWeight: 600, marginBottom: moneyKey ? 4 : 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{String(r[nameKey] ?? "—")}</div>
+                    <div style={{ fontSize: 12.5, fontWeight: 600, marginBottom: moneyKey ? 4 : 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{String(r[nameKey] ?? "-")}</div>
                     {moneyKey && <div style={{ fontFamily: MONO, fontSize: 11, color: "rgba(255,255,255,0.5)" }}>${num(r[moneyKey]).toLocaleString()}</div>}
                   </div>
                 ))}
@@ -470,7 +470,7 @@ function DataView({ entities, recsFor, onDrill }) {
                     <td key={f.key} style={{ padding: "10px 15px", color: ci === 0 ? "#fff" : "rgba(255,255,255,0.72)", fontWeight: ci === 0 ? 600 : 400, fontFamily: (f.type === "number" || f.type === "currency") ? MONO : "inherit" }}>
                       {f.type === "select"
                         ? <StatusPill value={r[f.key]} options={f.options || []} />
-                        : f.type === "currency" && r[f.key] !== undefined && r[f.key] !== "" ? "$" + num(r[f.key]).toLocaleString() : String(r[f.key] ?? "—")}
+                        : f.type === "currency" && r[f.key] !== undefined && r[f.key] !== "" ? "$" + num(r[f.key]).toLocaleString() : String(r[f.key] ?? "-")}
                     </td>
                   ))}
                 </tr>
@@ -526,7 +526,7 @@ export default function GenerativeDashboard({ company, entities, onNavigate, non
 
   useEffect(() => { ensureVgStyles(); }, []);
 
-  // Live data — loads immediately, then silently refreshes every 60s.
+  // Live data: loads immediately, then silently refreshes every 60s.
   useEffect(() => {
     let alive = true;
     const load = () => Promise.all(entities.map(e =>
@@ -623,7 +623,7 @@ export default function GenerativeDashboard({ company, entities, onNavigate, non
     );
   };
 
-  // Contextual quick actions — the obvious next moves, one tap away.
+  // Contextual quick actions: the obvious next moves, one tap away.
   const lowTotal = entities.reduce((sum, e) => {
     const fs = e.fields || [];
     const qf = fs.find(f => f.type === "number" && /on_hand|stock|qty|quantity|inventory|count/i.test(f.key));
@@ -679,7 +679,7 @@ export default function GenerativeDashboard({ company, entities, onNavigate, non
               {lowTotal > 0 && (
                 <button onClick={() => onNavigate("Automations")} className="vg-pill-btn" style={{
                   background: RED + "1a", border: `1px solid ${RED}44`, color: RED, fontWeight: 700, textAlign: "left" }}>
-                  ✦ Draft reorder — {lowTotal} low
+                  ✦ Draft reorder · {lowTotal} low
                 </button>
               )}
               {entities.slice(0, lowTotal > 0 ? 3 : 4).map(e => (
@@ -728,7 +728,7 @@ export default function GenerativeDashboard({ company, entities, onNavigate, non
                       <div key={f.key} style={{ display: "flex", justifyContent: "space-between", gap: 12, padding: "3px 0" }}>
                         <span style={{ fontFamily: MONO, fontSize: 9.5, letterSpacing: "0.08em", textTransform: "uppercase", color: "rgba(255,255,255,0.35)", paddingTop: 2 }}>{f.label}</span>
                         <span style={{ fontSize: 13, color: "#fff", textAlign: "right", fontFamily: (f.type === "number" || f.type === "currency") ? MONO : "inherit" }}>
-                          {f.type === "currency" && r[f.key] !== undefined && r[f.key] !== "" ? "$" + num(r[f.key]).toLocaleString() : String(r[f.key] ?? "—")}
+                          {f.type === "currency" && r[f.key] !== undefined && r[f.key] !== "" ? "$" + num(r[f.key]).toLocaleString() : String(r[f.key] ?? "-")}
                         </span>
                       </div>
                     ))}

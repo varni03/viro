@@ -53,14 +53,14 @@ export default function EntitiesDashboard({ company, entities, onNavigate }) {
                 {low > 0 && <span style={{ fontFamily: MONO, fontSize: 10, fontWeight: 700, color: RED, background: RED + "1f", border: `1px solid ${RED}40`, padding: "3px 9px", borderRadius: 6 }}>{low} LOW</span>}
               </div>
               <div style={{ display: "flex", alignItems: "baseline", gap: 8, marginBottom: 12 }}>
-                <span style={{ fontFamily: MONO, fontSize: 32, fontWeight: 700, fontVariantNumeric: "tabular-nums" }}>{d.count ?? "—"}</span>
+                <span style={{ fontFamily: MONO, fontSize: 32, fontWeight: 700, fontVariantNumeric: "tabular-nums" }}>{d.count ?? "-"}</span>
                 <span style={{ fontSize: 12, color: COLORS.muted }}>{(e.name_plural || "records").toLowerCase()}</span>
               </div>
               {d.recent && d.recent.length > 0 && (
                 <div style={{ display: "flex", flexDirection: "column", gap: 4, marginBottom: 12 }}>
                   {d.recent.map((r, i) => (
                     <div key={i} style={{ fontSize: 12, color: "rgba(255,255,255,0.55)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                      <span style={{ color: "rgba(255,255,255,0.3)" }}>·</span> {String(r[d.firstField] ?? "—")}
+                      <span style={{ color: "rgba(255,255,255,0.3)" }}>·</span> {String(r[d.firstField] ?? "-")}
                     </div>
                   ))}
                 </div>

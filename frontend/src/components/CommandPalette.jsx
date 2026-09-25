@@ -17,7 +17,7 @@ function ensureStyles() {
   document.head.appendChild(el);
 }
 
-// The app-wide jump bar. Pages, entities, and records — one keystroke away.
+// The app-wide jump bar. Pages, entities, and records: one keystroke away.
 export default function CommandPalette({ open, onClose, company, entities = [], pages = [], onNavigate }) {
   const [q, setQ] = useState("");
   const [sel, setSel] = useState(0);
@@ -27,7 +27,7 @@ export default function CommandPalette({ open, onClose, company, entities = [], 
 
   useEffect(() => { ensureStyles(); }, []);
 
-  // Load records for search when the palette opens (free — no AI).
+  // Load records for search when the palette opens (free, no AI).
   useEffect(() => {
     if (!open || !company || entities.length === 0) return;
     let alive = true;
@@ -36,7 +36,7 @@ export default function CommandPalette({ open, onClose, company, entities = [], 
         .then(r => r.json())
         .then(rows => (Array.isArray(rows) ? rows : []).map(r => {
           const key = (e.fields || [{}])[0]?.key;
-          return { kind: "record", icon: e.icon || "▦", label: String(r[key] ?? "—"),
+          return { kind: "record", icon: e.icon || "▦", label: String(r[key] ?? "-"),
                    sub: e.name, page: `entity:${e.entity_id}` };
         }))
         .catch(() => [])

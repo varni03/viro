@@ -1,6 +1,6 @@
 // Builds a company's default dashboard from ITS OWN stages + terminology.
 // This is what keeps Viro generic: every company gets a dashboard derived
-// from their workflow — the vehicle-upfitter demo is just one instance, not the default.
+// from their workflow; the vehicle-upfitter demo is just one instance, not the default.
 
 const plural = (w) => {
   if (!w) return "items";

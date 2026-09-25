@@ -3,7 +3,7 @@ import { COLORS } from "../components/Layout";
 const MONO = "'JetBrains Mono', monospace";
 
 // Per-role generation: a floor worker on an iPad doesn't get the manager's
-// dashboard — they get a few giant, glove-friendly tap targets.
+// dashboard; they get a few giant, glove-friendly tap targets.
 export default function WorkerHome({ user, company, stats, onNavigate, entities = [] }) {
   const term = company?.universal_id_field || "item";
   const open = stats?.unresolved || 0;
@@ -12,7 +12,7 @@ export default function WorkerHome({ user, company, stats, onNavigate, entities 
   const tiles = hasEntities
     ? entities.map((e, i) => ({ label: e.name_plural || e.name, hint: "Tap to add or view", icon: e.icon || "▦", page: `entity:${e.entity_id}`, primary: i === 0 }))
     : [
-      { label: "Log a Defect", hint: "Snap a photo — Viro fills the rest", icon: "📸", page: "Log Defect", primary: true },
+      { label: "Log a Defect", hint: "Snap a photo, Viro fills the rest", icon: "📸", page: "Log Defect", primary: true },
       { label: "My Queue", hint: `${open} open on the floor`, icon: "🔧", page: "Repair Queue" },
       { label: `Find a ${term}`, hint: "Look up status & history", icon: "🔍", page: "Vehicle Search" },
     ];
@@ -62,7 +62,7 @@ export default function WorkerHome({ user, company, stats, onNavigate, entities 
       </div>
 
       <div style={{ textAlign: "center", marginTop: 26, fontSize: 12.5, color: "rgba(255,255,255,0.35)" }}>
-        Built for the floor — big targets, no menus. Tap and go.
+        Built for the floor: big targets, no menus. Tap and go.
       </div>
     </div>
   );

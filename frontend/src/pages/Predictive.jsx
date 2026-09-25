@@ -29,7 +29,7 @@ export default function Predictive({ company }) {
       );
       setRecommendations(prev => ({ ...prev, [p.product_id]: res.data.answer }));
     } catch {
-      setRecommendations(prev => ({ ...prev, [p.product_id]: "Couldn't reach the AI service — try again." }));
+      setRecommendations(prev => ({ ...prev, [p.product_id]: "Couldn't reach the AI service. Try again." }));
     }
     setLoadingRec(prev => ({ ...prev, [p.product_id]: false }));
   };
@@ -43,7 +43,7 @@ export default function Predictive({ company }) {
 
   return (
     <div>
-      <PageHeader title="Predictive Risk" subtitle="What's likely to go wrong — before it does." />
+      <PageHeader title="Predictive Risk" subtitle="What's likely to go wrong, before it does." />
 
       <InsightBanner companyId={company.company_id} page="Predictive Risk"
         summary={{ at_risk_count: atRisk.length, critical_stages: criticalStages, highest_risk: highestRisk, top_at_risk: atRisk.slice(0, 4).map(p => ({ id: p.product_id, risk: p.risk_score, unresolved: p.unresolved_defects, types: p.defect_types })) }} />
@@ -52,7 +52,7 @@ export default function Predictive({ company }) {
         {[
           { label: "At Risk", value: atRisk.length, color: atRisk.length ? COLORS.high : COLORS.low },
           { label: "Critical Stages", value: criticalStages, color: criticalStages ? COLORS.critical : COLORS.low, hot: criticalStages > 0 },
-          { label: "Highest Risk", value: highestRisk ? `${highestRisk}/10` : "—", color: highestRisk >= 8 ? COLORS.critical : highestRisk >= 6 ? COLORS.high : "#fff" },
+          { label: "Highest Risk", value: highestRisk ? `${highestRisk}/10` : "-", color: highestRisk >= 8 ? COLORS.critical : highestRisk >= 6 ? COLORS.high : "#fff" },
         ].map((m, i) => (
           <div key={i} style={{ ...card, padding: "16px 18px", borderColor: m.hot ? COLORS.critical + "44" : "rgba(255,255,255,0.08)" }}>
             <div style={{ fontFamily: MONO, fontSize: 9.5, letterSpacing: "0.1em", textTransform: "uppercase", color: COLORS.muted, marginBottom: 9 }}>{m.label}</div>
@@ -63,7 +63,7 @@ export default function Predictive({ company }) {
 
       <SectionLabel>Risk Feed</SectionLabel>
       {atRisk.length === 0 ? (
-        <div style={{ ...card, color: COLORS.low, fontSize: 14, textAlign: "center", padding: 28 }}>✓ Nothing flagged — every product is on track.</div>
+        <div style={{ ...card, color: COLORS.low, fontSize: 14, textAlign: "center", padding: 28 }}>✓ Nothing flagged. Every product is on track.</div>
       ) : atRisk.map((p, i) => {
         const rc = p.risk_score >= 8 ? COLORS.critical : p.risk_score >= 6 ? COLORS.high : COLORS.medium;
         return (

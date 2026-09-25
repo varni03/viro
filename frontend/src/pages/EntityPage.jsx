@@ -9,7 +9,7 @@ const card = { background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255
 const inputStyle = { width: "100%", background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 10, padding: "11px 14px", color: "#fff", fontSize: 14, outline: "none", boxSizing: "border-box", fontFamily: "inherit" };
 
 const fmtVal = (f, v) => {
-  if (v === undefined || v === null || v === "") return "—";
+  if (v === undefined || v === null || v === "") return "-";
   if (f.type === "currency") return "$" + Number(v).toLocaleString();
   if (f.type === "boolean") return v ? "Yes" : "No";
   return String(v);
@@ -106,7 +106,7 @@ export default function EntityPage({ company, entity, viewCfg, surfaceLabel }) {
         {boardField && <ViewPill id="board" label="Board" />}
       </div>
 
-      {/* CARDS — things you look at */}
+      {/* CARDS: things you look at */}
       {view === "cards" && records !== null && (
         records.length === 0 ? (
           <div style={{ ...card, padding: "48px 20px", textAlign: "center", color: COLORS.muted }}>No {(entity.name_plural || "records").toLowerCase()} yet.</div>
@@ -118,7 +118,7 @@ export default function EntityPage({ company, entity, viewCfg, surfaceLabel }) {
                 <div key={r.record_id || i} onClick={() => openEdit(r)} className="viro-btn"
                   style={{ ...card, padding: 18, cursor: "pointer", borderColor: low ? RED + "55" : "rgba(255,255,255,0.08)", animation: `fadeIn .4s cubic-bezier(.16,1,.3,1) both`, animationDelay: `${Math.min(i, 12) * 35}ms` }}>
                   <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 8, marginBottom: 10 }}>
-                    <div style={{ fontSize: 15, fontWeight: 700, letterSpacing: "-0.01em", lineHeight: 1.3 }}>{String(r[titleKey] ?? "—")}</div>
+                    <div style={{ fontSize: 15, fontWeight: 700, letterSpacing: "-0.01em", lineHeight: 1.3 }}>{String(r[titleKey] ?? "-")}</div>
                     {low && <span style={{ width: 8, height: 8, borderRadius: "50%", background: RED, boxShadow: `0 0 7px ${RED}`, flexShrink: 0, marginTop: 4 }} />}
                   </div>
                   {cardKeys.map(k => (
@@ -134,7 +134,7 @@ export default function EntityPage({ company, entity, viewCfg, surfaceLabel }) {
         )
       )}
 
-      {/* BOARD — things that flow */}
+      {/* BOARD: things that flow */}
       {view === "board" && boardField && records !== null && (
         <div style={{ display: "grid", gridTemplateColumns: `repeat(${(boardField.options || []).length}, 1fr)`, gap: 12 }}>
           {(boardField.options || []).map((col, colIdx) => {
@@ -165,7 +165,7 @@ export default function EntityPage({ company, entity, viewCfg, surfaceLabel }) {
                       className="viro-btn"
                       style={{ background: "rgba(255,255,255,0.045)", border: "1px solid rgba(255,255,255,0.09)", borderLeft: `2px solid ${hue}66`, borderRadius: 10, padding: "10px 12px", marginBottom: 6, cursor: "grab" }}>
                       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 8 }}>
-                        <div style={{ fontSize: 12.5, fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{String(r[titleKey] ?? "—")}</div>
+                        <div style={{ fontSize: 12.5, fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{String(r[titleKey] ?? "-")}</div>
                         {subKey && <div style={{ fontFamily: MONO, fontSize: 11, color: "rgba(255,255,255,0.55)", flexShrink: 0 }}>{fmtCell(subKey, r[subKey])}</div>}
                       </div>
                       {cardKeys[0] && cardKeys[0] !== subKey && <div style={{ fontSize: 10.5, color: "rgba(255,255,255,0.4)", marginTop: 4 }}>{fmtCell(cardKeys[0], r[cardKeys[0]])}</div>}
@@ -242,7 +242,7 @@ export default function EntityPage({ company, entity, viewCfg, surfaceLabel }) {
                   </select>
                 ) : f.type === "boolean" ? (
                   <select value={form[f.key] === undefined ? "" : (form[f.key] ? "yes" : "no")} onChange={e => setForm(s => ({ ...s, [f.key]: e.target.value === "yes" }))} style={{ ...inputStyle, cursor: "pointer" }}>
-                    <option value="">—</option><option value="yes">Yes</option><option value="no">No</option>
+                    <option value="">-</option><option value="yes">Yes</option><option value="no">No</option>
                   </select>
                 ) : (
                   <input type={f.type === "number" || f.type === "currency" ? "number" : f.type === "date" ? "date" : "text"}

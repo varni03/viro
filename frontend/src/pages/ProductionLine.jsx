@@ -132,7 +132,7 @@ export default function ProductionLine({ company, user, defaultView }) {
             })}
           </div>
           {sortedDefects.length === 0 ? (
-            <div style={{ ...card, textAlign: "center", padding: "44px 0", color: COLORS.low, fontSize: 15 }}>✓ No open defects — the line is clear.</div>
+            <div style={{ ...card, textAlign: "center", padding: "44px 0", color: COLORS.low, fontSize: 15 }}>✓ No open defects. The line is clear.</div>
           ) : sortedDefects.map((d, i) => {
             const sc = severityColor(d.severity);
             return (
@@ -146,7 +146,7 @@ export default function ProductionLine({ company, user, defaultView }) {
                   <div style={{ minWidth: 0 }}>
                     <div style={{ fontSize: 14.5, fontWeight: 700, textTransform: "capitalize", marginBottom: 3 }}>{d.defect_type.replace(/_/g, " ")}</div>
                     <div style={{ fontSize: 12, color: COLORS.muted }}>
-                      <span style={{ fontFamily: MONO }}>{d.product_id}</span> · Stage {d.stage_number} — {stageMap[d.stage_number] || "—"}
+                      <span style={{ fontFamily: MONO }}>{d.product_id}</span> · Stage {d.stage_number} · {stageMap[d.stage_number] || "-"}
                     </div>
                     {d.notes && <div style={{ fontSize: 11.5, color: "rgba(255,255,255,0.4)", fontStyle: "italic", marginTop: 3 }}>"{d.notes}"</div>}
                   </div>
@@ -212,7 +212,7 @@ export default function ProductionLine({ company, user, defaultView }) {
                 <div>
                   <div style={{ fontFamily: MONO, fontSize: 20, fontWeight: 700, marginBottom: 8 }}>{selectedVehicle.product_id}</div>
                   <div style={{ display: "flex", gap: 7, flexWrap: "wrap" }}>
-                    <Chip color="#e4e4e7">Stage {selectedVehicle.current_stage} — {stageMap[selectedVehicle.current_stage]}</Chip>
+                    <Chip color="#e4e4e7">Stage {selectedVehicle.current_stage} · {stageMap[selectedVehicle.current_stage]}</Chip>
                     <Chip color={statusColor(selectedVehicle.status)}>{selectedVehicle.status?.replace("_", " ")}</Chip>
                     <Chip color={selectedVehicle.open_defects > 0 ? COLORS.high : COLORS.low}>{selectedVehicle.open_defects} open</Chip>
                   </div>
@@ -235,7 +235,7 @@ export default function ProductionLine({ company, user, defaultView }) {
               </div>
               <div style={{ ...eyebrow, marginBottom: 12 }}>Open Defects</div>
               {vehicleDefects.length === 0 ? (
-                <div style={{ background: COLORS.low + "15", border: `1px solid ${COLORS.low}33`, borderRadius: 10, padding: 16, color: COLORS.low, textAlign: "center", fontSize: 14 }}>✓ No open defects — clear to advance</div>
+                <div style={{ background: COLORS.low + "15", border: `1px solid ${COLORS.low}33`, borderRadius: 10, padding: 16, color: COLORS.low, textAlign: "center", fontSize: 14 }}>✓ No open defects, clear to advance</div>
               ) : vehicleDefects.map((d, i) => {
                 const sc = severityColor(d.severity);
                 return (
@@ -273,14 +273,14 @@ export default function ProductionLine({ company, user, defaultView }) {
                 {vehicles.map((v, i) => (
                   <tr key={i} style={{ borderBottom: "1px solid rgba(255,255,255,0.05)" }}>
                     <td style={{ padding: "12px 16px", fontFamily: MONO, fontWeight: 600 }}>{v.product_id}</td>
-                    <td style={{ padding: "12px 16px", color: COLORS.muted }}>{v.current_stage} — {stageMap[v.current_stage]}</td>
+                    <td style={{ padding: "12px 16px", color: COLORS.muted }}>{v.current_stage} · {stageMap[v.current_stage]}</td>
                     <td style={{ padding: "12px 16px" }}><Chip color={statusColor(v.status)}>{v.status?.replace("_", " ")}</Chip></td>
                     <td style={{ padding: "12px 16px", fontFamily: MONO, fontWeight: 700, color: v.open_defects > 0 ? COLORS.high : COLORS.low }}>{v.open_defects}</td>
                     <td style={{ padding: "12px 16px", fontFamily: MONO, fontWeight: 700, color: v.critical_open > 0 ? COLORS.critical : COLORS.muted }}>{v.critical_open}</td>
                     <td style={{ padding: "12px 16px" }}>
                       <select value={v.current_stage} onChange={e => handleStageUpdate(v, parseInt(e.target.value))}
                         style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 7, padding: "5px 9px", color: "#fff", fontSize: 12, cursor: "pointer", outline: "none" }}>
-                        {stages.map(s => <option key={s} value={s}>{s} — {stageMap[s]}</option>)}
+                        {stages.map(s => <option key={s} value={s}>{s} · {stageMap[s]}</option>)}
                       </select>
                     </td>
                   </tr>

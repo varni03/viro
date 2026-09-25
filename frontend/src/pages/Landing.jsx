@@ -159,15 +159,15 @@ function CountUp({ end, decimals = 0, suffix = "", dur = 1200 }) {
 
 /* ── Prototype data ───────────────────────────────────────── */
 const SCRIPT = [
-  { role: "viro", text: "Hi — I'm Viro. In a sentence or two, what does your company do?" },
-  { role: "you", text: "We're Meridian Vans. We upfit custom commercial vans — shelving, liftgates, electrical." },
+  { role: "viro", text: "Hi, I'm Viro. In a sentence or two, what does your company do?" },
+  { role: "you", text: "We're Meridian Vans. We upfit custom commercial vans: shelving, liftgates, electrical." },
   { role: "viro", text: "Got it. How does a vehicle move through the plant?" },
-  { role: "you", text: "Four stations — Entry, the upfit line, Quality Inspection, then Approved to Ship. Every van has a VIN." },
+  { role: "you", text: "Four stations: Entry, the upfit line, Quality Inspection, then Approved to Ship. Every van has a VIN." },
   { role: "viro", text: "And what do you need to know every morning?" },
   { role: "you", text: "What's blocking vehicles from shipping. First pass yield, and which station is throwing defects." },
-  { role: "viro", text: "Last thing — what paperwork eats your team's time?" },
+  { role: "viro", text: "Last thing: what paperwork eats your team's time?" },
   { role: "you", text: "Invoices when a van ships, the weekly quality report, and chasing suppliers by email." },
-  { role: "viro", text: "Perfect. I have what I need — building your platform now." },
+  { role: "viro", text: "Perfect. I have what I need. Building your platform now." },
 ];
 const LEARN = [
   { k: "INDUSTRY", v: "Commercial van upfitting" },
@@ -177,11 +177,11 @@ const LEARN = [
   { k: "MANUAL WORK TO AUTOMATE", v: "Invoices · weekly quality reports · supplier emails" },
 ];
 const GEN_STEPS = [
-  "Reading your workflow — 4 stages, VIN-keyed",
-  "Selecting metrics — first pass yield, station defect rates",
-  "Composing dashboard layout — pipeline-first",
+  "Reading your workflow: 4 stages, VIN-keyed",
+  "Selecting metrics: first pass yield, station defect rates",
+  "Composing dashboard layout: pipeline-first",
   "Wiring real-time alerts for critical defects",
-  "Drafting role automations — finance, quality, procurement",
+  "Drafting role automations: finance, quality, procurement",
 ];
 
 function Stat({ label, value, sub, subColor, valueColor, accent, delay = 0 }) {
@@ -223,8 +223,8 @@ function Conversation({ onGenerate }) {
   const done = shown >= SCRIPT.length;
   return (
     <div className="vl-screen">
-      <ScreenHead step="Step 01 — Onboarding" title="Tell Viro about your operation.">
-        No setup wizard. No configuration forms. A five-minute conversation — and Viro builds the platform around your answers.
+      <ScreenHead step="Step 01 · Onboarding" title="Tell Viro about your operation.">
+        No setup wizard. No configuration forms. A five-minute conversation, and Viro builds the platform around your answers.
       </ScreenHead>
       <div className="vl-conv">
         <div className="vl-card" style={{ display: "flex", flexDirection: "column", height: 440 }}>
@@ -303,7 +303,7 @@ function Generation({ onDone }) {
           <span style={{ transform: "rotate(-45deg)" }}>⬡</span>
         </div>
         <h2 className="vl-h2">Building your platform</h2>
-        <p style={{ fontSize: 15.5, color: "rgba(255,255,255,0.5)", marginTop: 12 }}>Designing an operations system for <span className="vl-mono" style={{ color: "#fff", fontSize: 13.5 }}>Meridian Vans</span> — not a template.</p>
+        <p style={{ fontSize: 15.5, color: "rgba(255,255,255,0.5)", marginTop: 12 }}>Designing an operations system for <span className="vl-mono" style={{ color: "#fff", fontSize: 13.5 }}>Meridian Vans</span>, not a template.</p>
         <div style={{ marginTop: 34, display: "flex", flexDirection: "column", gap: 5, textAlign: "left" }}>
           {GEN_STEPS.map((s, i) => {
             const state = i < active ? "done" : i === active ? "doing" : "todo";
@@ -330,9 +330,9 @@ function Generation({ onDone }) {
 /* ── Screen 3: Meridian Vans ───────────────────────────────── */
 function VanDash() {
   const stages = [
-    { n: "110", name: "Entry — In The Door", c: 12, note: "2 aging > 24h", noteColor: AMBER },
+    { n: "110", name: "Entry: In The Door", c: 12, note: "2 aging > 24h", noteColor: AMBER },
     { n: "310", name: "Upfit Line", c: 15, note: "on pace", noteColor: "rgba(255,255,255,0.4)" },
-    { n: "510", name: "Quality Inspection", c: 14, note: "● 3 blocked — critical", noteColor: RED, hot: true },
+    { n: "510", name: "Quality Inspection", c: 14, note: "● 3 blocked · critical", noteColor: RED, hot: true },
     { n: "710", name: "Approved to Ship", c: 9, note: "6 ship today", noteColor: GREEN },
   ];
   const bars = [{ l: "710 · Approved to Ship", v: 61, hot: true }, { l: "310 · Upfit Line", v: 47 }, { l: "110 · Entry", v: 43 }];
@@ -340,7 +340,7 @@ function VanDash() {
   const maxBar = Math.max(...bars.map(b => b.v));
   return (
     <div className="vl-screen">
-      <ScreenHead step="Step 03 — Generated for a vehicle manufacturer" title="Meridian Vans' platform.">
+      <ScreenHead step="Step 03 · Generated for a vehicle manufacturer" title="Meridian Vans' platform.">
         Pipeline-first. VIN-keyed. Built around the question the plant manager asks every morning: <span style={{ fontStyle: "italic", color: "rgba(255,255,255,0.7)" }}>what's blocking vehicles from shipping?</span>
       </ScreenHead>
       <div className="vl-app" style={{ marginTop: 22 }}>
@@ -417,8 +417,8 @@ function MarineDash() {
   const path = pts.map((p, i) => `${i ? "L" : "M"}${(i / (pts.length - 1)) * w},${h - ((p - min) / (max - min)) * h}`).join(" ");
   return (
     <div className="vl-screen">
-      <ScreenHead step="Step 04 — Generated for a marine procurement firm" title="Tidewater Marine's platform.">
-        No production line here. RFQ-first, supplier-centric — because Tidewater told Viro their day revolves around <span style={{ fontStyle: "italic", color: "rgba(255,255,255,0.7)" }}>quote turnaround and supplier reliability.</span>
+      <ScreenHead step="Step 04 · Generated for a marine procurement firm" title="Tidewater Marine's platform.">
+        No production line here. RFQ-first, supplier-centric, because Tidewater told Viro their day revolves around <span style={{ fontStyle: "italic", color: "rgba(255,255,255,0.7)" }}>quote turnaround and supplier reliability.</span>
       </ScreenHead>
       <div className="vl-app" style={{ marginTop: 22 }}>
         <div className="vl-side">
@@ -486,14 +486,14 @@ const AUTO_GROUPS = [
   { icon: "📝", title: "Floor Operations", meta: "Shift handoff, written from the day's events", ready: 1, items: [
     { t: "Shift handover · Day → Evening", d: "14 defects logged · Upfit Line slowdown 1:40pm · 3 blocked at QC flagged", a: "Post" } ] },
   { icon: "📦", title: "Procurement", meta: "Drafted from recurring defect patterns", ready: 2, items: [
-    { t: "Email · Apex Liftgate Co — defect pattern escalation", d: "5 liftgate malfunctions in 30 days, batch #AL-2241 referenced", a: "Send" },
-    { t: "Email · paint supplier — finish quality query", d: "Paint defects up 40% week-over-week at stage 310", a: "Send" } ] },
+    { t: "Email · Apex Liftgate Co: defect pattern escalation", d: "5 liftgate malfunctions in 30 days, batch #AL-2241 referenced", a: "Send" },
+    { t: "Email · paint supplier: finish quality query", d: "Paint defects up 40% week-over-week at stage 310", a: "Send" } ] },
 ];
 function Automations() {
   return (
     <div className="vl-screen">
-      <ScreenHead step="Step 05 — One assistant per role" title="Every department's paperwork, already done.">
-        Viro holds the operational data — so the documents people write from it by hand can write themselves. Review, approve, send.
+      <ScreenHead step="Step 05 · One assistant per role" title="Every department's paperwork, already done.">
+        Viro holds the operational data, so the documents people write from it by hand can write themselves. Review, approve, send.
       </ScreenHead>
       <div className="vl-autos">
         {AUTO_GROUPS.map((g, gi) => (
@@ -516,7 +516,7 @@ function Automations() {
         ))}
       </div>
       <div style={{ textAlign: "center", marginTop: 24, fontSize: 13.5, color: "rgba(255,255,255,0.45)" }}>
-        This week, Viro drafted <span style={{ color: "#fff", fontWeight: 700 }}>23 documents</span> — giving Meridian Vans back roughly <span style={{ color: "#fff", fontWeight: 700 }}>11 hours</span> of manual work.
+        This week, Viro drafted <span style={{ color: "#fff", fontWeight: 700 }}>23 documents</span>, giving Meridian Vans back roughly <span style={{ color: "#fff", fontWeight: 700 }}>11 hours</span> of manual work.
       </div>
     </div>
   );
@@ -587,8 +587,8 @@ function Prototype() {
 
 /* ── Page ─────────────────────────────────────────────────── */
 const STEPS = [
-  { n: "01", t: "Describe", d: "Tell Viro who works there and what you track. No setup forms, no template to pick — just how your operation actually runs." },
-  { n: "02", t: "Generate", d: "Viro builds the platform — the right dashboards, the right metrics, your own vocabulary — per company and per role." },
+  { n: "01", t: "Describe", d: "Tell Viro who works there and what you track. No setup forms, no template to pick. Just how your operation actually runs." },
+  { n: "02", t: "Generate", d: "Viro builds the platform: the right dashboards, the right metrics, your own vocabulary, per company and per role." },
   { n: "03", t: "Operate", d: "Every screen answers a question. Ask in plain English and the dashboard reshapes. The paperwork drafts itself." },
 ];
 
@@ -636,7 +636,7 @@ export default function Landing({ onSignIn, onGetStarted }) {
               </span>
               <h1 className="vl-hero-h1">Describe your operation.<br />Watch it build.</h1>
               <p style={{ fontSize: 18, lineHeight: 1.6, color: "rgba(255,255,255,0.6)", maxWidth: 470, margin: "22px 0 30px" }}>
-                Viro turns a sentence about how your company runs into a custom platform —
+                Viro turns a sentence about how your company runs into a custom platform:
                 live dashboards, the answers your team needs, and the documents every
                 department writes by hand, drafted for them.
               </p>
@@ -677,7 +677,7 @@ export default function Landing({ onSignIn, onGetStarted }) {
                   </div>
                   <div className="vl-card" style={{ padding: "11px 13px", marginTop: 8, fontSize: 11, color: "rgba(255,255,255,0.62)", display: "flex", gap: 7 }}>
                     <span style={{ color: "rgba(255,255,255,0.4)" }}>✦</span>
-                    <span>3 vans blocked at QC — all lift faults from batch AL-2241. Clearing them ships $240K this week.</span>
+                    <span>3 vans blocked at QC, all lift faults from batch AL-2241. Clearing them ships $240K this week.</span>
                   </div>
                 </div>
               </div>
@@ -693,7 +693,7 @@ export default function Landing({ onSignIn, onGetStarted }) {
             <div className="vl-section-label">The product · interactive</div>
             <h2 className="vl-h2" style={{ marginTop: 12 }}>Click through the real thing.</h2>
             <p style={{ fontSize: 16, color: "rgba(255,255,255,0.5)", maxWidth: 560, margin: "12px auto 0" }}>
-              Not a video. Walk the five steps — describe an operation, watch Viro generate it,
+              Not a video. Walk the five steps: describe an operation, watch Viro generate it,
               and see two completely different companies running on the same engine.
             </p>
           </div>
