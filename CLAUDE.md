@@ -33,7 +33,7 @@ Goal: demo to the manager end of June; paying customer by end of July.
   `postgresql://postgres.vfukukknebzkbhjbglde:<PASSWORD>@aws-1-us-east-2.pooler.supabase.com:5432/postgres`
 - Backend is serverless — no disk, no background threads; each request may hit a fresh instance.
 - Entry: root `index.py` imports `main.app`. The preset routes requests as `/api/index/<path>`; `VercelPathFix` middleware in main.py strips it — don't remove. `GET /` is the health check (also touches DB so Supabase free tier doesn't pause).
-- `.vercelignore` keeps frontend/venv/tests out of the backend bundle; `requirements.txt` is backend-only (legacy Streamlit app is `legacy_streamlit_app.py`).
+- `.vercelignore` applies to BOTH Vercel projects — never list `frontend` in it (breaks the frontend build); it keeps venv/tests/data out; `requirements.txt` is backend-only (legacy Streamlit app is `legacy_streamlit_app.py`).
 
 ## Production data / credentials
 
