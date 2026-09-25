@@ -13,10 +13,17 @@ Two core differentiators:
 1. **Role automations** — Viro drafts the documents every department writes by hand
    (invoices, weekly quality reports, supplier emails, shift handovers).
 
-Founder: Varnika Jain.
-Customer zero: **Meridian Vans** (commercial van upfitter, Plant 1).
-Customer two (target): **Tidewater Marine** (marine procurement, Hong Kong — RFQ workflow).
-Goal: demo to the manager end of June; paying customer by end of July.
+Author: Varnika Jain. **Portfolio project** — the repo is public, so every company,
+person and dataset in it is fictional. Never add real customer names, employers,
+people, or credentials.
+
+Demo companies (fictional):
+- **Meridian Vans** — commercial van upfitter; VIN-keyed production pipeline (`MV-VIN-*`).
+- **Tidewater Marine** — marine procurement; RFQ-first workflow.
+
+**Direction (Sept 2026):** grow from a single-plant dashboard into a parallel workspace
++ ETL layer for every domain a company runs (production, procurement, finance, ...),
+each domain generated from the same config system and fed by connectors.
 
 ## Stack & deployment
 
@@ -37,8 +44,8 @@ Goal: demo to the manager end of June; paying customer by end of July.
 
 ## Production data / credentials
 
-- Company: Meridian Vans, `company_id = 2F01E0D1`
-- Login: `manager@meridianvans.com` / `password123` (Dana Reyes, role=manager)
+- Demo company: Meridian Vans, `company_id = 2F01E0D1`
+- Login: `manager@meridianvans.com` / `password123` (Dana Reyes, role=manager) — demo only
 - Seeded: 4 stages (110 Entry, 310 Upfit Line, 510 Quality Inspection, 710 Approved to Ship),
   50 products `MV-VIN-0001..0050`, 189 defects (55 resolved).
 - Old company IDs F4A1E648 / FAC50A65 / 9FDA7C8E are dead (pre-Postgres resets).
@@ -53,8 +60,7 @@ cd ~/viro/frontend && npm run dev   # localhost:5173
 ```
 
 NOTE: frontend points at the PROD backend URL `https://viro1.vercel.app` everywhere (hardcoded in each file).
-Office WiFi may block the Anthropic API intermittently — AI features and prod
-seeding must be tested on personal WiFi.
+Some networks block the Anthropic API — if AI features fail locally, try another network.
 
 ## File map
 
@@ -71,7 +77,6 @@ seeding must be tested on personal WiFi.
     components/Sidebar.jsx     # dynamic modules, notifications bell
     components/AIPanel.jsx     # right-side AI: commands → filters → Q&A
     pages/DynamicDashboard.jsx # ★ config-driven renderer (generative UI core)
-    pages/meridianConfig.js# hardcoded config feeding the renderer (temp)
     pages/{Dashboard,Analytics,ProductionLine,Predictive,LogDefect,VehicleSearch,Settings,Onboarding}.jsx
     hooks/useBreakpoint.js
 ```
@@ -84,8 +89,8 @@ seeding must be tested on personal WiFi.
   (plus `bar_chart`/`line_chart` in earlier version).
 - Configs persist in `dashboard_config` table; endpoints:
   `GET/POST /dashboard-config/{company_id}`.
-- Currently Dashboard renders `MERIDIAN_CONFIG` hardcoded import (App.jsx) —
-  next step is loading from the endpoint, then AI-generating it from onboarding answers.
+- Configs are loaded from the endpoint / AI-generated from onboarding answers
+  (`defaultConfig.js` is the fallback).
 - Editing later = AI panel mutating the same config (extends existing `/ai/command`).
 
 ## Design system — STRICT
@@ -99,7 +104,7 @@ seeding must be tested on personal WiFi.
 - Primary buttons: white bg, near-black text. Muted text `rgba(255,255,255,0.5)`.
 - Transitions: `cubic-bezier(0.16,1,0.3,1)`.
 - The Fable prototype (`viro-generative-prototype.html`, 5 screens: conversation →
-  generation → Meridian Vans dash → Tidewater dash → automations) is the visual north star
+  generation → Meridian Vans dash → Tidewater Marine dash → automations) is the visual north star
   AND the future marketing/landing page.
 
 ## Known bugs / debt (fix order)
@@ -111,9 +116,7 @@ seeding must be tested on personal WiFi.
 1. Purple gradients remain on: Search, Log Defect submit, Add Stage, Sign In, AIPanel send.
 1. FPY = 0% — every seeded vehicle has ≥1 defect. Seed ~12 clean vehicles.
 1. Delete temp `/debug/by-stage/{company_id}` endpoint in main.py.
-1. AI features untested in prod (panel Q&A, /ai/command, analytics generator) — needs
-   non-office WiFi.
-1. Seed script died at MV-VIN-0044 on one run (WiFi) — verify all 50 products exist.
+1. AI features untested in prod (panel Q&A, /ai/command, analytics generator).
 
 ## Postgres gotchas (learned the hard way)
 
@@ -136,28 +139,27 @@ seeding must be tested on personal WiFi.
    click-any-card → “Explain / Change / Alert me”. Needs API access.
 1. Conversational onboarding → `/onboarding/generate` → Claude outputs dashboard
    config JSON → renderer shows it (the full generative loop).
-1. Tidewater second-company config to prove differentiation.
+1. Tidewater Marine second-company config to prove differentiation.
 1. Role automations (invoices from ship events, weekly quality report, supplier emails).
-1. Later: Snowflake connector for real Meridian data (access granted, the manager walkthrough
-   pending); Stripe billing only when a customer is ready to pay.
+1. Connectors / ETL (CSV, Excel, Snowflake, ...) feeding per-domain workspaces.
 
 ## Working conventions
 
 - Commit style: `git add . && git commit -m "..." && git push` (push = deploy).
-- User is a student founder; explain decisions briefly, give exact commands,
+- User is a student; explain decisions briefly, give exact commands,
   one step at a time, ask for terminal output when debugging.
 - Prefer diffs over full-file rewrites unless the file is broken.
 - Never reintroduce purple. Never store data on server disk. Always check route order.
 
 ## Product design thesis — the soul of Viro (do not lose this)
 
-What separates “a dashboard” from something the manager opens every morning because it
-makes him better at his job. This is the north star for every in-product screen.
+What separates “a dashboard” from something a plant manager opens every morning because
+it makes them better at their job. This is the north star for every in-product screen.
 
 1. **Every screen answers a question, it doesn’t display data.**
-   Power BI shows charts; Viro shows answers. the manager’s morning question is “what’s
-   blocking shipping” — so the top of his screen is a sentence, not a chart:
-   “3 vehicles blocked at QC — all lift malfunctions, all from batch AL-2241.
+   Power BI shows charts; Viro shows answers. The manager’s morning question is “what’s
+   blocking shipping” — so the top of their screen is a sentence, not a chart:
+   “3 vehicles blocked at QC — all liftgate faults, all from batch AL-2241.
    Resolving these ships $240K this week.” The data below it is the proof.
    Implementation: each config block gets an optional AI-generated `insight` string,
    one sentence written by Claude from the live numbers, refreshed when data changes.
@@ -168,7 +170,7 @@ makes him better at his job. This is the north star for every in-product screen.
    resolution time” actually rebuilds the screen live. That live reshape is the demo
    moment that makes people gasp.
 1. **Generation is per-role, not just per-company.**
-   Floor worker on an iPad → two giant buttons (Log Defect, My Queue). the manager → the
+   Floor worker on an iPad → two giant buttons (Log Defect, My Queue). Manager → the
    overview. CFO → cost-of-quality. The onboarding conversation (“who works here?”)
    generates different layouts per role from the same config system. This makes
    “operating system for operations” literal.
@@ -187,7 +189,7 @@ makes him better at his job. This is the north star for every in-product screen.
   wear gloves; minimize taps.
 
 **Highest-leverage build after the renderer:** insight annotations + click-any-card-to-ask.
-Needs the Claude API (home/hotspot WiFi). ~1 day of work; transforms the feel from
+Needs the Claude API. ~1 day of work; transforms the feel from
 “dashboard” to “intelligence.”
 
 **Build order (agreed):** finish dashboard polish → landing page from Fable prototype →

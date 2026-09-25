@@ -162,7 +162,7 @@ const SCRIPT = [
   { role: "viro", text: "Hi — I'm Viro. In a sentence or two, what does your company do?" },
   { role: "you", text: "We're Meridian Vans. We upfit custom commercial vans — shelving, liftgates, electrical." },
   { role: "viro", text: "Got it. How does a vehicle move through the plant?" },
-  { role: "you", text: "Four stations — Entry, the Upfit line, Quality Inspection, then Approved to Ship. Every van has a VIN." },
+  { role: "you", text: "Four stations — Entry, the upfit line, Quality Inspection, then Approved to Ship. Every van has a VIN." },
   { role: "viro", text: "And what do you need to know every morning?" },
   { role: "you", text: "What's blocking vehicles from shipping. First pass yield, and which station is throwing defects." },
   { role: "viro", text: "Last thing — what paperwork eats your team's time?" },
@@ -340,8 +340,8 @@ function VanDash() {
   const maxBar = Math.max(...bars.map(b => b.v));
   return (
     <div className="vl-screen">
-      <ScreenHead step="Step 03 — Generated for a vehicle manufacturer" title="Meridian Vans's platform.">
-        Pipeline-first. VIN-keyed. Built around the question the manager asks every morning: <span style={{ fontStyle: "italic", color: "rgba(255,255,255,0.7)" }}>what's blocking vehicles from shipping?</span>
+      <ScreenHead step="Step 03 — Generated for a vehicle manufacturer" title="Meridian Vans' platform.">
+        Pipeline-first. VIN-keyed. Built around the question the plant manager asks every morning: <span style={{ fontStyle: "italic", color: "rgba(255,255,255,0.7)" }}>what's blocking vehicles from shipping?</span>
       </ScreenHead>
       <div className="vl-app" style={{ marginTop: 22 }}>
         <div className="vl-side">
@@ -353,7 +353,7 @@ function VanDash() {
         </div>
         <div style={{ padding: 20 }}>
           <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: 16 }}>
-            <div><div style={{ fontSize: 18, fontWeight: 800, letterSpacing: "-0.02em" }}>Production Overview</div><div style={{ fontSize: 11.5, color: "rgba(255,255,255,0.4)" }}>Plant 1 plant · Today, June 11</div></div>
+            <div><div style={{ fontSize: 18, fontWeight: 800, letterSpacing: "-0.02em" }}>Production Overview</div><div style={{ fontSize: 11.5, color: "rgba(255,255,255,0.4)" }}>Plant 1 · Today, June 11</div></div>
             <span className="vl-chip" style={{ fontSize: 11 }}><span style={{ width: 6, height: 6, borderRadius: "50%", background: GREEN }} /> LIVE · SNOWFLAKE</span>
           </div>
           <div style={{ fontSize: 9.5, letterSpacing: "0.1em", color: "rgba(255,255,255,0.3)", marginBottom: 9 }}>VEHICLE PIPELINE · VIN FLOW</div>
@@ -480,13 +480,13 @@ const AUTO_GROUPS = [
     { t: "Invoice · MV-VIN-0006 → Northgate Fleet Sales", d: "Generated from work order, options list & ship date", a: "Send" },
     { t: "Invoice · MV-VIN-0008 → Summit Commercial OH", d: "Generated 4 min ago", a: "Send" },
     { t: "Invoice · MV-VIN-0013 → Lone Star Fleet TX", d: "Generated 11 min ago", a: "Send" } ] },
-  { icon: "📋", title: "Quality", meta: "the manager's Monday morning, pre-written", ready: 2, items: [
+  { icon: "📋", title: "Quality", meta: "The plant manager's Monday morning, pre-written", ready: 2, items: [
     { t: "Weekly Quality Report · Jun 5 – 11", d: "FPY 71.4% (↑3.2) · top issue: dents at 710 · 21 critical open", a: "Approve" },
     { t: "Quality certificates · 6 vehicles shipping today", d: "All inspection records attached automatically", a: "Approve" } ] },
   { icon: "📝", title: "Floor Operations", meta: "Shift handoff, written from the day's events", ready: 1, items: [
     { t: "Shift handover · Day → Evening", d: "14 defects logged · Upfit Line slowdown 1:40pm · 3 blocked at QC flagged", a: "Post" } ] },
   { icon: "📦", title: "Procurement", meta: "Drafted from recurring defect patterns", ready: 2, items: [
-    { t: "Email · Apex Liftgate Co — defect pattern escalation", d: "5 lift malfunctions in 30 days, batch #AL-2241 referenced", a: "Send" },
+    { t: "Email · Apex Liftgate Co — defect pattern escalation", d: "5 liftgate malfunctions in 30 days, batch #AL-2241 referenced", a: "Send" },
     { t: "Email · paint supplier — finish quality query", d: "Paint defects up 40% week-over-week at stage 310", a: "Send" } ] },
 ];
 function Automations() {
@@ -760,7 +760,7 @@ export default function Landing({ onSignIn, onGetStarted }) {
             <h2 className="vl-h2" style={{ marginTop: 12 }}>The paperwork writes itself.</h2>
             <p style={{ fontSize: 16, color: "rgba(255,255,255,0.55)", maxWidth: 560, margin: "12px auto 26px" }}>
               Viro knows your live data, so it drafts the documents every department spends hours on.
-              You review and send. Last week at Meridian Vans:
+              You review and send. Last week at Meridian Vans (demo data):
             </p>
             <div style={{ display: "flex", gap: 40, justifyContent: "center", flexWrap: "wrap", marginBottom: 26 }}>
               <div><div style={{ fontSize: 40, fontWeight: 700 }}><CountUp end={23} /></div><div style={{ fontSize: 12.5, color: "rgba(255,255,255,0.45)" }}>documents drafted</div></div>
